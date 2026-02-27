@@ -509,6 +509,7 @@ export default function App() {
           {(phase === 'platforms' || phase === 'workers') && deployedPlatforms.length > 0 && (
             <PlatformsCanvas
               platforms={deployedPlatforms}
+              sessionId={sessionId}
               onChat={p => { setActivePlatformChat(p); setPlatformChatHistory([]); }}
               onProposeWorkers={handleProposeWorkers}
               proposing={proposingWorkers}
@@ -893,7 +894,7 @@ function BuildingPanel({ progress, platforms }) {
 }
 
 // ── Platforms Canvas ──────────────────────────────────────────────────────────
-function PlatformsCanvas({ platforms, onChat, onProposeWorkers, proposing, showWorkers, realClientActive }) {
+function PlatformsCanvas({ platforms, sessionId, onChat, onProposeWorkers, proposing, showWorkers, realClientActive }) {
   const [highlighted, setHighlighted] = useState(null);
   const [expandedFrame, setExpandedFrame] = useState(null);
 
@@ -915,6 +916,7 @@ function PlatformsCanvas({ platforms, onChat, onProposeWorkers, proposing, showW
           <PlatformCard
             key={p.id}
             platform={p}
+            sessionId={sessionId}
             highlighted={highlighted === p.id}
             expanded={expandedFrame === p.id}
             onHighlight={() => setHighlighted(highlighted === p.id ? null : p.id)}
@@ -927,9 +929,12 @@ function PlatformsCanvas({ platforms, onChat, onProposeWorkers, proposing, showW
   );
 }
 
-function PlatformCard({ platform, highlighted, expanded, onHighlight, onExpand, onChat }) {
+function PlatformCard({ platform, sessionId, highlighted, expanded, onHighlight, onExpand, onChat }) {
   const color = PLATFORM_COLORS[platform.id] || T.blue;
   const frameHeight = expanded ? 600 : 300;
+  const proxyUrl = sessionId && platform.url
+    ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/`
+    : null;
 
   return (
     <div style={{
@@ -963,7 +968,7 @@ function PlatformCard({ platform, highlighted, expanded, onHighlight, onExpand, 
       {platform.url ? (
         <div style={{ background: '#f8f8f8', position: 'relative', overflow: 'hidden', height: frameHeight }}>
           <iframe
-            src={platform.url}
+            src={proxyUrl || platform.url}
             style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
             title={platform.name}
             sandbox="allow-scripts allow-same-origin allow-forms"
