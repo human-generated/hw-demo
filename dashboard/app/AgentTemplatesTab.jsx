@@ -139,14 +139,14 @@ const AGENT_TYPES = [
     id: 'real-world',
     icon: '🌐',
     title: 'Real World Interactor',
-    description: 'Interacts with the real world: sends Telegram messages, runs health checks, triggers webhooks.',
-    howItWorks: 'Runs scripts that call external APIs with real effects — sends actual Telegram messages and checks endpoint health.',
+    description: 'Interacts with the real world: sends messages, runs health checks, triggers webhooks.',
+    howItWorks: 'Runs scripts that call external APIs with real effects — sends actual notifications and checks endpoint health.',
     accentColor: T.purple,
     needsSandbox: false,
     scenarios: [
       {
-        name: 'Send Telegram Report',
-        description: 'Sends an actual status report to the HW Telegram channel.',
+        name: 'Send Status Report',
+        description: 'Sends an actual status report to the team notification channel.',
         script: TELEGRAM_SCRIPT,
         needsUrl: false,
       },

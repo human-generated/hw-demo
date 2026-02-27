@@ -626,7 +626,7 @@ function StartPanel({ companyInput, setCompanyInput, onResearch, loading }) {
 
         <div style={{ marginTop: '3rem', display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
           {[
-            { icon: '🔍', label: 'Research', desc: 'Perplexity AI discovers platforms' },
+            { icon: '🔍', label: 'Research', desc: 'AI agent discovers platforms' },
             { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
             { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
           ].map(s => (
@@ -644,10 +644,21 @@ function StartPanel({ companyInput, setCompanyInput, onResearch, loading }) {
 
 // ── Research Panel ────────────────────────────────────────────────────────────
 function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onBuild, findings, citations, rawResearch }) {
+  const [addingPlatform, setAddingPlatform] = useState(false);
+  const [newPlatformName, setNewPlatformName] = useState('');
+
+  function addCustomPlatform() {
+    const name = newPlatformName.trim();
+    if (!name) return;
+    const id = 'custom-' + name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    setPlatforms(prev => [...prev, { id, name, reason: 'Custom platform added by user', actual_software: name, selected: true, custom: true }]);
+    setNewPlatformName('');
+    setAddingPlatform(false);
+  }
   if (loading || !company) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '1rem' }}>
-        <div style={{ fontFamily: T.mono, fontSize: '0.8rem', color: T.muted }}>Researching with Perplexity AI...</div>
+        <div style={{ fontFamily: T.mono, fontSize: '0.8rem', color: T.muted }}>Researching company intelligence...</div>
         <div style={{ display: 'flex', gap: '0.4rem' }}>
           {[0,1,2].map(i => (
             <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: T.blue, animation: `pulse ${0.6 + i * 0.2}s ease-in-out infinite alternate` }} />
@@ -747,8 +758,32 @@ function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onB
             </div>
           ))}
         </div>
+        {/* Add custom platform */}
+        <div style={{ marginTop: '0.5rem' }}>
+          {addingPlatform ? (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                autoFocus
+                value={newPlatformName}
+                onChange={e => setNewPlatformName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addCustomPlatform(); if (e.key === 'Escape') setAddingPlatform(false); }}
+                placeholder="e.g. Warehouse Management, Billing, POS..."
+                style={{ flex: 1, background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.45rem 0.7rem', color: T.text, fontFamily: T.mono, fontSize: '0.78rem', outline: 'none' }}
+              />
+              <button onClick={addCustomPlatform} style={{ ...S?.btn, background: T.blue, color: '#fff', border: 'none', borderRadius: T.radius, padding: '0.45rem 0.9rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.75rem' }}>Add</button>
+              <button onClick={() => setAddingPlatform(false)} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '0.45rem 0.7rem', cursor: 'pointer', color: T.muted, fontFamily: T.mono, fontSize: '0.75rem' }}>✕</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingPlatform(true)}
+              style={{ width: '100%', background: 'transparent', border: `1px dashed ${T.muted}`, borderRadius: T.radius, padding: '0.5rem', color: T.muted, fontFamily: T.mono, fontSize: '0.75rem', cursor: 'pointer', textAlign: 'center' }}>
+              + Add custom platform
+            </button>
+          )}
+        </div>
+
         {selectedCount > 0 && (
-          <div style={{ marginTop: '1rem' }}>
+          <div style={{ marginTop: '0.75rem' }}>
             <Btn onClick={onBuild} style={{ width: '100%', padding: '0.75rem', justifyContent: 'center' }}>
               Build {selectedCount} Platform{selectedCount !== 1 ? 's' : ''} →
             </Btn>
