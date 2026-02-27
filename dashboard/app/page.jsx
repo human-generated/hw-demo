@@ -79,8 +79,19 @@ function phaseLabel(p) {
   return p;
 }
 
-const PLATFORM_ICONS = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', messaging: '💬' };
-const PLATFORM_COLORS = { crm: T.blue, support: T.orange, analytics: T.purple, erp: T.mint, messaging: T.yellow };
+const PLATFORM_ICONS = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', ecommerce: '🛒', hr: '🧑‍💼', messaging: '💬' };
+const PLATFORM_COLORS = { crm: T.blue, support: T.orange, analytics: T.purple, erp: T.mint, ecommerce: T.yellow, hr: T.red, messaging: '#aaa' };
+
+// Educated guesses per platform type — ordered by likelihood for large enterprises
+const PLATFORM_SOFTWARE_OPTIONS = {
+  crm:       ['Salesforce Sales Cloud', 'Microsoft Dynamics 365 CRM', 'HubSpot CRM', 'SAP CRM', 'Oracle Siebel CRM', 'Zoho CRM', 'SugarCRM'],
+  erp:       ['SAP S/4HANA', 'Microsoft Dynamics 365 Finance', 'Oracle Fusion ERP', 'NetSuite', 'Odoo', 'Sage X3', 'Infor CloudSuite'],
+  support:   ['Zendesk Suite', 'Freshdesk', 'ServiceNow CSM', 'Jira Service Management', 'Intercom', 'HubSpot Service Hub', 'Salesforce Service Cloud'],
+  analytics: ['Power BI', 'Tableau', 'Looker (Google)', 'SAP Analytics Cloud', 'Qlik Sense', 'Metabase', 'Sisense'],
+  ecommerce: ['Adobe Commerce (Magento)', 'SAP Commerce Cloud', 'Shopify Plus', 'BigCommerce', 'Salesforce Commerce Cloud', 'WooCommerce', 'Proprietary'],
+  hr:        ['SAP SuccessFactors', 'Workday HCM', 'Oracle HCM Cloud', 'ADP Workforce Now', 'BambooHR', 'UKG Pro', 'Charisma HCM'],
+  messaging: ['Microsoft Teams', 'Slack', 'Google Workspace', 'Zoom Team Chat', 'Webex'],
+};
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -93,6 +104,7 @@ export default function App() {
   // Research
   const [company, setCompany] = useState(null);
   const [platforms, setPlatforms] = useState([]);
+  const [platformSoftware, setPlatformSoftware] = useState({}); // id → selected software string
   const [researchSummary, setResearchSummary] = useState('');
   const [researchFindings, setResearchFindings] = useState([]);
   const [researchCitations, setResearchCitations] = useState([]);
@@ -188,7 +200,16 @@ export default function App() {
       const d = await r.json();
       if (d.company) {
         setCompany(d.company);
-        setPlatforms(d.platforms || []);
+        const plats = d.platforms || [];
+        setPlatforms(plats);
+        // Init software selection: use actual_software from research if specific, else first known option
+        const sw = {};
+        plats.forEach(p => {
+          const opts = PLATFORM_SOFTWARE_OPTIONS[p.id] || [];
+          const known = p.actual_software && p.actual_software !== 'To be determined' && p.actual_software !== 'Unknown' && !p.actual_software.startsWith('Unknown');
+          sw[p.id] = known ? p.actual_software : (opts[0] || '');
+        });
+        setPlatformSoftware(sw);
         setResearchSummary(d.summary || '');
         setResearchFindings(d.key_findings || []);
         setResearchCitations(d.citations || []);
@@ -226,7 +247,7 @@ export default function App() {
       const r = await fetch('/api/demo/build-platforms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, platforms: selected, realClient: realClientActive ? { name: clientName, email: clientEmail, phone: clientPhone } : null }),
+        body: JSON.stringify({ sessionId, platforms: selected.map(p => ({ ...p, software: platformSoftware[p.id] || p.actual_software || '' })), realClient: realClientActive ? { name: clientName, email: clientEmail, phone: clientPhone } : null }),
       });
       const d = await r.json();
       if (d.platforms) {
@@ -470,6 +491,8 @@ export default function App() {
               company={company}
               platforms={platforms}
               setPlatforms={setPlatforms}
+              platformSoftware={platformSoftware}
+              setPlatformSoftware={setPlatformSoftware}
               summary={researchSummary}
               loading={loading}
               onBuild={handleBuildPlatforms}
@@ -642,8 +665,46 @@ function StartPanel({ companyInput, setCompanyInput, onResearch, loading }) {
   );
 }
 
+// ── Software Selector ─────────────────────────────────────────────────────────
+function SoftwareSelector({ platformId, options, value, onChange }) {
+  const isKnownOption = options.includes(value);
+  const selectVal = (value && !isKnownOption) ? '__custom__' : (value || (options[0] || ''));
+  const [customText, setCustomText] = useState(!isKnownOption && value ? value : '');
+
+  return (
+    <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.4rem' }}>
+      {options.length > 0 && (
+        <select
+          value={selectVal}
+          onChange={e => {
+            if (e.target.value === '__custom__') {
+              onChange(customText || '__custom__');
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+          style={{ width: '100%', background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.22rem 0.4rem', fontFamily: T.mono, fontSize: '0.63rem', color: T.text, cursor: 'pointer', outline: 'none', boxSizing: 'border-box' }}
+        >
+          {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          <option value="__custom__">Custom...</option>
+        </select>
+      )}
+      {selectVal === '__custom__' && (
+        <input
+          type="text"
+          value={customText}
+          autoFocus={options.length > 0}
+          onChange={e => { setCustomText(e.target.value); onChange(e.target.value || '__custom__'); }}
+          placeholder="e.g. Oracle EBS, Custom-built..."
+          style={{ marginTop: options.length > 0 ? '0.3rem' : 0, width: '100%', background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.22rem 0.4rem', fontFamily: T.mono, fontSize: '0.63rem', color: T.text, outline: 'none', boxSizing: 'border-box' }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Research Panel ────────────────────────────────────────────────────────────
-function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onBuild, findings, citations, rawResearch }) {
+function ResearchPanel({ company, platforms, setPlatforms, platformSoftware, setPlatformSoftware, summary, loading, onBuild, findings, citations, rawResearch }) {
   const [addingPlatform, setAddingPlatform] = useState(false);
   const [newPlatformName, setNewPlatformName] = useState('');
 
@@ -748,9 +809,12 @@ function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onB
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.name}</div>
                 <div style={{ fontSize: '0.7rem', color: T.muted }}>{p.reason}</div>
-                {p.actual_software && p.actual_software !== 'To be determined' && (
-                  <div style={{ fontSize: '0.65rem', color: T.blue, marginTop: '0.15rem' }}>🔧 {p.actual_software}</div>
-                )}
+                <SoftwareSelector
+                  platformId={p.id}
+                  options={PLATFORM_SOFTWARE_OPTIONS[p.id] || []}
+                  value={platformSoftware[p.id] || ''}
+                  onChange={val => setPlatformSoftware(prev => ({ ...prev, [p.id]: val }))}
+                />
               </div>
               <Badge color={p.selected ? PLATFORM_COLORS[p.id] || T.blue : T.faint}>
                 {p.selected ? 'Selected' : 'Skip'}
