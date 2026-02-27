@@ -134,8 +134,6 @@ export default function App() {
   const [clientPhone, setClientPhone] = useState('');
   const [realClientActive, setRealClientActive] = useState(false);
 
-  // Company input (right panel)
-  const [companyInput, setCompanyInput] = useState('');
 
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
@@ -185,8 +183,8 @@ export default function App() {
   }
 
   async function handleResearch(co) {
-    const name = co || companyInput;
-    if (!name.trim()) return;
+    const name = (co || '').trim();
+    if (!name) return;
     setLoading(true);
     setPhase('research');
     addChat('user', name);
@@ -420,7 +418,6 @@ export default function App() {
     setDeployedPlatforms([]);
     setWorkers([]);
     setBuildProgress({});
-    setCompanyInput('');
     setRealClientActive(false);
     initSession();
   }
@@ -524,12 +521,32 @@ export default function App() {
         {/* RIGHT PANEL */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {phase === 'start' && (
-            <StartPanel
-              companyInput={companyInput}
-              setCompanyInput={setCompanyInput}
-              onResearch={() => handleResearch()}
-              loading={loading}
-            />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ maxWidth: 480, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>
+                  AI Back-Office Simulator
+                </div>
+                <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
+                  Type a company name to begin
+                </h1>
+                <p style={{ color: T.muted, fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                  The orchestrator will research the company, detect back-office platforms, build live sandboxes, and deploy AI workers — all through chat.
+                </p>
+                <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                  {[
+                    { icon: '🔍', label: 'Research', desc: 'AI discovers platforms' },
+                    { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
+                    { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
+                  ].map(s => (
+                    <div key={s.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{s.icon}</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.2rem' }}>{s.label}</div>
+                      <div style={{ color: T.muted, fontSize: '0.7rem' }}>{s.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {phase === 'research' && (
@@ -662,56 +679,6 @@ function PlatformAgentPanel({ platform, history, input, setInput, onSend, loadin
   );
 }
 
-// ── Start Panel ───────────────────────────────────────────────────────────────
-function StartPanel({ companyInput, setCompanyInput, onResearch, loading }) {
-  return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ maxWidth: 560, width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>
-          AI Back-Office Simulator
-        </div>
-        <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem', letterSpacing: '-0.03em' }}>
-          Enter a company to begin
-        </h1>
-        <p style={{ color: T.muted, marginBottom: '2rem', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          H-Demo researches your company, detects back-office platforms, builds live sandboxes with shared data, and deploys AI workers.
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-          <input
-            value={companyInput}
-            onChange={e => setCompanyInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') onResearch(); }}
-            placeholder="e.g. Stripe, Shopify, Notion..."
-            style={{
-              background: T.card, border: T.border, borderRadius: T.radius,
-              padding: '0.75rem 1rem', fontFamily: T.mono, fontSize: '0.9rem',
-              color: T.text, outline: 'none', width: 300,
-              boxShadow: T.shadow,
-            }}
-            autoFocus
-          />
-          <Btn onClick={onResearch} disabled={loading || !companyInput.trim()} style={{ padding: '0.75rem 1.5rem' }}>
-            {loading ? 'Researching...' : 'Research →'}
-          </Btn>
-        </div>
-
-        <div style={{ marginTop: '3rem', display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
-          {[
-            { icon: '🔍', label: 'Research', desc: 'AI agent discovers platforms' },
-            { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
-            { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
-          ].map(s => (
-            <div key={s.label} style={{ textAlign: 'center', maxWidth: 130 }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{s.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.25rem' }}>{s.label}</div>
-              <div style={{ color: T.muted, fontSize: '0.72rem' }}>{s.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Software Selector ─────────────────────────────────────────────────────────
 function SoftwareSelector({ platformId, options, value, onChange }) {
