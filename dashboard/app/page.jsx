@@ -348,14 +348,60 @@ export default function App() {
 
   async function handleOrchestratorMessage() {
     const msg = input.trim();
-    if (!msg) return;
+    if (!msg || loading) return;
     setInput('');
-    if (phase === 'start' || phase === 'research') {
-      handleResearch(msg);
-    } else {
-      addChat('user', msg);
-      addChat('assistant', 'Got it. Use the right panel to interact with platforms and workers.', 'agent:info');
+    addChat('user', msg);
+    setLoading(true);
+
+    try {
+      const r = await fetch('/api/demo/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: msg }),
+      });
+      const d = await r.json();
+      const action = d.action || { type: 'none', params: {} };
+
+      // Show orchestrator's reply first
+      if (d.message) addChat('assistant', d.message, 'agent:orchestrator');
+
+      // Execute the decided action
+      if (action.type === 'start_research') {
+        const company = action.params?.company || msg;
+        setLoading(false);
+        handleResearch(company);
+        return;
+      } else if (action.type === 'build_platforms') {
+        setLoading(false);
+        handleBuildPlatforms();
+        return;
+      } else if (action.type === 'propose_workers') {
+        setLoading(false);
+        handleProposeWorkers();
+        return;
+      } else if (action.type === 'modify_platforms') {
+        const { add = [], remove = [] } = action.params || {};
+        setPlatforms(prev => {
+          let updated = prev.map(p =>
+            remove.map(r => r.toLowerCase()).some(r => p.name.toLowerCase().includes(r) || p.id.includes(r))
+              ? { ...p, selected: false }
+              : remove.length && add.map(a => a.toLowerCase()).some(a => p.name.toLowerCase().includes(a) || p.id.includes(a))
+              ? { ...p, selected: true }
+              : p
+          );
+          add.forEach(name => {
+            const id = 'custom-' + name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            if (!updated.find(p => p.id === id || p.name.toLowerCase() === name.toLowerCase())) {
+              updated = [...updated, { id, name, reason: 'Added by user', selected: true, custom: true }];
+            }
+          });
+          return updated;
+        });
+      }
+    } catch (e) {
+      addChat('assistant', 'Error: ' + e.message, 'agent:error');
     }
+    setLoading(false);
   }
 
   function setClientData() {
@@ -555,6 +601,7 @@ function ChatBubble({ msg }) {
           msg.tag === 'agent:error' ? T.red :
           msg.tag === 'agent:build' ? T.blue :
           msg.tag === 'agent:analyze' ? T.purple :
+          msg.tag === 'agent:orchestrator' ? T.orange :
           T.faint
         } style={{ marginBottom: 2 }}>
           {msg.tag.replace('agent:', '')}
@@ -1010,21 +1057,18 @@ function WorkersPanel({ workers, sessionId, onDeploy, onRun, deployingWorker, lo
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <SectionLabel style={{ marginBottom: 0 }}>AI Worker Proposals</SectionLabel>
+        <SectionLabel style={{ marginBottom: 0 }}>AI Workers</SectionLabel>
         {realClientActive && <Badge color={T.orange}>⚡ Real Client Active</Badge>}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.85rem' }}>
         {workers.map(w => (
           <WorkerCard
             key={w.id}
             worker={w}
-            tab={activeTab[w.id] || 'flow'}
-            setTab={t => setActiveTab(prev => ({ ...prev, [w.id]: t }))}
+            sessionId={sessionId}
             onDeploy={() => onDeploy(w)}
             onRun={() => { onRun(w); fetchLogs(w.id); }}
             deploying={deployingWorker === w.id}
-            logs={logs[w.id] || []}
-            onFetchLogs={() => fetchLogs(w.id)}
             realClientActive={realClientActive}
           />
         ))}
@@ -1033,133 +1077,74 @@ function WorkersPanel({ workers, sessionId, onDeploy, onRun, deployingWorker, lo
   );
 }
 
-function WorkerCard({ worker, tab, setTab, onDeploy, onRun, deploying, logs, onFetchLogs, realClientActive }) {
-  const [showConfig, setShowConfig] = useState(false);
-  const typeColor = worker.actionType === 'telegram' ? T.blue : worker.actionType === 'twilio' ? T.mint : worker.actionType === 'webhook' ? T.purple : T.orange;
+const SKILL_ICONS = {
+  'query-platform': '🔍', 'generate-report': '🤖', 'send-notification': '📤',
+  'call-webhook': '🔗', 'run-script': '⚙️', 'transform-data': '🔄',
+  'condition': '🔀', 'wait': '⏱️',
+};
+const TRIGGER_ICONS = { schedule: '⏰', webhook: '🔗', manual: '▶️', message: '💬', 'platform-event': '📡' };
+
+function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientActive }) {
+  const trigger = worker.trigger || {};
+  const steps = worker.steps || [];
+  const triggerIcon = TRIGGER_ICONS[trigger.type] || '⚡';
 
   return (
-    <div style={{ background: T.card, borderRadius: T.radius, boxShadow: T.shadow, border: T.border, overflow: 'hidden' }}>
-      {/* Worker header */}
-      <div style={{ padding: '0.9rem 1.1rem', borderBottom: T.border, display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.87rem' }}>{worker.name}</span>
-            {realClientActive && <Badge color={T.orange} style={{ fontSize: '0.55rem' }}>⚡ Real</Badge>}
-            <Badge color={
-              worker.status === 'deployed' ? T.mint :
-              worker.status === 'running' ? T.blue :
-              worker.status === 'error' ? T.red : T.faint
-            }>{worker.status || 'proposed'}</Badge>
+    <div style={{ background: T.card, borderRadius: T.radius, boxShadow: T.shadow, border: T.border, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ padding: '0.85rem 1rem', borderBottom: T.border }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.87rem', marginBottom: '0.25rem' }}>{worker.name}</div>
+            <div style={{ fontSize: '0.72rem', color: T.muted, lineHeight: 1.4 }}>{worker.description}</div>
           </div>
-          <div style={{ fontSize: '0.75rem', color: T.muted, lineHeight: 1.4 }}>{worker.description}</div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.68rem', fontFamily: T.mono, background: T.faint, padding: '2px 6px', borderRadius: 3 }}>
-              Trigger: {worker.trigger}
-            </span>
-            <span style={{ fontSize: '0.68rem', fontFamily: T.mono, background: typeColor + '22', color: typeColor, padding: '2px 6px', borderRadius: 3 }}>
-              {worker.action}
-            </span>
-          </div>
+          <Badge color={
+            worker.status === 'deployed' ? T.mint :
+            worker.status === 'running' ? T.blue :
+            worker.status === 'error' ? T.red : T.faint
+          } style={{ flexShrink: 0 }}>{worker.status || 'proposed'}</Badge>
         </div>
-        <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-          {worker.status === 'deployed' ? (
-            <Btn small onClick={onRun} color={T.blue}>▶ Run</Btn>
-          ) : (
-            <Btn small onClick={onDeploy} disabled={deploying} color={T.mint} style={{ color: T.text }}>
-              {deploying ? '...' : 'Deploy'}
-            </Btn>
-          )}
-          <Btn ghost small onClick={() => setShowConfig(!showConfig)}>Configure</Btn>
+
+        {/* Trigger pill */}
+        <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '0.78rem' }}>{triggerIcon}</span>
+          <span style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>
+            {trigger.label || (typeof worker.trigger === 'string' ? worker.trigger : trigger.type || 'manual')}
+          </span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: T.border, padding: '0 1rem' }}>
-        {['flow', 'observability', 'config'].map(t => (
-          <button
-            key={t}
-            onClick={() => { setTab(t); if (t === 'observability') onFetchLogs(); }}
-            style={{
-              background: 'none', border: 'none', padding: '0.5rem 0.75rem', cursor: 'pointer',
-              fontSize: '0.65rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em',
-              color: tab === t ? T.text : T.muted,
-              borderBottom: tab === t ? `2px solid ${T.text}` : '2px solid transparent',
-              marginBottom: -1,
-            }}
-          >{t}</button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div style={{ padding: '0.9rem 1.1rem' }}>
-        {tab === 'flow' && <WorkerFlowView worker={worker} />}
-        {tab === 'observability' && <WorkerObsView logs={logs} />}
-        {tab === 'config' && <WorkerConfigView worker={worker} />}
-      </div>
-    </div>
-  );
-}
-
-function WorkerFlowView({ worker }) {
-  const steps = [
-    { label: 'Source', value: worker.sourcePlatform || 'Database', color: T.blue },
-    { label: 'Trigger', value: worker.trigger, color: T.purple },
-    { label: 'Action', value: worker.action, color: T.orange },
-    { label: 'Outcome', value: worker.outcome || 'Logged + Notified', color: T.mint },
-  ];
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-      {steps.map((s, i) => (
-        <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ background: s.color + '18', border: `1px solid ${s.color}44`, borderRadius: T.radius, padding: '0.5rem 0.75rem', minWidth: 100 }}>
-            <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: s.color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.2rem' }}>{s.label}</div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 600, lineHeight: 1.3 }}>{s.value}</div>
-          </div>
-          {i < steps.length - 1 && <span style={{ color: T.muted, fontSize: '1rem' }}>→</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function WorkerObsView({ logs }) {
-  if (!logs || logs.length === 0) {
-    return <div style={{ color: T.muted, fontSize: '0.75rem', fontStyle: 'italic' }}>No runs yet. Deploy and trigger to see logs.</div>;
-  }
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: 200, overflowY: 'auto' }}>
-      {logs.map((log, i) => (
-        <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.7rem', fontFamily: T.mono, background: T.faint, padding: '0.4rem 0.6rem', borderRadius: T.radius }}>
-          <span style={{ color: T.muted, flexShrink: 0 }}>{new Date(log.at || log.timestamp).toLocaleTimeString()}</span>
-          <span style={{ color: log.success ? T.mint : T.red }}>{log.success ? '✓' : '✗'}</span>
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.message || log.result}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function WorkerConfigView({ worker }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.75rem' }}>
-      {[
-        { label: 'Trigger Condition', value: worker.trigger },
-        { label: 'Action Type', value: worker.actionType },
-        { label: 'Schedule', value: worker.schedule || 'On trigger' },
-        { label: 'Status', value: worker.status || 'proposed' },
-      ].map(f => (
-        <div key={f.label}>
-          <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>{f.label}</div>
-          <div style={{ fontFamily: T.mono, fontSize: '0.75rem', background: T.faint, padding: '0.4rem 0.6rem', borderRadius: T.radius }}>{f.value || '—'}</div>
-        </div>
-      ))}
-      {worker.template && (
-        <div style={{ gridColumn: 'span 2' }}>
-          <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Message Template</div>
-          <div style={{ fontFamily: T.mono, fontSize: '0.72rem', background: T.faint, padding: '0.6rem', borderRadius: T.radius, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{worker.template}</div>
+      {/* Steps mini-flow */}
+      {steps.length > 0 && (
+        <div style={{ padding: '0.6rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', gap: '0.3rem', overflowX: 'auto' }}>
+          {steps.map((s, i) => (
+            <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+              <div style={{ background: T.faint, borderRadius: T.radius, padding: '0.25rem 0.5rem', fontSize: '0.62rem', fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span>{SKILL_ICONS[s.skill] || '●'}</span>
+                <span>{s.name || s.skill}</span>
+              </div>
+              {i < steps.length - 1 && <span style={{ color: T.muted, fontSize: '0.7rem' }}>›</span>}
+            </div>
+          ))}
         </div>
       )}
+
+      {/* Actions */}
+      <div style={{ padding: '0.6rem 1rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+        <a
+          href={`/worker/${encodeURIComponent(worker.id)}?session=${sessionId}`}
+          style={{ flex: 1, display: 'block', textAlign: 'center', background: T.faint, border: T.border, borderRadius: T.radius, padding: '0.35rem 0.6rem', fontSize: '0.65rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.text, textDecoration: 'none', cursor: 'pointer' }}
+        >
+          View Worker →
+        </a>
+        {worker.status === 'deployed' ? (
+          <Btn small onClick={onRun} color={T.blue}>▶</Btn>
+        ) : (
+          <Btn small onClick={onDeploy} disabled={deploying} color={T.mint} style={{ color: T.text }}>
+            {deploying ? '...' : 'Deploy'}
+          </Btn>
+        )}
+      </div>
     </div>
   );
 }
