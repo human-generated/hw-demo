@@ -94,6 +94,9 @@ export default function App() {
   const [company, setCompany] = useState(null);
   const [platforms, setPlatforms] = useState([]);
   const [researchSummary, setResearchSummary] = useState('');
+  const [researchFindings, setResearchFindings] = useState([]);
+  const [researchCitations, setResearchCitations] = useState([]);
+  const [rawResearch, setRawResearch] = useState('');
 
   // Building
   const [buildProgress, setBuildProgress] = useState({});
@@ -187,7 +190,18 @@ export default function App() {
         setCompany(d.company);
         setPlatforms(d.platforms || []);
         setResearchSummary(d.summary || '');
-        addChat('assistant', `I found that ${d.company.name} (${d.company.industry}) likely uses ${(d.platforms || []).filter(p => p.selected).map(p => p.name).join(', ')}. Shall I build simulated versions with your data?`, 'agent:done');
+        setResearchFindings(d.key_findings || []);
+        setResearchCitations(d.citations || []);
+        setRawResearch(d.raw_research || '');
+        const selected = (d.platforms || []).filter(p => p.selected);
+        const knownSoftware = selected.filter(p => p.actual_software && p.actual_software !== 'To be determined').map(p => `${p.name} (${p.actual_software})`);
+        const msg = [
+          `**${d.company.name}** — ${d.company.industry}, ${d.company.country || ''}, ${d.company.size || ''}`,
+          d.summary,
+          knownSoftware.length ? `Identified tools: ${knownSoftware.join(', ')}.` : '',
+          `\nSelected ${selected.length} platforms to simulate. Confirm or adjust below, then click Build.`,
+        ].filter(Boolean).join('\n');
+        addChat('assistant', msg, 'agent:done');
       } else {
         addChat('assistant', d.error || 'Research failed. Try again.', 'agent:error');
         setPhase('start');
@@ -459,6 +473,9 @@ export default function App() {
               summary={researchSummary}
               loading={loading}
               onBuild={handleBuildPlatforms}
+              findings={researchFindings}
+              citations={researchCitations}
+              rawResearch={rawResearch}
             />
           )}
 
@@ -626,7 +643,7 @@ function StartPanel({ companyInput, setCompanyInput, onResearch, loading }) {
 }
 
 // ── Research Panel ────────────────────────────────────────────────────────────
-function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onBuild }) {
+function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onBuild, findings, citations, rawResearch }) {
   if (loading || !company) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '1rem' }}>
@@ -663,9 +680,32 @@ function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onB
               </div>
             ))}
           </div>
-          {summary && (
-            <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: T.muted, lineHeight: 1.5, borderTop: T.border, paddingTop: '0.75rem' }}>
-              {summary}
+          {company.description && (
+            <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: T.muted, lineHeight: 1.5, borderTop: T.border, paddingTop: '0.75rem' }}>
+              {company.description}
+            </div>
+          )}
+          {findings && findings.length > 0 && (
+            <div style={{ marginTop: '0.75rem', borderTop: T.border, paddingTop: '0.75rem' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Key Findings</div>
+              {findings.map((f, i) => (
+                <div key={i} style={{ fontSize: '0.72rem', color: T.text, lineHeight: 1.5, marginBottom: '0.3rem', display: 'flex', gap: '0.4rem' }}>
+                  <span style={{ color: T.blue, flexShrink: 0 }}>›</span>
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {citations && citations.length > 0 && (
+            <div style={{ marginTop: '0.75rem', borderTop: T.border, paddingTop: '0.75rem' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Sources</div>
+              {citations.slice(0, 4).map((c, i) => (
+                <div key={i} style={{ fontSize: '0.65rem', color: T.muted, marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <a href={typeof c === 'string' ? c : c.url} target="_blank" rel="noreferrer" style={{ color: T.blue, textDecoration: 'none' }}>
+                    {typeof c === 'string' ? c.replace(/^https?:\/\//, '').slice(0, 50) : (c.title || c.url || '').slice(0, 50)}
+                  </a>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -697,6 +737,9 @@ function ResearchPanel({ company, platforms, setPlatforms, summary, loading, onB
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.name}</div>
                 <div style={{ fontSize: '0.7rem', color: T.muted }}>{p.reason}</div>
+                {p.actual_software && p.actual_software !== 'To be determined' && (
+                  <div style={{ fontSize: '0.65rem', color: T.blue, marginTop: '0.15rem' }}>🔧 {p.actual_software}</div>
+                )}
               </div>
               <Badge color={p.selected ? PLATFORM_COLORS[p.id] || T.blue : T.faint}>
                 {p.selected ? 'Selected' : 'Skip'}

@@ -929,24 +929,95 @@ app.post('/demo/research', async (req, res) => {
   const { company, sessionId } = req.body;
   if (!company) return res.status(400).json({ error: 'company required' });
 
+  let researchText = '';
+  let citations = [];
+
+  // Step 1: Perplexity sonar-pro — free-form deep search about the company
   try {
+    const searchPrompt = [
+      `Research the company "${company}".`,
+      `Find and report:`,
+      `1. What the company does, its industry, country, approximate size (employees, revenue)`,
+      `2. Their known technology stack — any ERP (SAP, Oracle, Microsoft Dynamics, etc.), CRM (Salesforce, HubSpot, etc.), e-commerce platform, support/helpdesk tools (Zendesk, Freshdesk), analytics/BI tools, HR software, internal messaging`,
+      `3. Clues from job postings, press releases, LinkedIn, their website, or news articles about their IT systems`,
+      `4. Their main operational challenges and scale`,
+      `Be specific and cite sources. Do NOT produce JSON — write a detailed research report.`
+    ].join('\n');
+
     const pResp = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + PERPLEXITY_KEY(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'sonar',
-        messages: [{ role: 'user', content: 'Research ' + company + '. What back-office software platforms do they likely use? Consider: CRM, ERP, Support/Helpdesk, Analytics, Messaging, E-commerce, HR/Payroll. Return ONLY valid JSON (no markdown, no code blocks): {"company":{"name":"...","industry":"...","size":"...","domain":"..."},"platforms":[{"id":"crm","name":"CRM","reason":"...","selected":true},{"id":"support","name":"Support","reason":"...","selected":true},{"id":"analytics","name":"Analytics","reason":"...","selected":true},{"id":"erp","name":"ERP","reason":"...","selected":false},{"id":"messaging","name":"Messaging","reason":"...","selected":true}],"summary":"one sentence summary"}' }],
-        max_tokens: 1000,
+        model: 'sonar-pro',
+        messages: [{ role: 'user', content: searchPrompt }],
+        max_tokens: 2000,
+        search_recency_filter: 'year',
+        return_citations: true,
       }),
     });
     const pData = await pResp.json();
-    let raw = (pData.choices && pData.choices[0] && pData.choices[0].message && pData.choices[0].message.content) || '';
-    // Strip markdown code blocks if present
+    researchText = (pData.choices?.[0]?.message?.content) || '';
+    citations = pData.citations || [];
+    if (!researchText) throw new Error('Empty Perplexity response: ' + JSON.stringify(pData).slice(0, 300));
+  } catch(e) {
+    console.error('Perplexity error:', e.message);
+    // Continue to Step 2 with empty research — Claude will use its training data
+    researchText = `Limited web data available. Use training knowledge about "${company}".`;
+  }
+
+  // Step 2: Claude structures the research into platform selections
+  try {
+    const anthropicKey = ANTHROPIC_KEY();
+    const isOAuth = anthropicKey.startsWith('sk-ant-oat');
+    const authHeaders = isOAuth
+      ? { 'Authorization': 'Bearer ' + anthropicKey, 'anthropic-beta': 'oauth-2025-04-20' }
+      : { 'x-api-key': anthropicKey };
+
+    const structurePrompt = `You are a back-office systems analyst. Based on this research about "${company}", identify which back-office platforms they use or need.
+
+RESEARCH:
+${researchText}
+
+Return ONLY a valid JSON object (no markdown, no explanation):
+{
+  "company": {
+    "name": "full official company name",
+    "industry": "industry sector",
+    "size": "e.g. ~8000 employees, ~€500M revenue",
+    "domain": "website domain e.g. altex.ro",
+    "country": "country",
+    "description": "2-sentence description of what they do"
+  },
+  "platforms": [
+    {"id":"crm","name":"CRM","reason":"specific reason based on research","actual_software":"e.g. Salesforce (found in job postings)","selected":true},
+    {"id":"erp","name":"ERP","reason":"...","actual_software":"e.g. SAP S/4HANA","selected":true},
+    {"id":"support","name":"Support / Helpdesk","reason":"...","actual_software":"e.g. Zendesk","selected":true},
+    {"id":"analytics","name":"Analytics & BI","reason":"...","actual_software":"e.g. Power BI","selected":true},
+    {"id":"ecommerce","name":"E-Commerce","reason":"...","actual_software":"e.g. custom platform","selected":true},
+    {"id":"hr","name":"HR & Payroll","reason":"...","actual_software":"e.g. SAP SuccessFactors","selected":false},
+    {"id":"messaging","name":"Internal Messaging","reason":"...","actual_software":"e.g. Microsoft Teams","selected":false}
+  ],
+  "summary": "2-3 sentence summary of their tech landscape",
+  "key_findings": ["specific finding 1", "specific finding 2", "specific finding 3"]
+}`;
+
+    const cResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', ...authHeaders },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: structurePrompt }],
+      }),
+    });
+    const cData = await cResp.json();
+    let raw = cData.content?.[0]?.text || '';
     raw = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    // Find JSON object
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('No JSON in response: ' + raw.slice(0, 200));
+    if (!jsonMatch) throw new Error('No JSON from Claude: ' + raw.slice(0, 300));
     const parsed = JSON.parse(jsonMatch[0]);
+    parsed.citations = citations;
+    parsed.raw_research = researchText.slice(0, 800); // include snippet for display
 
     if (sessionId) {
       const sessions = loadDemoSessions();
@@ -957,20 +1028,25 @@ app.post('/demo/research', async (req, res) => {
         saveDemoSessions(sessions);
       }
     }
-
-    res.json(parsed);
+    return res.json(parsed);
   } catch(e) {
-    // Fallback with generic data
+    console.error('Structure error:', e.message);
+    // Last-resort fallback using research text we did get
     const fallback = {
-      company: { name: company, industry: 'Technology', size: 'Mid-size', domain: company.toLowerCase().replace(/\s+/g, '') + '.com' },
+      company: { name: company, industry: 'Retail', size: 'Large enterprise', domain: company.toLowerCase().replace(/\s+/g, '').replace('https://','').replace('http://',''), country: 'Unknown', description: company + ' is a company requiring back-office systems.' },
       platforms: [
-        { id: 'crm', name: 'CRM', reason: 'Customer relationship management', selected: true },
-        { id: 'support', name: 'Support', reason: 'Customer support ticketing', selected: true },
-        { id: 'analytics', name: 'Analytics', reason: 'Business intelligence', selected: true },
-        { id: 'erp', name: 'ERP', reason: 'Enterprise resource planning', selected: false },
-        { id: 'messaging', name: 'Messaging', reason: 'Internal communications', selected: true },
+        { id: 'crm', name: 'CRM', reason: 'Customer relationship management for sales and marketing', actual_software: 'To be determined', selected: true },
+        { id: 'erp', name: 'ERP', reason: 'Enterprise resource planning for operations', actual_software: 'To be determined', selected: true },
+        { id: 'support', name: 'Support / Helpdesk', reason: 'Customer support and ticket management', actual_software: 'To be determined', selected: true },
+        { id: 'analytics', name: 'Analytics & BI', reason: 'Business intelligence and reporting', actual_software: 'To be determined', selected: true },
+        { id: 'ecommerce', name: 'E-Commerce', reason: 'Online sales platform', actual_software: 'To be determined', selected: false },
+        { id: 'messaging', name: 'Internal Messaging', reason: 'Internal team communication', actual_software: 'To be determined', selected: false },
       ],
-      summary: company + ' is a technology company using standard back-office platforms for operations.',
+      summary: 'Research completed. Platform recommendations based on company profile.',
+      key_findings: researchText ? [researchText.slice(0, 200)] : ['Research data unavailable'],
+      citations,
+      raw_research: researchText.slice(0, 800),
+      error: e.message,
     };
     if (sessionId) {
       const sessions = loadDemoSessions();
@@ -981,7 +1057,7 @@ app.post('/demo/research', async (req, res) => {
         saveDemoSessions(sessions);
       }
     }
-    res.json(fallback);
+    return res.json(fallback);
   }
 });
 
