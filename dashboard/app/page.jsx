@@ -167,7 +167,7 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
                 <span>{s.id.slice(0, 10)}…</span>
                 <span>·</span>
                 <span>{s.platforms}P {s.workers}W</span>
-                {whLabel && <><span>·</span><span style={{ color: T.mint }}>⚡ {whLabel}</span></>}
+                {whLabel && <><span>·</span><span style={{ color: T.mint }}>{whLabel}</span></>}
                 {ago && <><span>·</span><span>{ago}</span></>}
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
@@ -296,10 +296,12 @@ export default function App() {
     if (d.workers && d.workers.length > 0) setWorkers(d.workers);
     const nP = (d.platforms || []).filter(p => p.status === 'deployed').length;
     const nW = (d.workers || []).length;
-    addChat('assistant',
-      `Session restored.${d.company ? ` Company: ${d.company.name}.` : ''}${nP ? ` ${nP} platform${nP > 1 ? 's' : ''} deployed.` : ''}${nW ? ` ${nW} worker${nW > 1 ? 's' : ''} configured.` : ''} Phase: ${ph}.`,
-      'agent:info'
-    );
+    // Reset chat to just the restore summary — don't replay old steps
+    setChat([{
+      role: 'assistant',
+      content: `Session restored.${d.company ? ` Company: ${d.company.name}.` : ''}${nP ? ` ${nP} platform${nP > 1 ? 's' : ''} deployed.` : ''}${nW ? ` ${nW} worker${nW > 1 ? 's' : ''} configured.` : ''} Phase: ${ph}.`,
+      tag: 'agent:info',
+    }]);
   }
 
   // Poll session state
@@ -792,7 +794,7 @@ export default function App() {
                       const inferWh = (usage.estimatedCostUsd || 0) * 0.3;
                       const totalWh = (power.totalWh || 0) + inferWh;
                       const label = totalWh < 0.001 ? `${(totalWh*1e6).toFixed(0)} µWh` : totalWh < 1 ? `${(totalWh*1000).toFixed(2)} mWh` : `${totalWh.toFixed(3)} Wh`;
-                      return <span style={{ color: '#6CEFA0' }}>⚡ {label}{power.runs > 0 ? ` · ${power.runs} runs` : ''}</span>;
+                      return <span style={{ color: '#6CEFA0' }}>{label}{power.runs > 0 ? ` · ${power.runs} runs` : ''}</span>;
                     })()}
                   </div>
                 )}
