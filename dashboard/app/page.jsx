@@ -93,6 +93,82 @@ const PLATFORM_SOFTWARE_OPTIONS = {
   messaging: ['Microsoft Teams', 'Slack', 'Google Workspace', 'Zoom Team Chat', 'Webex'],
 };
 
+// ── SessionListPanel ──────────────────────────────────────────────────────────
+function SessionListPanel({ currentId, onSelect, onClose }) {
+  const [sessions, setSessions] = useState(null);
+  useEffect(() => {
+    fetch('/api/demo/sessions').then(r => r.json()).then(setSessions).catch(() => setSessions([]));
+  }, []);
+
+  const phaseColor = { start: T.muted, research: T.blue, building: T.orange, platforms: T.mint, workers: T.purple };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 52, right: 0, width: 340, bottom: 0,
+      background: T.card, borderLeft: T.border, boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
+      display: 'flex', flexDirection: 'column', zIndex: 100,
+    }}>
+      <div style={{ padding: '1rem 1.25rem 0.75rem', borderBottom: T.border, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sessions</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, fontSize: '1rem', lineHeight: 1 }}>✕</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+        {sessions === null && (
+          <div style={{ padding: '1rem', textAlign: 'center', color: T.muted, fontFamily: T.mono, fontSize: '0.7rem' }}>Loading…</div>
+        )}
+        {sessions !== null && sessions.length === 0 && (
+          <div style={{ padding: '1rem', textAlign: 'center', color: T.muted, fontFamily: T.mono, fontSize: '0.7rem' }}>No sessions yet</div>
+        )}
+        {(sessions || []).map(s => {
+          const isCurrent = s.id === currentId;
+          const ph = s.phase || 'start';
+          const ago = s.updatedAt ? (() => {
+            const ms = Date.now() - new Date(s.updatedAt).getTime();
+            if (ms < 60000) return 'just now';
+            if (ms < 3600000) return `${Math.floor(ms/60000)}m ago`;
+            if (ms < 86400000) return `${Math.floor(ms/3600000)}h ago`;
+            return `${Math.floor(ms/86400000)}d ago`;
+          })() : '';
+          return (
+            <div
+              key={s.id}
+              onClick={() => { onSelect(s.id); onClose(); }}
+              style={{
+                padding: '0.75rem 1rem', borderRadius: T.radius, marginBottom: 4,
+                background: isCurrent ? T.faint : 'transparent',
+                border: isCurrent ? `1px solid rgba(0,0,0,0.1)` : '1px solid transparent',
+                cursor: 'pointer', transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = T.faint; }}
+              onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.72rem' }}>
+                  {s.company || <span style={{ color: T.muted }}>Unnamed</span>}
+                </span>
+                <span style={{
+                  fontFamily: T.mono, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase',
+                  color: phaseColor[ph] || T.muted, letterSpacing: '0.05em',
+                }}>{ph}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: T.muted, fontFamily: T.mono, fontSize: '0.62rem' }}>
+                <span>{s.id.slice(0, 10)}…</span>
+                <span>·</span>
+                <span>{s.platforms}P {s.workers}W</span>
+                {s.usage && s.usage.requests > 0 && <><span>·</span><span>{s.usage.requests} calls</span></>}
+                {ago && <><span>·</span><span>{ago}</span></>}
+              </div>
+              {isCurrent && (
+                <div style={{ marginTop: 4, fontSize: '0.58rem', fontFamily: T.mono, color: T.mint, fontWeight: 700 }}>● CURRENT</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [sessionId, setSessionId] = useState(null);
@@ -102,6 +178,7 @@ export default function App() {
   const [power, setPower] = useState({ totalWh: 0, runs: 0 });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
 
   // Research
   const [company, setCompany] = useState(null);
@@ -512,9 +589,25 @@ export default function App() {
               </div>
             ))}
           </div>
+          <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
         </div>
       </div>
+      {showSessions && (
+        <SessionListPanel
+          currentId={sessionId}
+          onClose={() => setShowSessions(false)}
+          onSelect={async (id) => {
+            if (id === sessionId) return;
+            const r = await fetch(`/api/demo/session/${id}`);
+            if (!r.ok) return;
+            const d = await r.json();
+            if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', id);
+            setSessionId(id);
+            restoreFromSession(d);
+          }}
+        />
+      )}
 
       {/* Main layout */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
