@@ -786,11 +786,14 @@ export default function App() {
                     {usage.tokens > 0 && <>
                       <span>↑{usage.inputTokens || 0} ↓{usage.outputTokens || 0} tokens</span>
                       <span>{usage.requests || 0} agent calls</span>
-                      <span style={{ color: T.orange }}>${(usage.estimatedCostUsd || 0).toFixed(4)}</span>
                     </>}
-                    {power.totalWh > 0 && (
-                      <span style={{ color: '#6CEFA0' }}>⚡ {(power.totalWh * 1000).toFixed(3)} mWh · {power.runs || 0} runs</span>
-                    )}
+                    {(power.totalWh > 0 || usage.estimatedCostUsd > 0) && (() => {
+                      // Convert cost to Wh: $1 ≈ 0.0003 kWh of inference energy (rough estimate from TPU efficiency)
+                      const inferWh = (usage.estimatedCostUsd || 0) * 0.3;
+                      const totalWh = (power.totalWh || 0) + inferWh;
+                      const label = totalWh < 0.001 ? `${(totalWh*1e6).toFixed(0)} µWh` : totalWh < 1 ? `${(totalWh*1000).toFixed(2)} mWh` : `${totalWh.toFixed(3)} Wh`;
+                      return <span style={{ color: '#6CEFA0' }}>⚡ {label}{power.runs > 0 ? ` · ${power.runs} runs` : ''}</span>;
+                    })()}
                   </div>
                 )}
 
