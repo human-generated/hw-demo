@@ -970,6 +970,7 @@ export default function App() {
           )}
         </div>
       </div>
+      <ObservabilityPanel />
     </div>
   );
 }
@@ -979,6 +980,130 @@ const miniInputStyle = {
   padding: '0.4rem 0.6rem', fontFamily: T.mono, fontSize: '0.75rem',
   color: T.text, outline: 'none', width: '100%',
 };
+
+// ── Observability Panel ───────────────────────────────────────────────────────
+const EV_COLORS = {
+  'agent:spawn':        '#B06CEF',
+  'agent:reply':        '#6CDDEF',
+  'worker:trigger':     '#6CEFA0',
+  'worker:twilio_call': '#F5C842',
+  'worker:error':       '#EF4444',
+  'worker:trigger_manual': '#EF9B6C',
+};
+const EV_ICONS = {
+  'agent:spawn':        '🤖',
+  'agent:reply':        '💬',
+  'worker:trigger':     '⚡',
+  'worker:twilio_call': '📞',
+  'worker:error':       '✗',
+};
+
+function ObservabilityPanel() {
+  const [open, setOpen] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [live, setLive] = useState(false);
+  const esRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Load recent events on open
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/demo/events?n=80').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setEvents(d.reverse());
+    }).catch(() => {});
+  }, [open]);
+
+  // SSE connection
+  useEffect(() => {
+    if (!open) { if (esRef.current) { esRef.current.close(); esRef.current = null; setLive(false); } return; }
+    const es = new EventSource('/api/demo/events/stream');
+    esRef.current = es;
+    es.onopen = () => setLive(true);
+    es.onerror = () => setLive(false);
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        setEvents(prev => [ev, ...prev].slice(0, 120));
+      } catch {}
+    };
+    return () => { es.close(); esRef.current = null; setLive(false); };
+  }, [open]);
+
+  useEffect(() => {
+    if (listRef.current && events.length > 0) listRef.current.scrollTop = 0;
+  }, [events.length]);
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function fmtData(ev) {
+    const d = ev.data || {};
+    if (ev.type === 'agent:spawn') return `${d.name || d.agentId} (${d.role || ''})`;
+    if (ev.type === 'agent:reply') return `${d.agentId}: "${(d.reply || '').slice(0, 80)}${(d.reply||'').length > 80 ? '…' : ''}"`;
+    if (ev.type === 'worker:trigger') return `${d.workerName || d.workerId}: $${d.amount} — ${d.contactName || ''} ${d.phone ? '(' + d.phone + ')' : ''}`;
+    if (ev.type === 'worker:twilio_call') return `Call to ${d.to} — SID ${(d.sid||'').slice(0,16)}… status=${d.status}`;
+    if (ev.type === 'worker:error') return `${d.workerName || d.workerId}: ${d.error}`;
+    return JSON.stringify(d).slice(0, 100);
+  }
+
+  return (
+    <div style={{ borderTop: T.border, background: T.card, flexShrink: 0 }}>
+      {/* Header / toggle */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', userSelect: 'none' }}
+      >
+        <span style={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.muted }}>
+          Observability
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: live ? T.mint : T.muted, boxShadow: live ? `0 0 5px ${T.mint}` : 'none' }} />
+          <span style={{ fontFamily: T.mono, fontSize: '0.58rem', color: live ? T.mint : T.muted }}>{live ? 'live' : 'off'}</span>
+        </span>
+        {events.length > 0 && (
+          <span style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted }}>{events.length} events</span>
+        )}
+        <span style={{ marginLeft: 'auto', color: T.muted, fontSize: '0.7rem' }}>{open ? '▼' : '▲'}</span>
+      </div>
+
+      {open && (
+        <div ref={listRef} style={{ maxHeight: 260, overflowY: 'auto', borderTop: T.border }}>
+          {events.length === 0 && (
+            <div style={{ padding: '1rem 1.5rem', color: T.muted, fontFamily: T.mono, fontSize: '0.7rem' }}>
+              No events yet. Run an agent or trigger a worker.
+            </div>
+          )}
+          {events.map((ev, i) => {
+            const color = EV_COLORS[ev.type] || T.muted;
+            const icon = EV_ICONS[ev.type] || '●';
+            return (
+              <div key={i} style={{
+                padding: '0.35rem 1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
+                borderBottom: '1px solid rgba(0,0,0,0.04)',
+                background: i === 0 && live ? 'rgba(108,239,160,0.04)' : 'transparent',
+              }}>
+                <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, flexShrink: 0, paddingTop: 1, minWidth: 68 }}>
+                  {fmtTime(ev.at)}
+                </span>
+                <span style={{ fontSize: '0.75rem', flexShrink: 0, lineHeight: 1.2 }}>{icon}</span>
+                <span style={{
+                  fontFamily: T.mono, fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase',
+                  color, flexShrink: 0, paddingTop: 1, minWidth: 110,
+                }}>{ev.type}</span>
+                <span style={{ fontFamily: T.mono, fontSize: '0.62rem', color: T.text, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {fmtData(ev)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Agent Flow Graph (hover popup) ────────────────────────────────────────────
 const STATUS_COLOR = { running: T.blue, done: T.mint, pending: T.muted, delegating: T.orange, error: T.red };
