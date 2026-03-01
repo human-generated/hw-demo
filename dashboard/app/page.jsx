@@ -137,13 +137,21 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
         {(sessions || []).map(s => {
           const isCurrent = s.id === currentId;
           const ph = s.phase || 'start';
-          const ago = s.updatedAt ? (() => {
-            const ms = Date.now() - new Date(s.updatedAt).getTime();
+          function timeAgo(iso) {
+            if (!iso) return null;
+            const ms = Date.now() - new Date(iso).getTime();
             if (ms < 60000) return 'just now';
             if (ms < 3600000) return `${Math.floor(ms/60000)}m ago`;
             if (ms < 86400000) return `${Math.floor(ms/3600000)}h ago`;
-            return `${Math.floor(ms/86400000)}d ago`;
-          })() : '';
+            if (ms < 7*86400000) return `${Math.floor(ms/86400000)}d ago`;
+            return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          }
+          const ago = timeAgo(s.updatedAt || s.createdAt);
+          const createdLabel = s.createdAt ? (() => {
+            const d = new Date(s.createdAt);
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+              d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+          })() : null;
           const whLabel = s.power && s.power.totalWh > 0
             ? (s.power.totalWh < 0.001 ? `${(s.power.totalWh*1e6).toFixed(0)}µWh` : s.power.totalWh < 1 ? `${(s.power.totalWh*1000).toFixed(2)}mWh` : `${s.power.totalWh.toFixed(3)}Wh`)
             : null;
@@ -164,11 +172,10 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
                 <span style={{ fontFamily: T.mono, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', color: phaseColor[ph] || T.muted }}>{ph}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: T.muted, fontFamily: T.mono, fontSize: '0.62rem', flexWrap: 'wrap' }}>
-                <span>{s.id.slice(0, 10)}…</span>
-                <span>·</span>
-                <span>{s.platforms}P {s.workers}W</span>
+                {createdLabel && <span>{createdLabel}</span>}
+                {(s.platforms > 0 || s.workers > 0) && <><span>·</span><span>{s.platforms}P {s.workers}W</span></>}
                 {whLabel && <><span>·</span><span style={{ color: T.mint }}>{whLabel}</span></>}
-                {ago && <><span>·</span><span>{ago}</span></>}
+                {ago && createdLabel && <><span>·</span><span>{ago}</span></>}
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
                 {!isCurrent && (
