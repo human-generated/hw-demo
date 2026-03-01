@@ -98,6 +98,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [chat, setChat] = useState([{ role: 'assistant', content: 'Welcome to H-Demo. Enter a company name to begin your AI back-office simulation.' }]);
+  const [usage, setUsage] = useState({ tokens: 0, requests: 0, estimatedCostUsd: 0 });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -280,7 +281,7 @@ export default function App() {
 
   async function handleProposeWorkers() {
     setProposingWorkers(true);
-    addChat('assistant', 'Worker Proposal Agent analyzing platform UIs and database schema...', 'agent:analyze');
+    addChat('assistant', `Spawning ${deployedPlatforms.length} parallel Worker Proposal Agents — one per platform...`, 'agent:analyze');
     try {
       const r = await fetch('/api/demo/workers/propose', {
         method: 'POST',
@@ -291,7 +292,11 @@ export default function App() {
       if (d.workers) {
         setWorkers(d.workers);
         setPhase('workers');
-        addChat('assistant', `Proposed ${d.workers.length} actionable workers. Deploy any to activate.`, 'agent:done');
+        const redelegated = d.workers.filter(w => w.redelegated).length;
+        const summary = redelegated > 0
+          ? `${d.workers.length} workers proposed (${redelegated} re-delegated via fallback). Click "View Worker →" to configure each.`
+          : `${d.workers.length} workers proposed by parallel agents. Click "View Worker →" to configure each via chat.`;
+        addChat('assistant', summary, 'agent:done');
       }
     } catch (e) {
       addChat('assistant', 'Proposal error: ' + e.message, 'agent:error');
@@ -360,11 +365,28 @@ export default function App() {
       const d = await r.json();
       const action = d.action || { type: 'none', params: {} };
 
+      // Update resource usage display
+      if (d.usage) setUsage(d.usage);
+
+      // Show delegation plan if orchestrator decomposed the task
+      if (d.plan && d.plan.length > 1) {
+        const planText = d.plan.map(s => `${s.step}. ${s.task} → ${s.agent}`).join('\n');
+        addChat('assistant', `Task decomposition:\n${planText}`, 'agent:plan');
+      }
+
       // Show orchestrator's reply first
       if (d.message) addChat('assistant', d.message, 'agent:orchestrator');
 
       // Execute the decided action
-      if (action.type === 'start_research') {
+      if (action.type === 'full_setup') {
+        // Multi-step: research → build → propose workers (sequential delegation chain)
+        const company = action.params?.company || msg;
+        setLoading(false);
+        addChat('assistant', 'Starting full setup — delegating to Research Agent...', 'agent:orchestrator');
+        await handleResearch(company);
+        // handleResearch sets phase to 'research'; build and propose triggered by subsequent orchestrator calls
+        return;
+      } else if (action.type === 'start_research') {
         const company = action.params?.company || msg;
         setLoading(false);
         handleResearch(company);
@@ -493,6 +515,15 @@ export default function App() {
                   </Btn>
                 </div>
 
+                {/* Resource usage display */}
+                {usage.tokens > 0 && (
+                  <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.75rem', fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, opacity: 0.7 }}>
+                    <span>↑{usage.inputTokens || 0} ↓{usage.outputTokens || 0} tokens</span>
+                    <span>{usage.requests || 0} agent calls</span>
+                    <span style={{ color: T.orange }}>${(usage.estimatedCostUsd || 0).toFixed(4)}</span>
+                  </div>
+                )}
+
                 {/* Real Client Data form */}
                 <div style={{ marginTop: '0.75rem' }}>
                   <div
@@ -619,6 +650,7 @@ function ChatBubble({ msg }) {
           msg.tag === 'agent:build' ? T.blue :
           msg.tag === 'agent:analyze' ? T.purple :
           msg.tag === 'agent:orchestrator' ? T.orange :
+          msg.tag === 'agent:plan' ? T.purple :
           T.faint
         } style={{ marginBottom: 2 }}>
           {msg.tag.replace('agent:', '')}
@@ -634,7 +666,8 @@ function ChatBubble({ msg }) {
         lineHeight: 1.5,
         boxShadow: T.shadow,
         border: isUser ? 'none' : T.border,
-        fontFamily: T.ui,
+        fontFamily: msg.tag === 'agent:plan' ? T.mono : T.ui,
+        whiteSpace: msg.tag === 'agent:plan' ? 'pre-wrap' : 'normal',
       }}>{msg.content}</div>
     </div>
   );
