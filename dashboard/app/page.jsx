@@ -94,13 +94,26 @@ const PLATFORM_SOFTWARE_OPTIONS = {
 };
 
 // ── SessionListPanel ──────────────────────────────────────────────────────────
-function SessionListPanel({ currentId, onSelect, onClose }) {
+function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
   const [sessions, setSessions] = useState(null);
-  useEffect(() => {
+  const [deleting, setDeleting] = useState(null);
+
+  function reload() {
     fetch('/api/demo/sessions').then(r => r.json()).then(setSessions).catch(() => setSessions([]));
-  }, []);
+  }
+  useEffect(() => { reload(); }, []);
 
   const phaseColor = { start: T.muted, research: T.blue, building: T.orange, platforms: T.mint, workers: T.purple };
+
+  async function handleDelete(e, id) {
+    e.stopPropagation();
+    if (!confirm('Delete this session?')) return;
+    setDeleting(id);
+    await fetch(`/api/demo/session/${id}`, { method: 'DELETE' });
+    onDelete(id);
+    reload();
+    setDeleting(null);
+  }
 
   return (
     <div style={{
@@ -129,38 +142,52 @@ function SessionListPanel({ currentId, onSelect, onClose }) {
             if (ms < 86400000) return `${Math.floor(ms/3600000)}h ago`;
             return `${Math.floor(ms/86400000)}d ago`;
           })() : '';
+          const whLabel = s.power && s.power.totalWh > 0
+            ? (s.power.totalWh < 0.001 ? `${(s.power.totalWh*1e6).toFixed(0)}µWh` : s.power.totalWh < 1 ? `${(s.power.totalWh*1000).toFixed(2)}mWh` : `${s.power.totalWh.toFixed(3)}Wh`)
+            : null;
           return (
-            <div
-              key={s.id}
-              onClick={() => { onSelect(s.id); onClose(); }}
-              style={{
-                padding: '0.75rem 1rem', borderRadius: T.radius, marginBottom: 4,
-                background: isCurrent ? T.faint : 'transparent',
-                border: isCurrent ? `1px solid rgba(0,0,0,0.1)` : '1px solid transparent',
-                cursor: 'pointer', transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = T.faint; }}
-              onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+            <div key={s.id} style={{
+              padding: '0.75rem 1rem', borderRadius: T.radius, marginBottom: 4,
+              background: isCurrent ? T.faint : 'transparent',
+              border: isCurrent ? `1px solid rgba(0,0,0,0.1)` : '1px solid transparent',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = T.faint; }}
+            onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.72rem' }}>
                   {s.company || <span style={{ color: T.muted }}>Unnamed</span>}
                 </span>
-                <span style={{
-                  fontFamily: T.mono, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase',
-                  color: phaseColor[ph] || T.muted, letterSpacing: '0.05em',
-                }}>{ph}</span>
+                <span style={{ fontFamily: T.mono, fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', color: phaseColor[ph] || T.muted }}>{ph}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: T.muted, fontFamily: T.mono, fontSize: '0.62rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: T.muted, fontFamily: T.mono, fontSize: '0.62rem', flexWrap: 'wrap' }}>
                 <span>{s.id.slice(0, 10)}…</span>
                 <span>·</span>
                 <span>{s.platforms}P {s.workers}W</span>
-                {s.usage && s.usage.requests > 0 && <><span>·</span><span>{s.usage.requests} calls</span></>}
+                {whLabel && <><span>·</span><span style={{ color: T.mint }}>⚡ {whLabel}</span></>}
                 {ago && <><span>·</span><span>{ago}</span></>}
               </div>
-              {isCurrent && (
-                <div style={{ marginTop: 4, fontSize: '0.58rem', fontFamily: T.mono, color: T.mint, fontWeight: 700 }}>● CURRENT</div>
-              )}
+              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                {!isCurrent && (
+                  <button onClick={() => { onSelect(s.id); onClose(); }} style={{
+                    flex: 1, background: T.text, color: '#fff', border: 'none', borderRadius: T.radius,
+                    padding: '0.25rem 0.5rem', fontFamily: T.mono, fontSize: '0.6rem',
+                    textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer',
+                  }}>Resume</button>
+                )}
+                {isCurrent && (
+                  <div style={{ flex: 1, fontSize: '0.58rem', fontFamily: T.mono, color: T.mint, fontWeight: 700, display: 'flex', alignItems: 'center' }}>● CURRENT</div>
+                )}
+                <button
+                  onClick={e => handleDelete(e, s.id)}
+                  disabled={deleting === s.id}
+                  style={{
+                    background: 'none', border: `1px solid rgba(239,68,68,0.3)`, borderRadius: T.radius,
+                    padding: '0.25rem 0.6rem', fontFamily: T.mono, fontSize: '0.6rem',
+                    color: T.red, cursor: 'pointer', opacity: deleting === s.id ? 0.5 : 1,
+                  }}>Delete</button>
+              </div>
             </div>
           );
         })}
@@ -179,6 +206,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
+  const [agentTree, setAgentTree] = useState([]); // delegation tree nodes
 
   // Research
   const [company, setCompany] = useState(null);
@@ -402,6 +430,16 @@ export default function App() {
   async function handleProposeWorkers() {
     setProposingWorkers(true);
     addChat('assistant', `Spawning ${deployedPlatforms.length} parallel Worker Proposal Agents — one per platform...`, 'agent:analyze');
+    // Add sub-agents for each platform
+    setAgentTree(prev => {
+      const parent = prev.find(n => n.role === 'worker-proposal-agent') || { id: 'wpa-root-' + Date.now(), name: 'Worker Proposal Agent', icon: '🤖', role: 'worker-proposal-agent', parentId: null, status: 'running', task: 'Propose workers' };
+      const already = prev.some(n => n.role === 'worker-proposal-agent');
+      const subs = deployedPlatforms.map((p, i) => ({
+        id: `wpa-sub-${Date.now()}-${i}`, name: `${p.name} Worker Agent`, icon: '⚙️',
+        role: `worker-agent-${p.id}`, parentId: parent.id, status: 'running', task: `Design worker for ${p.name}`,
+      }));
+      return already ? [...prev, ...subs] : [...prev, parent, ...subs];
+    });
     try {
       const r = await fetch('/api/demo/workers/propose', {
         method: 'POST',
@@ -412,6 +450,7 @@ export default function App() {
       if (d.workers) {
         setWorkers(d.workers);
         setPhase('workers');
+        setAgentTree(prev => prev.map(n => n.role.startsWith('worker-agent-') ? { ...n, status: 'done' } : n.role === 'worker-proposal-agent' ? { ...n, status: 'done' } : n));
         const redelegated = d.workers.filter(w => w.redelegated).length;
         const summary = redelegated > 0
           ? `${d.workers.length} workers proposed (${redelegated} re-delegated via fallback). Click "View Worker →" to configure each.`
@@ -488,8 +527,20 @@ export default function App() {
       // Update resource usage display
       if (d.usage) setUsage(d.usage);
 
-      // Show delegation plan if orchestrator decomposed the task
-      if (d.plan && d.plan.length > 1) {
+      // Build agent delegation tree
+      if (d.plan && d.plan.length > 0) {
+        const orch = { id: 'orchestrator-' + Date.now(), name: 'Orchestrator', icon: '🧠', role: 'orchestrator', parentId: null, status: 'done', task: msg };
+        const children = d.plan.map((s, i) => ({
+          id: `agent-${Date.now()}-${i}`,
+          name: s.agent || `Agent ${i+1}`,
+          icon: s.agent?.includes('Research') ? '🔍' : s.agent?.includes('Build') ? '🏗️' : s.agent?.includes('Worker') ? '🤖' : '⚙️',
+          role: (s.agent || '').toLowerCase().replace(/\s+/g, '-'),
+          parentId: orch.id,
+          status: 'pending',
+          task: s.task,
+          step: s.step,
+        }));
+        setAgentTree([orch, ...children]);
         const planText = d.plan.map(s => `${s.step}. ${s.task} → ${s.agent}`).join('\n');
         addChat('assistant', `Task decomposition:\n${planText}`, 'agent:plan');
       }
@@ -498,25 +549,44 @@ export default function App() {
       if (d.message) addChat('assistant', d.message, 'agent:orchestrator');
 
       // Execute the decided action
+      function markAgent(role, status, subAgents) {
+        setAgentTree(prev => {
+          let updated = prev.map(n => n.role === role ? { ...n, status } : n);
+          if (subAgents) {
+            const parent = updated.find(n => n.role === role);
+            if (parent) {
+              const subs = subAgents.map((sa, i) => ({
+                id: `sub-${Date.now()}-${i}`, name: sa.name, icon: sa.icon || '🔧',
+                role: sa.role, parentId: parent.id, status: sa.status || 'running', task: sa.task,
+              }));
+              updated = [...updated, ...subs];
+            }
+          }
+          return updated;
+        });
+      }
+
       if (action.type === 'full_setup') {
-        // Multi-step: research → build → propose workers (sequential delegation chain)
         const company = action.params?.company || msg;
         setLoading(false);
+        markAgent('orchestrator', 'delegating');
         addChat('assistant', 'Starting full setup — delegating to Research Agent...', 'agent:orchestrator');
         await handleResearch(company);
-        // handleResearch sets phase to 'research'; build and propose triggered by subsequent orchestrator calls
         return;
       } else if (action.type === 'start_research') {
         const company = action.params?.company || msg;
         setLoading(false);
+        markAgent('research-agent', 'running');
         handleResearch(company);
         return;
       } else if (action.type === 'build_platforms') {
         setLoading(false);
+        markAgent('build-agent', 'running');
         handleBuildPlatforms();
         return;
       } else if (action.type === 'propose_workers') {
         setLoading(false);
+        markAgent('worker-proposal-agent', 'running');
         handleProposeWorkers();
         return;
       } else if (action.type === 'modify_platforms') {
@@ -562,6 +632,7 @@ export default function App() {
     setWorkers([]);
     setBuildProgress({});
     setRealClientActive(false);
+    setAgentTree([]);
     initSession();
   }
 
@@ -575,19 +646,37 @@ export default function App() {
           {sessionId && <Badge color={T.faint} style={{ color: T.muted }}>{sessionId.slice(0, 8)}</Badge>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {/* Phase indicator */}
-          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-            {PHASES.map((p, i) => (
-              <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: phase === p ? T.text : (PHASES.indexOf(phase) > i ? T.mint : T.faint),
-                  transition: 'background 0.3s',
-                }} />
-                <span style={{ fontSize: '0.6rem', fontFamily: T.mono, color: phase === p ? T.text : T.muted, textTransform: 'uppercase' }}>{phaseLabel(p)}</span>
-                {i < PHASES.length - 1 && <span style={{ color: T.faint, fontSize: '0.8rem' }}>›</span>}
-              </div>
-            ))}
+          {/* Phase indicator — clickable navigation */}
+          <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+            {PHASES.filter(p => p !== 'start').map((p, i, arr) => {
+              const phaseIdx = PHASES.indexOf(phase);
+              const thisIdx = PHASES.indexOf(p);
+              const isActive = phase === p;
+              const isDone = phaseIdx > thisIdx;
+              const canNav = isDone || isActive;
+              return (
+                <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <div
+                    onClick={() => canNav && setPhase(p)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.3rem',
+                      padding: '0.25rem 0.5rem', borderRadius: T.radius,
+                      background: isActive ? T.text : isDone ? 'rgba(108,239,160,0.15)' : 'transparent',
+                      border: isActive ? 'none' : isDone ? `1px solid rgba(108,239,160,0.4)` : '1px solid transparent',
+                      cursor: canNav ? 'pointer' : 'default',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{
+                      width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                      background: isActive ? '#fff' : isDone ? T.mint : T.faint,
+                    }} />
+                    <span style={{ fontSize: '0.6rem', fontFamily: T.mono, fontWeight: isActive ? 700 : 400, color: isActive ? '#fff' : isDone ? T.mint : T.muted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{phaseLabel(p)}</span>
+                  </div>
+                  {i < arr.length - 1 && <span style={{ color: T.faint, fontSize: '0.75rem' }}>›</span>}
+                </div>
+              );
+            })}
           </div>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
@@ -597,6 +686,9 @@ export default function App() {
         <SessionListPanel
           currentId={sessionId}
           onClose={() => setShowSessions(false)}
+          onDelete={(id) => {
+            if (id === sessionId) newSession();
+          }}
           onSelect={async (id) => {
             if (id === sessionId) return;
             const r = await fetch(`/api/demo/session/${id}`);
@@ -604,6 +696,7 @@ export default function App() {
             const d = await r.json();
             if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', id);
             setSessionId(id);
+            setAgentTree([]);
             restoreFromSession(d);
           }}
         />
@@ -631,6 +724,9 @@ export default function App() {
                 {chat.map((m, i) => <ChatBubble key={i} msg={m} />)}
                 <div ref={chatEndRef} />
               </div>
+
+              {/* Agent delegation tree */}
+              <AgentTreePanel nodes={agentTree} onClear={() => setAgentTree([])} />
 
               {/* Input bar */}
               <div style={{ borderTop: T.border, padding: '0.75rem 1rem' }}>
@@ -779,6 +875,49 @@ const miniInputStyle = {
   padding: '0.4rem 0.6rem', fontFamily: T.mono, fontSize: '0.75rem',
   color: T.text, outline: 'none', width: '100%',
 };
+
+// ── Agent Delegation Tree ─────────────────────────────────────────────────────
+const STATUS_DOT = { running: T.blue, done: T.mint, pending: T.muted, delegating: T.orange, error: T.red };
+function AgentTreePanel({ nodes, onClear }) {
+  if (!nodes || nodes.length === 0) return null;
+  const roots = nodes.filter(n => !n.parentId);
+  function renderNode(n, depth = 0) {
+    const children = nodes.filter(c => c.parentId === n.id);
+    return (
+      <div key={n.id}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', paddingLeft: depth * 18, paddingTop: 4, paddingBottom: 4 }}>
+          {depth > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
+              <div style={{ width: 1, height: 8, background: 'rgba(0,0,0,0.12)' }} />
+              <div style={{ width: 8, height: 1, background: 'rgba(0,0,0,0.12)', marginLeft: -4 }} />
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1 }}>
+            <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>{n.icon}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700 }}>{n.name}</span>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[n.status] || T.muted, flexShrink: 0 }} />
+                <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, textTransform: 'uppercase' }}>{n.status}</span>
+              </div>
+              {n.task && <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.task}</div>}
+            </div>
+          </div>
+        </div>
+        {children.map(c => renderNode(c, depth + 1))}
+      </div>
+    );
+  }
+  return (
+    <div style={{ borderTop: T.border, padding: '0.5rem 1rem 0.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: T.muted }}>Agent Delegation</span>
+        <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, fontSize: '0.65rem', fontFamily: T.mono }}>clear</button>
+      </div>
+      {roots.map(r => renderNode(r))}
+    </div>
+  );
+}
 
 // ── Chat Bubble ───────────────────────────────────────────────────────────────
 function ChatBubble({ msg }) {
