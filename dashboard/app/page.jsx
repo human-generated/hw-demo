@@ -149,10 +149,50 @@ export default function App() {
 
   async function initSession() {
     try {
-      const r = await fetch('/api/demo/session', { method: 'POST' });
-      const d = await r.json();
-      if (d.sessionId) setSessionId(d.sessionId);
+      // Try to restore a previous session from localStorage
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('hw-demo-session') : null;
+      if (saved) {
+        const r = await fetch(`/api/demo/session/${saved}`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d && d.phase && d.phase !== 'start') {
+            setSessionId(saved);
+            restoreFromSession(d);
+            return;
+          }
+        }
+        localStorage.removeItem('hw-demo-session');
+      }
+      // Create a fresh session
+      const r2 = await fetch('/api/demo/session', { method: 'POST' });
+      const d2 = await r2.json();
+      if (d2.sessionId) {
+        setSessionId(d2.sessionId);
+        if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', d2.sessionId);
+      }
     } catch {}
+  }
+
+  function restoreFromSession(d) {
+    const ph = d.phase || 'start';
+    setPhase(ph);
+    if (d.company) setCompany(d.company);
+    if (d.usage) setUsage(d.usage);
+    if (d.power) setPower(d.power);
+    if (d.researchSummary) setResearchSummary(d.researchSummary);
+    if (d.researchFindings) setResearchFindings(d.researchFindings);
+    if (d.platforms && d.platforms.length > 0) {
+      setPlatforms(d.platforms);
+      const deployed = d.platforms.filter(p => p.status === 'deployed' || p.status === 'building');
+      if (deployed.length > 0) setDeployedPlatforms(deployed);
+    }
+    if (d.workers && d.workers.length > 0) setWorkers(d.workers);
+    const nP = (d.platforms || []).filter(p => p.status === 'deployed').length;
+    const nW = (d.workers || []).length;
+    addChat('assistant',
+      `Session restored.${d.company ? ` Company: ${d.company.name}.` : ''}${nP ? ` ${nP} platform${nP > 1 ? 's' : ''} deployed.` : ''}${nW ? ` ${nW} worker${nW > 1 ? 's' : ''} configured.` : ''} Phase: ${ph}.`,
+      'agent:info'
+    );
   }
 
   // Poll session state
@@ -435,6 +475,7 @@ export default function App() {
   }
 
   function newSession() {
+    if (typeof window !== 'undefined') localStorage.removeItem('hw-demo-session');
     setSessionId(null);
     setPhase('start');
     setChat([{ role: 'assistant', content: 'New session started. Enter a company name to begin.' }]);
