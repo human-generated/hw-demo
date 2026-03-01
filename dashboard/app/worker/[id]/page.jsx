@@ -222,15 +222,31 @@ function LogsPanel({ logs }) {
       </div>
     );
   }
+  const totalWh = logs.reduce((s, l) => s + (l.powerWh || 0), 0);
+  const runsWithPower = logs.filter(l => l.powerWh !== undefined).length;
   return (
     <div style={{ background: T.card, borderRadius: T.radius, border: T.border, boxShadow: T.shadow, overflow: 'hidden' }}>
-      <div style={{ padding: '0.65rem 1rem', borderBottom: T.border, fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Run History</div>
-      <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+      <div style={{ padding: '0.65rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Run History</span>
+        {runsWithPower > 0 && (
+          <span style={{ fontSize: '0.62rem', fontFamily: T.mono, color: T.orange }}>
+            ⚡ {(totalWh * 1000).toFixed(4)} mWh total · {runsWithPower} measured runs
+          </span>
+        )}
+      </div>
+      <div style={{ maxHeight: 340, overflowY: 'auto' }}>
         {logs.map((log, i) => (
-          <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.7rem', fontFamily: T.mono, padding: '0.45rem 1rem', borderBottom: i < logs.length - 1 ? T.border : 'none', alignItems: 'center' }}>
+          <div key={i} style={{ display: 'flex', gap: '0.75rem', fontSize: '0.7rem', fontFamily: T.mono, padding: '0.45rem 1rem', borderBottom: i < logs.length - 1 ? T.border : 'none', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ color: T.muted, flexShrink: 0 }}>{new Date(log.at || log.timestamp || Date.now()).toLocaleTimeString()}</span>
             <span style={{ color: log.success !== false ? T.mint : T.red, flexShrink: 0 }}>{log.success !== false ? '✓' : '✗'}</span>
             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text }}>{log.message || log.result || 'Completed'}</span>
+            {log.powerWh !== undefined && (
+              <span style={{ color: T.orange, flexShrink: 0, fontSize: '0.62rem' }}>
+                ⚡{(log.powerWh * 1000).toFixed(4)}mWh
+                {log.wallSec ? ` · ${log.wallSec.toFixed(2)}s wall` : ''}
+                {(log.cpuUserSec !== undefined) ? ` · ${(log.cpuUserSec + (log.cpuSysSec||0)).toFixed(2)}s cpu` : ''}
+              </span>
+            )}
           </div>
         ))}
       </div>

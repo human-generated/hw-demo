@@ -99,6 +99,7 @@ export default function App() {
   const [phase, setPhase] = useState('start');
   const [chat, setChat] = useState([{ role: 'assistant', content: 'Welcome to H-Demo. Enter a company name to begin your AI back-office simulation.' }]);
   const [usage, setUsage] = useState({ tokens: 0, requests: 0, estimatedCostUsd: 0 });
+  const [power, setPower] = useState({ totalWh: 0, runs: 0 });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -174,6 +175,8 @@ export default function App() {
           });
         }
         if (d.phase && d.phase !== phase) setPhase(d.phase);
+        if (d.usage) setUsage(d.usage);
+        if (d.power) setPower(d.power);
       } catch {}
     }, 3000);
     return () => clearInterval(poll);
@@ -516,11 +519,16 @@ export default function App() {
                 </div>
 
                 {/* Resource usage display */}
-                {usage.tokens > 0 && (
-                  <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.75rem', fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, opacity: 0.7 }}>
-                    <span>↑{usage.inputTokens || 0} ↓{usage.outputTokens || 0} tokens</span>
-                    <span>{usage.requests || 0} agent calls</span>
-                    <span style={{ color: T.orange }}>${(usage.estimatedCostUsd || 0).toFixed(4)}</span>
+                {(usage.tokens > 0 || power.totalWh > 0) && (
+                  <div style={{ marginTop: '0.4rem', display: 'flex', gap: '0.75rem', fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, opacity: 0.7, flexWrap: 'wrap' }}>
+                    {usage.tokens > 0 && <>
+                      <span>↑{usage.inputTokens || 0} ↓{usage.outputTokens || 0} tokens</span>
+                      <span>{usage.requests || 0} agent calls</span>
+                      <span style={{ color: T.orange }}>${(usage.estimatedCostUsd || 0).toFixed(4)}</span>
+                    </>}
+                    {power.totalWh > 0 && (
+                      <span style={{ color: '#6CEFA0' }}>⚡ {(power.totalWh * 1000).toFixed(3)} mWh · {power.runs || 0} runs</span>
+                    )}
                   </div>
                 )}
 
