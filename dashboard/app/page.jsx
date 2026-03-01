@@ -209,6 +209,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [agentTree, setAgentTree] = useState([]); // delegation tree nodes
+  const [activeZcAgent, setActiveZcAgent] = useState(null); // clicked agent node for zeroclaw chat
+  const [zcChatHistory, setZcChatHistory] = useState([]);
+  const [zcChatInput, setZcChatInput] = useState('');
+  const [zcChatLoading, setZcChatLoading] = useState(false);
 
   // Research
   const [company, setCompany] = useState(null);
@@ -335,6 +339,36 @@ export default function App() {
     setChat(prev => [...prev, { role, content, tag, at: new Date().toISOString() }]);
   }
 
+  // Spawn a zeroclaw workspace for a tree node (fire-and-forget)
+  function spawnZcAgent(node, customSystemPrompt) {
+    const systemPrompt = customSystemPrompt || `You are ${node.name}. Your task: ${node.task || node.role}. Be concise.`;
+    fetch('/api/demo/agents/spawn', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId: node.id, name: node.name, role: node.role, systemPrompt, sessionId }),
+    }).catch(() => {});
+  }
+
+  async function handleZcChat() {
+    if (!zcChatInput.trim() || !activeZcAgent || zcChatLoading) return;
+    const msg = zcChatInput.trim();
+    setZcChatInput('');
+    setZcChatHistory(prev => [...prev, { role: 'user', content: msg }]);
+    setZcChatLoading(true);
+    try {
+      const r = await fetch(`/api/demo/agents/${activeZcAgent.id}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, sessionId }),
+      });
+      const d = await r.json();
+      setZcChatHistory(prev => [...prev, { role: 'assistant', content: d.reply || d.error || 'No response.' }]);
+    } catch (e) {
+      setZcChatHistory(prev => [...prev, { role: 'assistant', content: 'Error: ' + e.message }]);
+    }
+    setZcChatLoading(false);
+  }
+
   async function handleResearch(co) {
     const name = (co || '').trim();
     if (!name) return;
@@ -354,6 +388,9 @@ export default function App() {
         { id: `ra-platform-${ts}`, name: 'Platform Detector',icon: '📡', role: `ra-platform-${ts}`, parentId, status: 'running', task: 'Detect back-office stack' },
         { id: `ra-merge-${ts}`,    name: 'Merge Agent',      icon: '🔀', role: `ra-merge-${ts}`,    parentId, status: 'pending', task: 'Combine + rank platforms' },
       ];
+      // Spawn zeroclaw workspaces for each sub-agent
+      const all = alreadyHasParent ? subs : [parent, ...subs];
+      all.forEach(n => spawnZcAgent(n));
       return alreadyHasParent ? [...prev, ...subs] : [...prev, parent, ...subs];
     });
     try {
@@ -418,6 +455,8 @@ export default function App() {
         id: `ba-plat-${ts}-${i}`, name: `${p.name} Builder`, icon: '🔧',
         role: `ba-plat-${p.id}`, parentId, status: 'running', task: `Deploy ${platformSoftware[p.id] || p.name} sandbox`,
       }));
+      const all = alreadyHasParent ? subs : [parent, ...subs];
+      all.forEach(n => spawnZcAgent(n));
       return alreadyHasParent ? [...prev, ...subs] : [...prev, parent, ...subs];
     });
 
@@ -470,6 +509,8 @@ export default function App() {
         id: `wpa-sub-${Date.now()}-${i}`, name: `${p.name} Worker Agent`, icon: '⚙️',
         role: `worker-agent-${p.id}`, parentId: parent.id, status: 'running', task: `Design worker for ${p.name}`,
       }));
+      const all = already ? subs : [parent, ...subs];
+      all.forEach(n => spawnZcAgent(n));
       return already ? [...prev, ...subs] : [...prev, parent, ...subs];
     });
     try {
@@ -738,8 +779,18 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* LEFT PANEL */}
         <div style={{ width: 380, display: 'flex', flexDirection: 'column', borderRight: T.border, background: T.card, flexShrink: 0 }}>
-          {/* Platform agent chat overlay */}
-          {activePlatformChat ? (
+          {/* Zeroclaw agent chat overlay */}
+          {activeZcAgent ? (
+            <ZcAgentChatPanel
+              agent={activeZcAgent}
+              history={zcChatHistory}
+              input={zcChatInput}
+              setInput={setZcChatInput}
+              onSend={handleZcChat}
+              loading={zcChatLoading}
+              onBack={() => { setActiveZcAgent(null); setZcChatHistory([]); }}
+            />
+          ) : activePlatformChat ? (
             <PlatformAgentPanel
               platform={activePlatformChat}
               history={platformChatHistory}
@@ -761,7 +812,16 @@ export default function App() {
               <div style={{ borderTop: T.border, padding: '0.75rem 1rem' }}>
                 {agentTree.length > 0 && (
                   <div style={{ marginBottom: '0.5rem' }}>
-                    <AgentFlowHover treeNodes={agentTree} onClear={() => setAgentTree([])} />
+                    <AgentFlowHover
+                      treeNodes={agentTree}
+                      onClear={() => setAgentTree([])}
+                      onAgentClick={(data) => {
+                        const node = data.nodeRef;
+                        if (!node) return;
+                        setActiveZcAgent(node);
+                        setZcChatHistory([{ role: 'assistant', content: `Connected to ${node.name}. Task: ${node.task || node.role}. Ask anything.` }]);
+                      }}
+                    />
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -919,11 +979,15 @@ const STATUS_COLOR = { running: T.blue, done: T.mint, pending: T.muted, delegati
 function AgentFlowNode({ data }) {
   const sc = STATUS_COLOR[data.status] || T.muted;
   return (
-    <div style={{
-      background: T.card, border: `1.5px solid ${sc}`, borderRadius: 6,
-      padding: '5px 10px', minWidth: 110, maxWidth: 150,
-      fontFamily: T.mono, fontSize: '0.62rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-    }}>
+    <div
+      onClick={() => data.onNodeClick && data.onNodeClick(data)}
+      style={{
+        background: T.card, border: `1.5px solid ${sc}`, borderRadius: 6,
+        padding: '5px 10px', minWidth: 110, maxWidth: 150,
+        fontFamily: T.mono, fontSize: '0.62rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        cursor: data.onNodeClick ? 'pointer' : 'default',
+      }}
+    >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <span style={{ fontSize: '0.8rem', lineHeight: 1 }}>{data.icon}</span>
@@ -935,6 +999,7 @@ function AgentFlowNode({ data }) {
         <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{data.status}</span>
       </div>
       {data.task && <div style={{ color: T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
+      <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 2, opacity: 0.6 }}>chat →</div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -942,9 +1007,9 @@ function AgentFlowNode({ data }) {
 
 const AGENT_NODE_TYPES = { agentNode: AgentFlowNode };
 
-function buildAgentFlow(treeNodes) {
+function buildAgentFlow(treeNodes, onNodeClick) {
   if (!treeNodes.length) return { nodes: [], edges: [] };
-  const NODE_W = 150, NODE_H = 64, V_GAP = 70, H_GAP = 16;
+  const NODE_W = 150, NODE_H = 74, V_GAP = 70, H_GAP = 16;
   // BFS to assign depths
   const depth = {}, children = {};
   treeNodes.forEach(n => { children[n.id] = treeNodes.filter(c => c.parentId === n.id); });
@@ -964,7 +1029,7 @@ function buildAgentFlow(treeNodes) {
     const idx = siblings.indexOf(n);
     const total = siblings.length;
     const x = idx * (NODE_W + H_GAP) - (total * (NODE_W + H_GAP) - H_GAP) / 2 + 200;
-    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task } };
+    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task, nodeRef: n, onNodeClick } };
   });
   const edges = treeNodes.filter(n => n.parentId).map(n => ({
     id: `e-${n.parentId}-${n.id}`, source: n.parentId, target: n.id,
@@ -974,18 +1039,18 @@ function buildAgentFlow(treeNodes) {
   return { nodes, edges };
 }
 
-function AgentFlowHover({ treeNodes, onClear }) {
+function AgentFlowHover({ treeNodes, onClear, onAgentClick }) {
   const [show, setShow] = useState(false);
-  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes);
+  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick);
   const [nodes, , onNodesChange] = useNodesState(rfNodes);
   const [edges, , onEdgesChange] = useEdgesState(rfEdges);
 
   // Sync RF state when treeNodes changes
   useEffect(() => {
-    const { nodes: n, edges: e } = buildAgentFlow(treeNodes);
+    const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick);
     onNodesChange(n.map(nd => ({ type: 'reset', item: nd })));
     onEdgesChange(e.map(ed => ({ type: 'reset', item: ed })));
-  }, [treeNodes]);
+  }, [treeNodes, onAgentClick]);
 
   const running = treeNodes.filter(n => n.status === 'running').length;
   const total = treeNodes.length;
@@ -1122,6 +1187,47 @@ function PlatformAgentPanel({ platform, history, input, setInput, onSend, loadin
   );
 }
 
+
+// ── Zeroclaw Agent Chat Panel ─────────────────────────────────────────────────
+function ZcAgentChatPanel({ agent, history, input, setInput, onSend, loading, onBack }) {
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
+  const STATUS_COLORS = { running: T.blue, done: T.mint, pending: T.muted, error: T.red };
+  const sc = STATUS_COLORS[agent.status] || T.muted;
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '0.75rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', gap: '0.75rem', background: T.faint }}>
+        <Btn ghost small onClick={onBack}>← Back</Btn>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{agent.icon || '🤖'}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</span>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc, flexShrink: 0, boxShadow: agent.status === 'running' ? `0 0 4px ${sc}` : 'none' }} />
+          </div>
+          <div style={{ fontSize: '0.6rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            zeroclaw · {agent.task || agent.role}
+          </div>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {history.map((m, i) => <ChatBubble key={i} msg={m} />)}
+        {loading && <div style={{ color: T.muted, fontSize: '0.75rem', fontStyle: 'italic' }}>Thinking...</div>}
+        <div ref={endRef} />
+      </div>
+      <div style={{ borderTop: T.border, padding: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+          placeholder={`Message ${agent.name}...`}
+          disabled={loading}
+          style={{ ...miniInputStyle, flex: 1 }}
+        />
+        <Btn small onClick={onSend} disabled={loading || !input.trim()}>→</Btn>
+      </div>
+    </div>
+  );
+}
 
 // ── Software Selector ─────────────────────────────────────────────────────────
 function SoftwareSelector({ platformId, options, value, onChange }) {
