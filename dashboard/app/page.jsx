@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -338,6 +340,20 @@ export default function App() {
     setPhase('research');
     addChat('user', name);
     addChat('assistant', `Researching ${name}...`, 'agent:research');
+    // Spawn research sub-agents
+    setAgentTree(prev => {
+      const ts = Date.now();
+      const parentId = prev.find(n => n.role === 'research-agent')?.id || `ra-${ts}`;
+      const parent = prev.find(n => n.role === 'research-agent') || { id: parentId, name: 'Research Agent', icon: '🔍', role: 'research-agent', parentId: prev[0]?.id || null, status: 'running', task: `Research ${name}` };
+      const alreadyHasParent = prev.some(n => n.role === 'research-agent');
+      const subs = [
+        { id: `ra-web-${ts}`,      name: 'Web Search',       icon: '🌐', role: `ra-web-${ts}`,      parentId, status: 'running', task: 'Perplexity sonar search' },
+        { id: `ra-profile-${ts}`,  name: 'Company Profiler', icon: '🏢', role: `ra-profile-${ts}`,  parentId, status: 'running', task: 'Industry, size, HQ' },
+        { id: `ra-platform-${ts}`, name: 'Platform Detector',icon: '📡', role: `ra-platform-${ts}`, parentId, status: 'running', task: 'Detect back-office stack' },
+        { id: `ra-merge-${ts}`,    name: 'Merge Agent',      icon: '🔀', role: `ra-merge-${ts}`,    parentId, status: 'pending', task: 'Combine + rank platforms' },
+      ];
+      return alreadyHasParent ? [...prev, ...subs] : [...prev, parent, ...subs];
+    });
     try {
       const r = await fetch('/api/demo/research', {
         method: 'POST',
@@ -363,6 +379,7 @@ export default function App() {
         setRawResearch(d.raw_research || '');
         const selected = (d.platforms || []).filter(p => p.selected);
         const knownSoftware = selected.filter(p => p.actual_software && p.actual_software !== 'To be determined').map(p => `${p.name} (${p.actual_software})`);
+        setAgentTree(prev => prev.map(n => n.role.startsWith('ra-') || n.role === 'research-agent' ? { ...n, status: 'done' } : n));
         const msg = [
           `**${d.company.name}** — ${d.company.industry}, ${d.company.country || ''}, ${d.company.size || ''}`,
           d.summary,
@@ -389,6 +406,18 @@ export default function App() {
     const init = {};
     selected.forEach(p => { init[p.id] = { status: 'queued', progress: 0, name: p.name }; });
     setBuildProgress(init);
+    // Spawn one builder sub-agent per platform
+    setAgentTree(prev => {
+      const ts = Date.now();
+      const parentId = prev.find(n => n.role === 'build-agent')?.id || `ba-${ts}`;
+      const parent = prev.find(n => n.role === 'build-agent') || { id: parentId, name: 'Build Agent', icon: '🏗️', role: 'build-agent', parentId: prev[0]?.id || null, status: 'running', task: `Build ${selected.length} sandboxes` };
+      const alreadyHasParent = prev.some(n => n.role === 'build-agent');
+      const subs = selected.map((p, i) => ({
+        id: `ba-plat-${ts}-${i}`, name: `${p.name} Builder`, icon: '🔧',
+        role: `ba-plat-${p.id}`, parentId, status: 'running', task: `Deploy ${platformSoftware[p.id] || p.name} sandbox`,
+      }));
+      return alreadyHasParent ? [...prev, ...subs] : [...prev, parent, ...subs];
+    });
 
     try {
       const r = await fetch('/api/demo/build-platforms', {
@@ -399,6 +428,7 @@ export default function App() {
       const d = await r.json();
       if (d.platforms) {
         setDeployedPlatforms(d.platforms);
+        setAgentTree(prev => prev.map(n => n.role.startsWith('ba-') || n.role === 'build-agent' ? { ...n, status: 'done' } : n));
         addChat('assistant', `All ${d.platforms.length} platforms deployed. You can preview and customize each one.`, 'agent:done');
         setPhase('platforms');
       }
@@ -725,11 +755,13 @@ export default function App() {
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Agent delegation tree */}
-              <AgentTreePanel nodes={agentTree} onClear={() => setAgentTree([])} />
-
               {/* Input bar */}
               <div style={{ borderTop: T.border, padding: '0.75rem 1rem' }}>
+                {agentTree.length > 0 && (
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <AgentFlowHover treeNodes={agentTree} onClear={() => setAgentTree([])} />
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input
                     value={input}
@@ -876,45 +908,137 @@ const miniInputStyle = {
   color: T.text, outline: 'none', width: '100%',
 };
 
-// ── Agent Delegation Tree ─────────────────────────────────────────────────────
-const STATUS_DOT = { running: T.blue, done: T.mint, pending: T.muted, delegating: T.orange, error: T.red };
-function AgentTreePanel({ nodes, onClear }) {
-  if (!nodes || nodes.length === 0) return null;
-  const roots = nodes.filter(n => !n.parentId);
-  function renderNode(n, depth = 0) {
-    const children = nodes.filter(c => c.parentId === n.id);
-    return (
-      <div key={n.id}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', paddingLeft: depth * 18, paddingTop: 4, paddingBottom: 4 }}>
-          {depth > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
-              <div style={{ width: 1, height: 8, background: 'rgba(0,0,0,0.12)' }} />
-              <div style={{ width: 8, height: 1, background: 'rgba(0,0,0,0.12)', marginLeft: -4 }} />
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1 }}>
-            <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>{n.icon}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontFamily: T.mono, fontSize: '0.65rem', fontWeight: 700 }}>{n.name}</span>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[n.status] || T.muted, flexShrink: 0 }} />
-                <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, textTransform: 'uppercase' }}>{n.status}</span>
-              </div>
-              {n.task && <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.task}</div>}
-            </div>
-          </div>
-        </div>
-        {children.map(c => renderNode(c, depth + 1))}
-      </div>
-    );
-  }
+// ── Agent Flow Graph (hover popup) ────────────────────────────────────────────
+const STATUS_COLOR = { running: T.blue, done: T.mint, pending: T.muted, delegating: T.orange, error: T.red };
+
+function AgentFlowNode({ data }) {
+  const sc = STATUS_COLOR[data.status] || T.muted;
   return (
-    <div style={{ borderTop: T.border, padding: '0.5rem 1rem 0.25rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: T.muted }}>Agent Delegation</span>
-        <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.muted, fontSize: '0.65rem', fontFamily: T.mono }}>clear</button>
+    <div style={{
+      background: T.card, border: `1.5px solid ${sc}`, borderRadius: 6,
+      padding: '5px 10px', minWidth: 110, maxWidth: 150,
+      fontFamily: T.mono, fontSize: '0.62rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    }}>
+      <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+        <span style={{ fontSize: '0.8rem', lineHeight: 1 }}>{data.icon}</span>
+        <span style={{ fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
       </div>
-      {roots.map(r => renderNode(r))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc, flexShrink: 0,
+          boxShadow: data.status === 'running' ? `0 0 4px ${sc}` : 'none' }} />
+        <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{data.status}</span>
+      </div>
+      {data.task && <div style={{ color: T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
+    </div>
+  );
+}
+
+const AGENT_NODE_TYPES = { agentNode: AgentFlowNode };
+
+function buildAgentFlow(treeNodes) {
+  if (!treeNodes.length) return { nodes: [], edges: [] };
+  const NODE_W = 150, NODE_H = 64, V_GAP = 70, H_GAP = 16;
+  // BFS to assign depths
+  const depth = {}, children = {};
+  treeNodes.forEach(n => { children[n.id] = treeNodes.filter(c => c.parentId === n.id); });
+  const roots = treeNodes.filter(n => !n.parentId);
+  roots.forEach(n => { depth[n.id] = 0; });
+  const queue = [...roots];
+  while (queue.length) {
+    const n = queue.shift();
+    (children[n.id] || []).forEach(c => { depth[c.id] = (depth[n.id] || 0) + 1; queue.push(c); });
+  }
+  // Group by depth for horizontal spacing
+  const byDepth = {};
+  treeNodes.forEach(n => { const d = depth[n.id] || 0; (byDepth[d] = byDepth[d] || []).push(n); });
+  const nodes = treeNodes.map(n => {
+    const d = depth[n.id] || 0;
+    const siblings = byDepth[d] || [n];
+    const idx = siblings.indexOf(n);
+    const total = siblings.length;
+    const x = idx * (NODE_W + H_GAP) - (total * (NODE_W + H_GAP) - H_GAP) / 2 + 200;
+    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task } };
+  });
+  const edges = treeNodes.filter(n => n.parentId).map(n => ({
+    id: `e-${n.parentId}-${n.id}`, source: n.parentId, target: n.id,
+    style: { stroke: 'rgba(0,0,0,0.15)', strokeWidth: 1.5 },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8, color: 'rgba(0,0,0,0.2)' },
+  }));
+  return { nodes, edges };
+}
+
+function AgentFlowHover({ treeNodes, onClear }) {
+  const [show, setShow] = useState(false);
+  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes);
+  const [nodes, , onNodesChange] = useNodesState(rfNodes);
+  const [edges, , onEdgesChange] = useEdgesState(rfEdges);
+
+  // Sync RF state when treeNodes changes
+  useEffect(() => {
+    const { nodes: n, edges: e } = buildAgentFlow(treeNodes);
+    onNodesChange(n.map(nd => ({ type: 'reset', item: nd })));
+    onEdgesChange(e.map(ed => ({ type: 'reset', item: ed })));
+  }, [treeNodes]);
+
+  const running = treeNodes.filter(n => n.status === 'running').length;
+  const total = treeNodes.length;
+  if (!total) return null;
+
+  // Estimate popup height based on max depth
+  const depths = treeNodes.map(n => {
+    let d = 0, cur = n;
+    while (cur.parentId) { cur = treeNodes.find(x => x.id === cur.parentId) || {}; d++; }
+    return d;
+  });
+  const maxDepth = Math.max(...depths, 0);
+  const popH = Math.min(420, (maxDepth + 1) * 134 + 40);
+  const popW = Math.min(520, Math.max(...Object.values(
+    treeNodes.reduce((acc, n) => { const d = (acc[n.id] || 0); return acc; }, {})
+  ), 1) * 170 + 40, 520);
+
+  return (
+    <div style={{ position: 'relative' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {show && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: 0, marginBottom: 8,
+          width: 480, height: popH,
+          background: T.card, border: T.border, borderRadius: 8,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden', zIndex: 200,
+        }}>
+          <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 6 }}>
+            <button onClick={onClear} style={{ background: T.faint, border: T.border, borderRadius: 4, padding: '2px 8px', fontFamily: T.mono, fontSize: '0.58rem', cursor: 'pointer', color: T.muted }}>clear</button>
+          </div>
+          <ReactFlow
+            nodes={nodes} edges={edges}
+            nodeTypes={AGENT_NODE_TYPES}
+            fitView fitViewOptions={{ padding: 0.3 }}
+            nodesDraggable={false} nodesConnectable={false}
+            elementsSelectable={false} zoomOnScroll={false}
+            panOnDrag={false} preventScrolling={false}
+            style={{ background: '#FAFAFA' }}
+          >
+            <Background gap={20} size={0.5} color="rgba(0,0,0,0.04)" />
+          </ReactFlow>
+        </div>
+      )}
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '3px 10px', borderRadius: 99,
+        background: running > 0 ? 'rgba(108,221,239,0.12)' : T.faint,
+        border: `1px solid ${running > 0 ? 'rgba(108,221,239,0.4)' : 'rgba(0,0,0,0.08)'}`,
+        cursor: 'default', userSelect: 'none',
+      }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: running > 0 ? T.blue : T.muted,
+          boxShadow: running > 0 ? `0 0 5px ${T.blue}` : 'none', flexShrink: 0 }} />
+        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.text }}>
+          {running > 0 ? `${running} agent${running > 1 ? 's' : ''} running` : `${total} agents`}
+        </span>
+      </div>
     </div>
   );
 }
