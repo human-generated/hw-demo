@@ -95,30 +95,22 @@ function StepNode({ data }) {
     <div
       onClick={data.onSelect}
       style={{
-        width: 220, padding: '0.5rem 0.75rem', borderRadius: isCond ? 6 : 8,
+        width: 220, padding: '0.5rem 0.75rem', borderRadius: 8,
         background: sel ? sk.color + '14' : '#fff',
-        border: `2px solid ${sel ? sk.color : 'rgba(0,0,0,0.08)'}`,
+        border: `2px solid ${sel ? sk.color : isCond ? sk.color + '60' : 'rgba(0,0,0,0.08)'}`,
+        borderLeft: isCond ? `4px solid ${sk.color}` : undefined,
         boxShadow: sel ? `0 0 0 4px ${sk.color}22` : '0 1px 5px rgba(0,0,0,0.05)',
         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
         transition: 'all 0.12s',
-        transform: isCond ? 'rotate(45deg)' : 'none',
       }}
     >
-      {isCond && <div style={{ transform: 'rotate(-45deg)', display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-        <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sk.icon}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.77rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name || sk.name}</div>
-        </div>
-      </div>}
-      {!isCond && <>
-        <div style={{ width: 20, height: 20, borderRadius: '50%', background: sel ? sk.color : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontFamily: T.mono, color: sel ? '#fff' : T.muted, flexShrink: 0 }}>{data.index + 1}</div>
-        <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sk.icon}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.79rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name || sk.name}</div>
-          {s.description && <div style={{ fontSize: '0.61rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
-        </div>
-        <Badge color={sk.color + '22'} style={{ color: sk.color, flexShrink: 0 }}>{s.skill}</Badge>
-      </>}
+      <div style={{ width: 20, height: 20, borderRadius: isCond ? 4 : '50%', background: sel ? sk.color : isCond ? sk.color + '22' : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontFamily: T.mono, color: sel ? '#fff' : sk.color, flexShrink: 0, fontWeight: 700 }}>{isCond ? '?' : data.index + 1}</div>
+      <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sk.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.79rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name || sk.name}</div>
+        {s.description && <div style={{ fontSize: '0.61rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
+      </div>
+      <Badge color={sk.color + '22'} style={{ color: sk.color, flexShrink: 0 }}>{s.skill}</Badge>
       <Handle type="target" position={Position.Top}    style={{ background: sk.color, width: 8, height: 8 }} />
       <Handle type="source" position={Position.Bottom} style={{ background: sk.color, width: 8, height: 8 }} />
     </div>
@@ -534,6 +526,7 @@ export default function WorkerPage() {
           {/* ReactFlow canvas */}
           <div style={{ flex: 1, position: 'relative' }}>
             <ReactFlow
+              key={trigger?.type}
               nodes={rfNodes}
               edges={rfEdges}
               onNodesChange={onNodesChange}
