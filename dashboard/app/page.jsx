@@ -220,6 +220,7 @@ export default function App() {
   const [zcChatHistory, setZcChatHistory] = useState([]);
   const [zcChatInput, setZcChatInput] = useState('');
   const [zcChatLoading, setZcChatLoading] = useState(false);
+  const [zcHistoryLoading, setZcHistoryLoading] = useState(false);
 
   // Research
   const [company, setCompany] = useState(null);
@@ -369,11 +370,32 @@ export default function App() {
         body: JSON.stringify({ message: msg, sessionId }),
       });
       const d = await r.json();
-      setZcChatHistory(prev => [...prev, { role: 'assistant', content: d.reply || d.error || 'No response.' }]);
+      const reply = d.reply || d.error || 'No response.';
+      setZcChatHistory(prev => [...prev, { role: 'assistant', content: reply }]);
     } catch (e) {
       setZcChatHistory(prev => [...prev, { role: 'assistant', content: 'Error: ' + e.message }]);
     }
     setZcChatLoading(false);
+  }
+
+  async function openZcAgent(node) {
+    if (!node) return;
+    setActiveZcAgent(node);
+    setZcChatHistory([]);
+    setZcHistoryLoading(true);
+    try {
+      const r = await fetch(`/api/demo/agents/${node.id}/history`);
+      const d = await r.json();
+      const msgs = d.messages || [];
+      if (msgs.length > 0) {
+        setZcChatHistory(msgs);
+      } else {
+        setZcChatHistory([{ role: 'assistant', content: `Hi, I'm ${node.name}. My task: ${node.task || node.role}. Ask me anything.` }]);
+      }
+    } catch {
+      setZcChatHistory([{ role: 'assistant', content: `Hi, I'm ${node.name}. My task: ${node.task || node.role}. Ask me anything.` }]);
+    }
+    setZcHistoryLoading(false);
   }
 
   async function handleResearch(co) {
@@ -795,6 +817,7 @@ export default function App() {
               setInput={setZcChatInput}
               onSend={handleZcChat}
               loading={zcChatLoading}
+              historyLoading={zcHistoryLoading}
               onBack={() => { setActiveZcAgent(null); setZcChatHistory([]); }}
             />
           ) : activePlatformChat ? (
@@ -822,11 +845,9 @@ export default function App() {
                     <AgentFlowHover
                       treeNodes={agentTree}
                       onClear={() => setAgentTree([])}
-                      onAgentClick={(data) => {
-                        const node = data.nodeRef;
-                        if (!node) return;
-                        setActiveZcAgent(node);
-                        setZcChatHistory([{ role: 'assistant', content: `Connected to ${node.name}. Task: ${node.task || node.role}. Ask anything.` }]);
+                      onAgentClick={(nodeId) => {
+                        const node = agentTree.find(n => n.id === nodeId);
+                        if (node) openZcAgent(node);
                       }}
                     />
                   </div>
@@ -1112,17 +1133,17 @@ function AgentFlowNode({ data }) {
   const sc = STATUS_COLOR[data.status] || T.muted;
   return (
     <div
-      onClick={() => data.onNodeClick && data.onNodeClick(data)}
+      onClick={() => data.onNodeClick && data.onNodeClick(data.nodeId)}
       style={{
         background: T.card, border: `1.5px solid ${sc}`, borderRadius: 6,
-        padding: '5px 10px', minWidth: 110, maxWidth: 150,
+        padding: '5px 10px', minWidth: 120, maxWidth: 160,
         fontFamily: T.mono, fontSize: '0.62rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        cursor: data.onNodeClick ? 'pointer' : 'default',
+        cursor: 'pointer',
       }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-        <span style={{ fontSize: '0.8rem', lineHeight: 1 }}>{data.icon}</span>
+        <span style={{ fontSize: '0.8rem', lineHeight: 1, flexShrink: 0 }}>{data.icon}</span>
         <span style={{ fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1131,7 +1152,7 @@ function AgentFlowNode({ data }) {
         <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{data.status}</span>
       </div>
       {data.task && <div style={{ color: T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
-      <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 2, opacity: 0.6 }}>chat →</div>
+      <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -1161,7 +1182,7 @@ function buildAgentFlow(treeNodes, onNodeClick) {
     const idx = siblings.indexOf(n);
     const total = siblings.length;
     const x = idx * (NODE_W + H_GAP) - (total * (NODE_W + H_GAP) - H_GAP) / 2 + 200;
-    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task, nodeRef: n, onNodeClick } };
+    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task, nodeId: n.id, onNodeClick } };
   });
   const edges = treeNodes.filter(n => n.parentId).map(n => ({
     id: `e-${n.parentId}-${n.id}`, source: n.parentId, target: n.id,
@@ -1321,41 +1342,53 @@ function PlatformAgentPanel({ platform, history, input, setInput, onSend, loadin
 
 
 // ── Zeroclaw Agent Chat Panel ─────────────────────────────────────────────────
-function ZcAgentChatPanel({ agent, history, input, setInput, onSend, loading, onBack }) {
+function ZcAgentChatPanel({ agent, history, input, setInput, onSend, loading, historyLoading, onBack }) {
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
   const STATUS_COLORS = { running: T.blue, done: T.mint, pending: T.muted, error: T.red };
   const sc = STATUS_COLORS[agent.status] || T.muted;
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '0.75rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', gap: '0.75rem', background: T.faint }}>
-        <Btn ghost small onClick={onBack}>← Back</Btn>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>{agent.icon || '🤖'}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</span>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc, flexShrink: 0, boxShadow: agent.status === 'running' ? `0 0 4px ${sc}` : 'none' }} />
+      {/* Header */}
+      <div style={{ padding: '0.6rem 1rem', borderBottom: T.border, background: T.faint, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: 4 }}>
+          <Btn ghost small onClick={onBack}>←</Btn>
+          <span style={{ fontSize: '1rem', lineHeight: 1 }}>{agent.icon || '🤖'}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.82rem', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {agent.name}
+            </div>
           </div>
-          <div style={{ fontSize: '0.6rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            zeroclaw · {agent.task || agent.role}
-          </div>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc, boxShadow: agent.status === 'running' ? `0 0 5px ${sc}` : 'none' }} />
+            <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: sc, textTransform: 'uppercase' }}>{agent.status}</span>
+          </span>
+        </div>
+        <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, paddingLeft: '2.2rem' }}>
+          zeroclaw instance · {agent.task || agent.role}
         </div>
       </div>
+      {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {history.map((m, i) => <ChatBubble key={i} msg={m} />)}
-        {loading && <div style={{ color: T.muted, fontSize: '0.75rem', fontStyle: 'italic' }}>Thinking...</div>}
+        {historyLoading && (
+          <div style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono, textAlign: 'center', padding: '1rem' }}>Loading history…</div>
+        )}
+        {!historyLoading && history.map((m, i) => <ChatBubble key={i} msg={m} />)}
+        {loading && <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, fontStyle: 'italic' }}>Thinking…</div>}
         <div ref={endRef} />
       </div>
-      <div style={{ borderTop: T.border, padding: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+      {/* Input */}
+      <div style={{ borderTop: T.border, padding: '0.75rem', display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-          placeholder={`Message ${agent.name}...`}
-          disabled={loading}
+          placeholder={`Message ${agent.name}…`}
+          disabled={loading || historyLoading}
+          autoFocus
           style={{ ...miniInputStyle, flex: 1 }}
         />
-        <Btn small onClick={onSend} disabled={loading || !input.trim()}>→</Btn>
+        <Btn small onClick={onSend} disabled={loading || historyLoading || !input.trim()}>→</Btn>
       </div>
     </div>
   );
