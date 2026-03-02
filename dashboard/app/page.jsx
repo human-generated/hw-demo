@@ -1888,23 +1888,28 @@ function SectionLabel({ children, style = {} }) {
 
 // ── Settings Panel ────────────────────────────────────────────────────────────
 function SettingsPanel() {
-  const [keys, setKeys]           = useState(null);
-  const [skills, setSkills]       = useState([]);
-  const [nfsTree, setNfsTree]     = useState(null);
-  const [nfsPath, setNfsPath]     = useState('');
-  const [section, setSection]     = useState('keys');
+  const [keys, setKeys]             = useState(null);
+  const [skills, setSkills]         = useState([]);
+  const [accounts, setAccounts]     = useState([]);
+  const [nfsTree, setNfsTree]       = useState(null);
+  const [nfsPath, setNfsPath]       = useState('');
+  const [section, setSection]       = useState('keys');
   const [savingKeys, setSavingKeys] = useState(false);
-  const [editKey, setEditKey]     = useState(null); // {name, value}
+  const [editKey, setEditKey]       = useState(null);
   const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyVal, setNewKeyVal] = useState('');
-  const [showVals, setShowVals]   = useState({});
-  const [newSkill, setNewSkill]   = useState(null); // {name,desc,code}
+  const [newKeyVal, setNewKeyVal]   = useState('');
+  const [newSkill, setNewSkill]     = useState(null);
   const [savingSkill, setSavingSkill] = useState(false);
   const [expandedSkill, setExpandedSkill] = useState(null);
+  const [newAccount, setNewAccount] = useState(null);
+  const [savingAccount, setSavingAccount] = useState(false);
+
+  const SA_TYPES = ['google', 'aws', 'azure', 'stripe', 'sendgrid', 'github', 'slack', 'twilio', 'other'];
 
   useEffect(() => {
     fetch('/api/config/keys').then(r => r.json()).then(setKeys).catch(() => setKeys({}));
     fetch('/api/skills').then(r => r.json()).then(d => setSkills(d.skills || [])).catch(() => {});
+    fetch('/api/service-accounts').then(r => r.json()).then(d => setAccounts(d.accounts || [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1931,8 +1936,7 @@ function SettingsPanel() {
     const r = await fetch('/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newSkill) });
     const d = await r.json();
     if (d.ok) {
-      const slug = newSkill.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-      setSkills(prev => [...prev, { ...newSkill, slug, created_at: new Date().toISOString() }]);
+      setSkills(prev => [...prev, { ...newSkill, slug: d.slug, created_at: new Date().toISOString() }]);
       setNewSkill(null);
     }
     setSavingSkill(false);
@@ -1943,20 +1947,37 @@ function SettingsPanel() {
     setSkills(prev => prev.filter(s => (s.slug || s.name.toLowerCase().replace(/[^a-z0-9]+/g,'_')) !== slug));
   }
 
+  async function createAccount() {
+    if (!newAccount?.name || !newAccount?.type) return;
+    setSavingAccount(true);
+    const r = await fetch('/api/service-accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newAccount) });
+    const d = await r.json();
+    if (d.ok) {
+      setAccounts(prev => [...prev, { ...newAccount, slug: d.slug, hasCredentials: !!newAccount.credentials, created_at: new Date().toISOString() }]);
+      setNewAccount(null);
+    }
+    setSavingAccount(false);
+  }
+
+  async function deleteAccount(slug) {
+    await fetch(`/api/service-accounts/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    setAccounts(prev => prev.filter(a => a.slug !== slug));
+  }
+
   const tabs = [
-    { id: 'keys', label: '🔑 API Keys' },
-    { id: 'skills', label: '⚙️ Skill Library' },
-    { id: 'nfs', label: '🗄️ NFS Storage' },
+    { id: 'keys',     label: '🔑 API Keys' },
+    { id: 'accounts', label: '🪪 Service Accounts' },
+    { id: 'skills',   label: '⚙️ Skill Library' },
+    { id: 'nfs',      label: '🗄️ NFS Storage' },
   ];
 
   const sInput = { background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.35rem 0.6rem', fontFamily: T.mono, fontSize: '0.72rem', color: T.text, outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Section tabs */}
       <div style={{ display: 'flex', borderBottom: T.border, background: T.card, flexShrink: 0 }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setSection(t.id)} style={{ background: 'none', border: 'none', padding: '0.6rem 1.1rem', cursor: 'pointer', fontSize: '0.62rem', fontFamily: T.mono, color: section === t.id ? T.text : T.muted, borderBottom: section === t.id ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t.label}</button>
+          <button key={t.id} onClick={() => setSection(t.id)} style={{ background: 'none', border: 'none', padding: '0.6rem 1.1rem', cursor: 'pointer', fontSize: '0.62rem', fontFamily: T.mono, color: section === t.id ? T.text : T.muted, borderBottom: section === t.id ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{t.label}</button>
         ))}
       </div>
 
@@ -1966,7 +1987,7 @@ function SettingsPanel() {
         {section === 'keys' && (
           <div>
             <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
-              Secrets stored in <code>/opt/hw-master/keys.json</code> — accessible to all workers via <code>/mnt/shared/keys.json</code> and <code>loadDemoKeys()</code>.
+              Stored in <code>/opt/hw-master/keys.json</code> · accessible to all workers via <code>loadDemoKeys()</code>
             </div>
             {keys === null ? (
               <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono }}>Loading…</div>
@@ -1977,7 +1998,7 @@ function SettingsPanel() {
                     {editKey?.name === name ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                         <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{name}</div>
-                        <input defaultValue={value} id={`key-edit-${name}`} style={sInput} />
+                        <input defaultValue={value} id={`key-edit-${name}`} style={sInput} autoFocus />
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
                           <Btn small onClick={() => saveKey(name, document.getElementById(`key-edit-${name}`).value)} disabled={savingKeys}>Save</Btn>
                           <Btn small ghost onClick={() => setEditKey(null)}>Cancel</Btn>
@@ -1987,24 +2008,19 @@ function SettingsPanel() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{name}</div>
-                          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {showVals[name] ? value : '●'.repeat(Math.min(24, value?.length || 8))}
-                          </div>
+                          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.muted, letterSpacing: '0.08em' }}>{'●'.repeat(Math.min(20, value?.length || 8))}</div>
                         </div>
-                        <button onClick={() => setShowVals(p => ({ ...p, [name]: !p[name] }))} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>{showVals[name] ? '🙈' : '👁'}</button>
-                        <button onClick={() => setEditKey({ name, value })} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>Edit</button>
-                        <button onClick={() => deleteKey(name)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.red }}>✕</button>
+                        <button onClick={() => setEditKey({ name, value })} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 8px', cursor: 'pointer', fontSize: '0.62rem', fontFamily: T.mono, color: T.muted }}>Edit</button>
+                        <button onClick={() => deleteKey(name)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 8px', cursor: 'pointer', fontSize: '0.62rem', color: T.red }}>✕</button>
                       </div>
                     )}
                   </div>
                 ))}
-
-                {/* Add new key */}
-                <div style={{ background: T.card, border: `1px dashed rgba(0,0,0,0.15)`, borderRadius: T.radius, padding: '0.7rem 0.85rem', marginTop: '0.4rem' }}>
+                <div style={{ background: T.card, border: `1px dashed rgba(0,0,0,0.15)`, borderRadius: T.radius, padding: '0.7rem 0.85rem', marginTop: '0.2rem' }}>
                   <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', marginBottom: '0.45rem' }}>Add / Update Key</div>
                   <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="key_name" style={{ ...sInput, width: 140, flex: 'none' }} />
-                    <input value={newKeyVal} onChange={e => setNewKeyVal(e.target.value)} placeholder="value" style={{ ...sInput, flex: 1, minWidth: 160 }} />
+                    <input value={newKeyVal} onChange={e => setNewKeyVal(e.target.value)} placeholder="value" type="password" style={{ ...sInput, flex: 1, minWidth: 160 }} />
                     <Btn small onClick={() => saveKey(newKeyName, newKeyVal)} disabled={!newKeyName || !newKeyVal || savingKeys}>+ Add</Btn>
                   </div>
                 </div>
@@ -2013,17 +2029,65 @@ function SettingsPanel() {
           </div>
         )}
 
+        {/* ── Service Accounts ── */}
+        {section === 'accounts' && (
+          <div>
+            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
+              Stored in <code>/mnt/shared/service_accounts/</code> · JSON credential blobs for cloud providers, SaaS integrations
+            </div>
+            {accounts.length === 0 && !newAccount && (
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, marginBottom: '1rem' }}>No service accounts yet.</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1rem' }}>
+              {accounts.map(sa => (
+                <div key={sa.slug} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.65rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 6, background: T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
+                    {{'google':'🔵','aws':'🟠','azure':'🔷','stripe':'💜','sendgrid':'🟢','github':'⚫','slack':'🟣','twilio':'🔴','other':'🔘'}[sa.type] || '🔘'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8rem' }}>{sa.name}</div>
+                    <div style={{ fontSize: '0.62rem', color: T.muted }}>{sa.type}{sa.description ? ' · ' + sa.description : ''}</div>
+                    {sa.hasCredentials && <div style={{ fontSize: '0.58rem', color: T.mint, marginTop: 1 }}>✓ credentials stored</div>}
+                  </div>
+                  <div style={{ fontSize: '0.58rem', color: T.muted, fontFamily: T.mono, flexShrink: 0 }}>{sa.created_at ? new Date(sa.created_at).toLocaleDateString() : ''}</div>
+                  <button onClick={() => deleteAccount(sa.slug)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 8px', cursor: 'pointer', fontSize: '0.62rem', color: T.red }}>✕</button>
+                </div>
+              ))}
+            </div>
+            {newAccount ? (
+              <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.85rem' }}>
+                <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', marginBottom: '0.65rem' }}>New Service Account</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <input value={newAccount.name} onChange={e => setNewAccount(p => ({...p, name: e.target.value}))} placeholder="Account name (e.g. prod-gcp-sa)" style={sInput} autoFocus />
+                  <select value={newAccount.type} onChange={e => setNewAccount(p => ({...p, type: e.target.value}))} style={{ ...sInput }}>
+                    {SA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <input value={newAccount.description || ''} onChange={e => setNewAccount(p => ({...p, description: e.target.value}))} placeholder="Description (optional)" style={sInput} />
+                  <textarea value={typeof newAccount.credentials === 'string' ? newAccount.credentials : JSON.stringify(newAccount.credentials || {}, null, 2)}
+                    onChange={e => setNewAccount(p => ({...p, credentials: e.target.value}))}
+                    placeholder={'{\n  "type": "service_account",\n  "project_id": "...",\n  "private_key": "...",\n  ...\n}'}
+                    rows={8} style={{ ...sInput, resize: 'vertical', lineHeight: 1.5 }} />
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <Btn small onClick={createAccount} disabled={!newAccount.name || !newAccount.type || savingAccount}>{savingAccount ? 'Saving…' : 'Save Account'}</Btn>
+                    <Btn small ghost onClick={() => setNewAccount(null)}>Cancel</Btn>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Btn ghost small onClick={() => setNewAccount({ name: '', type: 'google', description: '', credentials: '' })}>+ Add Service Account</Btn>
+            )}
+          </div>
+        )}
+
         {/* ── Skill Library ── */}
         {section === 'skills' && (
           <div>
             <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
-              Shared skills stored in <code>/mnt/shared/skills/</code>. Each skill has access to all secrets in <code>/mnt/shared/keys.json</code>.
+              Stored in <code>/mnt/shared/skills/</code> · available as steps in all workers · read secrets from <code>/mnt/shared/keys.json</code>
             </div>
-
             {skills.length === 0 && !newSkill && (
-              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, marginBottom: '1rem' }}>No skills yet. Create one below.</div>
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, marginBottom: '1rem' }}>No skills yet.</div>
             )}
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1rem' }}>
               {skills.map(sk => {
                 const slug = sk.slug || sk.name.toLowerCase().replace(/[^a-z0-9]+/g,'_');
@@ -2033,13 +2097,11 @@ function SettingsPanel() {
                     <div style={{ padding: '0.6rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: 2 }}>{sk.name}</div>
-                        {sk.desc && <div style={{ fontSize: '0.64rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sk.desc}</div>}
+                        {sk.desc && <div style={{ fontSize: '0.64rem', color: T.muted }}>{sk.desc}</div>}
                         <div style={{ fontSize: '0.58rem', color: T.muted, marginTop: 2 }}>by {sk.creator || 'unknown'} · {sk.created_at ? new Date(sk.created_at).toLocaleDateString() : ''}</div>
                       </div>
-                      <button onClick={() => setExpandedSkill(expanded ? null : slug)} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>
-                        {expanded ? '▲ code' : '▼ code'}
-                      </button>
-                      <button onClick={() => deleteSkill(slug)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.65rem', color: T.red }}>✕</button>
+                      <button onClick={() => setExpandedSkill(expanded ? null : slug)} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.62rem', color: T.muted }}>{expanded ? '▲' : '▼ code'}</button>
+                      <button onClick={() => deleteSkill(slug)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.62rem', color: T.red }}>✕</button>
                     </div>
                     {expanded && sk.code && (
                       <pre style={{ margin: 0, padding: '0.65rem 0.85rem', background: T.bg, fontSize: '0.63rem', fontFamily: T.mono, color: T.text, overflowX: 'auto', borderTop: T.border, maxHeight: 240, overflowY: 'auto' }}>{sk.code}</pre>
@@ -2048,16 +2110,17 @@ function SettingsPanel() {
                 );
               })}
             </div>
-
             {newSkill ? (
               <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.85rem' }}>
                 <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', marginBottom: '0.65rem' }}>New Skill</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                  <input value={newSkill.name} onChange={e => setNewSkill(p => ({...p, name: e.target.value}))} placeholder="Skill name" style={sInput} />
+                  <input value={newSkill.name} onChange={e => setNewSkill(p => ({...p, name: e.target.value}))} placeholder="Skill name" style={sInput} autoFocus />
                   <input value={newSkill.desc} onChange={e => setNewSkill(p => ({...p, desc: e.target.value}))} placeholder="Description" style={sInput} />
-                  <textarea value={newSkill.code} onChange={e => setNewSkill(p => ({...p, code: e.target.value}))} placeholder={"// JavaScript — reads keys from /mnt/shared/keys.json\nconst keys = JSON.parse(require('fs').readFileSync('/mnt/shared/keys.json','utf8'));\n// your skill code..."} rows={8} style={{ ...sInput, resize: 'vertical', lineHeight: 1.5 }} />
+                  <textarea value={newSkill.code} onChange={e => setNewSkill(p => ({...p, code: e.target.value}))}
+                    placeholder={"// JavaScript\nconst keys = JSON.parse(require('fs').readFileSync('/mnt/shared/keys.json','utf8'));\nconst accounts = {}; // load from /mnt/shared/service_accounts/\n"}
+                    rows={8} style={{ ...sInput, resize: 'vertical', lineHeight: 1.5 }} />
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <Btn small onClick={createSkill} disabled={!newSkill.name || savingSkill}>{savingSkill ? 'Saving…' : 'Create Skill'}</Btn>
+                    <Btn small onClick={createSkill} disabled={!newSkill.name || savingSkill}>{savingSkill ? 'Saving…' : 'Create'}</Btn>
                     <Btn small ghost onClick={() => setNewSkill(null)}>Cancel</Btn>
                   </div>
                 </div>
@@ -2071,11 +2134,11 @@ function SettingsPanel() {
         {/* ── NFS Storage ── */}
         {section === 'nfs' && (
           <div>
-            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '0.75rem', lineHeight: 1.6 }}>
-              Shared NFS volume at <code>/mnt/shared/</code> — accessible to all workers.
+            <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.65rem 0.85rem', marginBottom: '1rem', fontFamily: T.mono, fontSize: '0.68rem', lineHeight: 1.8 }}>
+              <div style={{ fontWeight: 700, marginBottom: '0.3rem' }}>Mount this share locally:</div>
+              <code style={{ display: 'block', color: T.blue, userSelect: 'all' }}>sudo mount -t nfs 159.65.205.244:/mnt/shared /mnt/hw-shared</code>
+              <div style={{ color: T.muted, marginTop: '0.3rem', fontSize: '0.62rem' }}>or via sshfs: <code style={{ color: T.muted, userSelect: 'all' }}>sshfs -o IdentityFile=~/.ssh/openclaw-key.pem root@159.65.205.244:/mnt/shared /mnt/hw-shared</code></div>
             </div>
-
-            {/* Breadcrumb */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
               <button onClick={() => setNfsPath('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.68rem', color: T.blue, padding: 0 }}>shared/</button>
               {nfsPath.split('/').filter(Boolean).map((seg, i, arr) => (
@@ -2085,25 +2148,19 @@ function SettingsPanel() {
                 </span>
               ))}
             </div>
-
             {!nfsTree ? (
               <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono }}>Loading…</div>
             ) : nfsTree.error ? (
               <div style={{ color: T.red, fontSize: '0.72rem', fontFamily: T.mono }}>{nfsTree.error}</div>
             ) : (
               <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
-                {(nfsTree.entries || []).length === 0 && (
-                  <div style={{ padding: '1rem', color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, textAlign: 'center' }}>Empty directory</div>
-                )}
+                {!(nfsTree.entries || []).length && <div style={{ padding: '1rem', color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, textAlign: 'center' }}>Empty</div>}
                 {(nfsTree.entries || []).map((entry, i, arr) => (
                   <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.42rem 0.85rem', borderBottom: i < arr.length - 1 ? T.border : 'none', cursor: entry.type === 'dir' ? 'pointer' : 'default' }}
                     onClick={() => entry.type === 'dir' && setNfsPath(nfsPath ? nfsPath + '/' + entry.name : entry.name)}>
                     <span style={{ fontSize: '0.85rem' }}>{entry.type === 'dir' ? '📁' : entry.type === 'binary' ? '📦' : '📄'}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: T.mono, fontSize: '0.72rem', color: entry.type === 'dir' ? T.blue : T.text, fontWeight: entry.type === 'dir' ? 600 : 400 }}>{entry.name}</div>
-                      {entry.content !== undefined && (
-                        <pre style={{ margin: '0.3rem 0 0', fontSize: '0.6rem', color: T.muted, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 80, overflow: 'hidden' }}>{typeof entry.content === 'string' ? entry.content.slice(0, 300) : JSON.stringify(entry.content, null, 2).slice(0, 300)}</pre>
-                      )}
                     </div>
                     <span style={{ color: T.muted, fontSize: '0.58rem', fontFamily: T.mono, flexShrink: 0 }}>{entry.size ? (entry.size > 1024 ? (entry.size/1024).toFixed(1)+'k' : entry.size+'b') : ''}</span>
                     {entry.type !== 'dir' && entry.type !== 'binary' && (
