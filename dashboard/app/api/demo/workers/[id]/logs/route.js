@@ -2,7 +2,9 @@ const MASTER = 'http://159.65.205.244:3000';
 
 export async function GET(req, { params }) {
   try {
-    const r = await fetch(`${MASTER}/demo/workers/${params.id}/logs`);
+    const sessionId = new URL(req.url).searchParams.get('sessionId');
+    const url = `${MASTER}/demo/workers/${params.id}/logs${sessionId ? `?sessionId=${sessionId}` : ''}`;
+    const r = await fetch(url);
     const d = await r.json();
     return Response.json(d);
   } catch (e) {
