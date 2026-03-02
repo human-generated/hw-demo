@@ -323,17 +323,32 @@ function NodeDetailPanel({ selectedId, trigger, steps, onTriggerChange, onStepCh
 }
 
 // ─── Skills Palette ───────────────────────────────────────────────────────────
-function SkillsPalette({ onAdd }) {
+function SkillsPalette({ onAdd, nfsSkills = [] }) {
   return (
     <div style={{ padding: '0.65rem 1rem' }}>
-      <Label>Add Step</Label>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.28rem' }}>
+      <Label>Built-in Steps</Label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.28rem', marginBottom: nfsSkills.length ? '0.6rem' : 0 }}>
         {SKILLS.map(s => (
           <button key={s.id} onClick={() => onAdd(s)} style={{ background: T.faint, border: T.border, borderRadius: T.radius, padding: '0.2rem 0.45rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: '0.22rem', color: T.muted }} onMouseOver={e => e.currentTarget.style.background = s.color + '18'} onMouseOut={e => e.currentTarget.style.background = T.faint}>
             {s.icon} {s.name}
           </button>
         ))}
       </div>
+      {nfsSkills.length > 0 && <>
+        <Label>Shared Library</Label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.28rem' }}>
+          {nfsSkills.map(s => {
+            const slug = s.slug || s.name.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+            return (
+              <button key={slug} onClick={() => onAdd({ id: slug, name: s.name, description: s.desc || '', color: T.orange, icon: '📦', code: s.code })}
+                style={{ background: T.orange + '12', border: `1px solid ${T.orange}40`, borderRadius: T.radius, padding: '0.2rem 0.45rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: '0.22rem', color: T.orange }}
+                onMouseOver={e => e.currentTarget.style.background = T.orange + '22'} onMouseOut={e => e.currentTarget.style.background = T.orange + '12'}>
+                📦 {s.name}
+              </button>
+            );
+          })}
+        </div>
+      </>}
     </div>
   );
 }
@@ -442,6 +457,8 @@ export default function WorkerPage() {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
+  const [nfsSkills, setNfsSkills] = useState([]);
+
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput]     = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -464,6 +481,10 @@ export default function WorkerPage() {
       setSelectedNodeId(null);
     }
   }, [worker?.id]);
+
+  useEffect(() => {
+    fetch('/api/skills').then(r => r.json()).then(d => setNfsSkills(d.skills || [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!workerId || !sessionId) { setLoading(false); return; }
@@ -624,7 +645,7 @@ export default function WorkerPage() {
 
             {/* Skills palette */}
             <div style={{ borderBottom: T.border }}>
-              <SkillsPalette onAdd={addStep} />
+              <SkillsPalette onAdd={addStep} nfsSkills={nfsSkills} />
             </div>
 
             {/* Chat */}

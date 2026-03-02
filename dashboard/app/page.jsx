@@ -248,6 +248,9 @@ export default function App() {
   const [deployingWorker, setDeployingWorker] = useState(null);
   const [proposingWorkers, setProposingWorkers] = useState(false);
 
+  // Settings panel
+  const [showSettings, setShowSettings] = useState(false);
+
   // Real client data
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -787,6 +790,7 @@ export default function App() {
               );
             })}
           </div>
+          <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
         </div>
@@ -920,82 +924,85 @@ export default function App() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {phase === 'start' && (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ maxWidth: 480, textAlign: 'center' }}>
-                <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>
-                  AI Back-Office Simulator
-                </div>
-                <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
-                  Type a company name to begin
-                </h1>
-                <p style={{ color: T.muted, fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                  The orchestrator will research the company, detect back-office platforms, build live sandboxes, and deploy AI workers — all through chat.
-                </p>
-                <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
-                  {[
-                    { icon: '🔍', label: 'Research', desc: 'AI discovers platforms' },
-                    { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
-                    { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
-                  ].map(s => (
-                    <div key={s.label} style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{s.icon}</div>
-                      <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.2rem' }}>{s.label}</div>
-                      <div style={{ color: T.muted, fontSize: '0.7rem' }}>{s.desc}</div>
-                    </div>
-                  ))}
+        <div style={{ flex: 1, overflowY: showSettings ? 'hidden' : 'auto', padding: showSettings ? 0 : '1.5rem', display: 'flex', flexDirection: 'column', gap: showSettings ? 0 : '1.5rem' }}>
+          {showSettings && <SettingsPanel />}
+          {!showSettings && <>
+            {phase === 'start' && (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ maxWidth: 480, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>
+                    AI Back-Office Simulator
+                  </div>
+                  <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
+                    Type a company name to begin
+                  </h1>
+                  <p style={{ color: T.muted, fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+                    The orchestrator will research the company, detect back-office platforms, build live sandboxes, and deploy AI workers — all through chat.
+                  </p>
+                  <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                    {[
+                      { icon: '🔍', label: 'Research', desc: 'AI discovers platforms' },
+                      { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
+                      { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
+                    ].map(s => (
+                      <div key={s.label} style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{s.icon}</div>
+                        <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.2rem' }}>{s.label}</div>
+                        <div style={{ color: T.muted, fontSize: '0.7rem' }}>{s.desc}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {phase === 'research' && (
-            <ResearchPanel
-              company={company}
-              platforms={platforms}
-              setPlatforms={setPlatforms}
-              platformSoftware={platformSoftware}
-              setPlatformSoftware={setPlatformSoftware}
-              summary={researchSummary}
-              loading={loading}
-              onBuild={handleBuildPlatforms}
-              findings={researchFindings}
-              citations={researchCitations}
-              rawResearch={rawResearch}
-            />
-          )}
+            {phase === 'research' && (
+              <ResearchPanel
+                company={company}
+                platforms={platforms}
+                setPlatforms={setPlatforms}
+                platformSoftware={platformSoftware}
+                setPlatformSoftware={setPlatformSoftware}
+                summary={researchSummary}
+                loading={loading}
+                onBuild={handleBuildPlatforms}
+                findings={researchFindings}
+                citations={researchCitations}
+                rawResearch={rawResearch}
+              />
+            )}
 
-          {phase === 'building' && (
-            <BuildingPanel progress={buildProgress} platforms={platforms.filter(p => p.selected)} />
-          )}
+            {phase === 'building' && (
+              <BuildingPanel progress={buildProgress} platforms={platforms.filter(p => p.selected)} />
+            )}
 
-          {(phase === 'platforms' || phase === 'workers') && deployedPlatforms.length > 0 && (
-            <PlatformsCanvas
-              platforms={deployedPlatforms}
-              sessionId={sessionId}
-              onChat={p => { setActivePlatformChat(p); setPlatformChatHistory([]); }}
-              onProposeWorkers={handleProposeWorkers}
-              proposing={proposingWorkers}
-              showWorkers={phase === 'workers'}
-              realClientActive={realClientActive}
-            />
-          )}
+            {(phase === 'platforms' || phase === 'workers') && deployedPlatforms.length > 0 && (
+              <PlatformsCanvas
+                platforms={deployedPlatforms}
+                sessionId={sessionId}
+                onChat={p => { setActivePlatformChat(p); setPlatformChatHistory([]); }}
+                onProposeWorkers={handleProposeWorkers}
+                proposing={proposingWorkers}
+                showWorkers={phase === 'workers'}
+                realClientActive={realClientActive}
+              />
+            )}
 
-          {phase === 'workers' && workers.length > 0 && (
-            <WorkersPanel
-              workers={workers}
-              sessionId={sessionId}
-              onDeploy={handleDeployWorker}
-              onRun={handleRunWorker}
-              deployingWorker={deployingWorker}
-              logs={workerLogs}
-              fetchLogs={fetchWorkerLogs}
-              activeTab={activeWorkerTab}
-              setActiveTab={setActiveWorkerTab}
-              realClientActive={realClientActive}
-            />
-          )}
+            {phase === 'workers' && workers.length > 0 && (
+              <WorkersPanel
+                workers={workers}
+                sessionId={sessionId}
+                onDeploy={handleDeployWorker}
+                onRun={handleRunWorker}
+                deployingWorker={deployingWorker}
+                logs={workerLogs}
+                fetchLogs={fetchWorkerLogs}
+                activeTab={activeWorkerTab}
+                setActiveTab={setActiveWorkerTab}
+                realClientActive={realClientActive}
+              />
+            )}
+          </>}
         </div>
       </div>
       <ObservabilityPanel />
@@ -1876,5 +1883,239 @@ function SectionLabel({ children, style = {} }) {
       textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.75rem',
       ...style,
     }}>{children}</div>
+  );
+}
+
+// ── Settings Panel ────────────────────────────────────────────────────────────
+function SettingsPanel() {
+  const [keys, setKeys]           = useState(null);
+  const [skills, setSkills]       = useState([]);
+  const [nfsTree, setNfsTree]     = useState(null);
+  const [nfsPath, setNfsPath]     = useState('');
+  const [section, setSection]     = useState('keys');
+  const [savingKeys, setSavingKeys] = useState(false);
+  const [editKey, setEditKey]     = useState(null); // {name, value}
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyVal, setNewKeyVal] = useState('');
+  const [showVals, setShowVals]   = useState({});
+  const [newSkill, setNewSkill]   = useState(null); // {name,desc,code}
+  const [savingSkill, setSavingSkill] = useState(false);
+  const [expandedSkill, setExpandedSkill] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/config/keys').then(r => r.json()).then(setKeys).catch(() => setKeys({}));
+    fetch('/api/skills').then(r => r.json()).then(d => setSkills(d.skills || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (section !== 'nfs') return;
+    fetch(`/api/nfs?path=${encodeURIComponent(nfsPath)}`).then(r => r.json()).then(setNfsTree).catch(() => {});
+  }, [section, nfsPath]);
+
+  async function saveKey(name, value) {
+    setSavingKeys(true);
+    await fetch('/api/config/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [name]: value }) });
+    setKeys(prev => ({ ...prev, [name]: value }));
+    setEditKey(null); setNewKeyName(''); setNewKeyVal('');
+    setSavingKeys(false);
+  }
+
+  async function deleteKey(name) {
+    await fetch(`/api/config/keys?key=${encodeURIComponent(name)}`, { method: 'DELETE' });
+    setKeys(prev => { const k = { ...prev }; delete k[name]; return k; });
+  }
+
+  async function createSkill() {
+    if (!newSkill?.name) return;
+    setSavingSkill(true);
+    const r = await fetch('/api/skills', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newSkill) });
+    const d = await r.json();
+    if (d.ok) {
+      const slug = newSkill.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      setSkills(prev => [...prev, { ...newSkill, slug, created_at: new Date().toISOString() }]);
+      setNewSkill(null);
+    }
+    setSavingSkill(false);
+  }
+
+  async function deleteSkill(slug) {
+    await fetch(`/api/skills?slug=${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    setSkills(prev => prev.filter(s => (s.slug || s.name.toLowerCase().replace(/[^a-z0-9]+/g,'_')) !== slug));
+  }
+
+  const tabs = [
+    { id: 'keys', label: '🔑 API Keys' },
+    { id: 'skills', label: '⚙️ Skill Library' },
+    { id: 'nfs', label: '🗄️ NFS Storage' },
+  ];
+
+  const sInput = { background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.35rem 0.6rem', fontFamily: T.mono, fontSize: '0.72rem', color: T.text, outline: 'none', width: '100%', boxSizing: 'border-box' };
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Section tabs */}
+      <div style={{ display: 'flex', borderBottom: T.border, background: T.card, flexShrink: 0 }}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setSection(t.id)} style={{ background: 'none', border: 'none', padding: '0.6rem 1.1rem', cursor: 'pointer', fontSize: '0.62rem', fontFamily: T.mono, color: section === t.id ? T.text : T.muted, borderBottom: section === t.id ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+
+        {/* ── API Keys ── */}
+        {section === 'keys' && (
+          <div>
+            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
+              Secrets stored in <code>/opt/hw-master/keys.json</code> — accessible to all workers via <code>/mnt/shared/keys.json</code> and <code>loadDemoKeys()</code>.
+            </div>
+            {keys === null ? (
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono }}>Loading…</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                {Object.entries(keys).map(([name, value]) => (
+                  <div key={name} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.6rem 0.85rem' }}>
+                    {editKey?.name === name ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{name}</div>
+                        <input defaultValue={value} id={`key-edit-${name}`} style={sInput} />
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <Btn small onClick={() => saveKey(name, document.getElementById(`key-edit-${name}`).value)} disabled={savingKeys}>Save</Btn>
+                          <Btn small ghost onClick={() => setEditKey(null)}>Cancel</Btn>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{name}</div>
+                          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {showVals[name] ? value : '●'.repeat(Math.min(24, value?.length || 8))}
+                          </div>
+                        </div>
+                        <button onClick={() => setShowVals(p => ({ ...p, [name]: !p[name] }))} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>{showVals[name] ? '🙈' : '👁'}</button>
+                        <button onClick={() => setEditKey({ name, value })} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>Edit</button>
+                        <button onClick={() => deleteKey(name)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 6px', cursor: 'pointer', fontSize: '0.65rem', color: T.red }}>✕</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add new key */}
+                <div style={{ background: T.card, border: `1px dashed rgba(0,0,0,0.15)`, borderRadius: T.radius, padding: '0.7rem 0.85rem', marginTop: '0.4rem' }}>
+                  <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', marginBottom: '0.45rem' }}>Add / Update Key</div>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <input value={newKeyName} onChange={e => setNewKeyName(e.target.value)} placeholder="key_name" style={{ ...sInput, width: 140, flex: 'none' }} />
+                    <input value={newKeyVal} onChange={e => setNewKeyVal(e.target.value)} placeholder="value" style={{ ...sInput, flex: 1, minWidth: 160 }} />
+                    <Btn small onClick={() => saveKey(newKeyName, newKeyVal)} disabled={!newKeyName || !newKeyVal || savingKeys}>+ Add</Btn>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Skill Library ── */}
+        {section === 'skills' && (
+          <div>
+            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
+              Shared skills stored in <code>/mnt/shared/skills/</code>. Each skill has access to all secrets in <code>/mnt/shared/keys.json</code>.
+            </div>
+
+            {skills.length === 0 && !newSkill && (
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, marginBottom: '1rem' }}>No skills yet. Create one below.</div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '1rem' }}>
+              {skills.map(sk => {
+                const slug = sk.slug || sk.name.toLowerCase().replace(/[^a-z0-9]+/g,'_');
+                const expanded = expandedSkill === slug;
+                return (
+                  <div key={slug} style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+                    <div style={{ padding: '0.6rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: 2 }}>{sk.name}</div>
+                        {sk.desc && <div style={{ fontSize: '0.64rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sk.desc}</div>}
+                        <div style={{ fontSize: '0.58rem', color: T.muted, marginTop: 2 }}>by {sk.creator || 'unknown'} · {sk.created_at ? new Date(sk.created_at).toLocaleDateString() : ''}</div>
+                      </div>
+                      <button onClick={() => setExpandedSkill(expanded ? null : slug)} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.65rem', color: T.muted }}>
+                        {expanded ? '▲ code' : '▼ code'}
+                      </button>
+                      <button onClick={() => deleteSkill(slug)} style={{ background: 'none', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '2px 7px', cursor: 'pointer', fontSize: '0.65rem', color: T.red }}>✕</button>
+                    </div>
+                    {expanded && sk.code && (
+                      <pre style={{ margin: 0, padding: '0.65rem 0.85rem', background: T.bg, fontSize: '0.63rem', fontFamily: T.mono, color: T.text, overflowX: 'auto', borderTop: T.border, maxHeight: 240, overflowY: 'auto' }}>{sk.code}</pre>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {newSkill ? (
+              <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.85rem' }}>
+                <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', marginBottom: '0.65rem' }}>New Skill</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <input value={newSkill.name} onChange={e => setNewSkill(p => ({...p, name: e.target.value}))} placeholder="Skill name" style={sInput} />
+                  <input value={newSkill.desc} onChange={e => setNewSkill(p => ({...p, desc: e.target.value}))} placeholder="Description" style={sInput} />
+                  <textarea value={newSkill.code} onChange={e => setNewSkill(p => ({...p, code: e.target.value}))} placeholder={"// JavaScript — reads keys from /mnt/shared/keys.json\nconst keys = JSON.parse(require('fs').readFileSync('/mnt/shared/keys.json','utf8'));\n// your skill code..."} rows={8} style={{ ...sInput, resize: 'vertical', lineHeight: 1.5 }} />
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <Btn small onClick={createSkill} disabled={!newSkill.name || savingSkill}>{savingSkill ? 'Saving…' : 'Create Skill'}</Btn>
+                    <Btn small ghost onClick={() => setNewSkill(null)}>Cancel</Btn>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Btn ghost small onClick={() => setNewSkill({ name: '', desc: '', code: '', creator: 'user' })}>+ New Skill</Btn>
+            )}
+          </div>
+        )}
+
+        {/* ── NFS Storage ── */}
+        {section === 'nfs' && (
+          <div>
+            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '0.75rem', lineHeight: 1.6 }}>
+              Shared NFS volume at <code>/mnt/shared/</code> — accessible to all workers.
+            </div>
+
+            {/* Breadcrumb */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              <button onClick={() => setNfsPath('')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.68rem', color: T.blue, padding: 0 }}>shared/</button>
+              {nfsPath.split('/').filter(Boolean).map((seg, i, arr) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{ color: T.muted, fontSize: '0.7rem' }}>›</span>
+                  <button onClick={() => setNfsPath(arr.slice(0, i+1).join('/'))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.68rem', color: T.blue, padding: 0 }}>{seg}</button>
+                </span>
+              ))}
+            </div>
+
+            {!nfsTree ? (
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono }}>Loading…</div>
+            ) : nfsTree.error ? (
+              <div style={{ color: T.red, fontSize: '0.72rem', fontFamily: T.mono }}>{nfsTree.error}</div>
+            ) : (
+              <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+                {(nfsTree.entries || []).length === 0 && (
+                  <div style={{ padding: '1rem', color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, textAlign: 'center' }}>Empty directory</div>
+                )}
+                {(nfsTree.entries || []).map((entry, i, arr) => (
+                  <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.42rem 0.85rem', borderBottom: i < arr.length - 1 ? T.border : 'none', cursor: entry.type === 'dir' ? 'pointer' : 'default' }}
+                    onClick={() => entry.type === 'dir' && setNfsPath(nfsPath ? nfsPath + '/' + entry.name : entry.name)}>
+                    <span style={{ fontSize: '0.85rem' }}>{entry.type === 'dir' ? '📁' : entry.type === 'binary' ? '📦' : '📄'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: T.mono, fontSize: '0.72rem', color: entry.type === 'dir' ? T.blue : T.text, fontWeight: entry.type === 'dir' ? 600 : 400 }}>{entry.name}</div>
+                      {entry.content !== undefined && (
+                        <pre style={{ margin: '0.3rem 0 0', fontSize: '0.6rem', color: T.muted, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 80, overflow: 'hidden' }}>{typeof entry.content === 'string' ? entry.content.slice(0, 300) : JSON.stringify(entry.content, null, 2).slice(0, 300)}</pre>
+                      )}
+                    </div>
+                    <span style={{ color: T.muted, fontSize: '0.58rem', fontFamily: T.mono, flexShrink: 0 }}>{entry.size ? (entry.size > 1024 ? (entry.size/1024).toFixed(1)+'k' : entry.size+'b') : ''}</span>
+                    {entry.type !== 'dir' && entry.type !== 'binary' && (
+                      <a href={`/api/nfs/file?path=${encodeURIComponent(nfsPath ? nfsPath + '/' + entry.name : entry.name)}`} download style={{ color: T.muted, fontSize: '0.6rem', fontFamily: T.mono, textDecoration: 'none', border: T.border, borderRadius: T.radius, padding: '1px 5px' }}>↓</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -18,3 +18,11 @@ export async function POST(req) {
     return Response.json(await r.json());
   } catch(e) { return Response.json({ error: e.message }, { status: 500 }); }
 }
+
+export async function DELETE(req) {
+  try {
+    const key = new URL(req.url).searchParams.get('key');
+    const r = await fetch(`${MASTER}/config/keys/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    return Response.json(await r.json());
+  } catch(e) { return Response.json({ error: e.message }, { status: 500 }); }
+}
