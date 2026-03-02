@@ -343,25 +343,76 @@ function LogsPanel({ logs }) {
   if (!logs || logs.length === 0) return (
     <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>No runs yet.</div>
   );
-  const totalWh = logs.reduce((s, l) => s + (l.powerWh || 0), 0);
-  const measured = logs.filter(l => l.powerWh !== undefined).length;
+
+  const alerts   = logs.filter(l => l.success === true && !l.type);
+  const failures = logs.filter(l => l.success === false);
+  const calls    = logs.filter(l => l.type === 'twilio_call');
+  const callErrs = logs.filter(l => l.type === 'twilio_call_error');
+  const totalWh  = logs.reduce((s, l) => s + (l.powerWh || 0), 0);
+  const measured  = logs.filter(l => l.powerWh !== undefined).length;
+
+  // Show most-recent first
+  const sorted = [...logs].reverse();
+
+  function rowColor(log) {
+    if (log.type === 'twilio_call')       return T.blue;
+    if (log.type === 'twilio_call_error') return T.red;
+    if (log.success === false)            return T.red;
+    if (log.message && (log.message.includes('Alert') || log.message.includes('matched'))) return T.orange;
+    return T.muted;
+  }
+  function rowIcon(log) {
+    if (log.type === 'twilio_call')       return '📞';
+    if (log.type === 'twilio_call_error') return '❌';
+    if (log.success === false)            return '✗';
+    if (log.message && (log.message.includes('Alert') || log.message.includes('matched'))) return '🔔';
+    return '✓';
+  }
+  function rowLabel(log) {
+    if (log.type === 'twilio_call')       return `Call ${log.to} · ${log.status} · ${log.sid ? log.sid.slice(0,12) + '…' : ''}`;
+    if (log.type === 'twilio_call_error') return `Call error: ${log.error}`;
+    return log.message || 'Completed';
+  }
+
   return (
-    <div style={{ padding: '1.5rem' }}>
-      {measured > 0 && (
-        <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.55rem 1rem', marginBottom: '1rem', display: 'flex', gap: '1.2rem', fontSize: '0.67rem', fontFamily: T.mono }}>
-          <span style={{ color: T.orange }}>⚡ {(totalWh * 1000).toFixed(4)} mWh total</span>
-          <span style={{ color: T.muted }}>avg {(totalWh * 1000 / measured).toFixed(4)} mWh/run</span>
-        </div>
-      )}
-      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
-        {logs.map((log, i) => (
-          <div key={i} style={{ display: 'flex', gap: '0.65rem', fontSize: '0.69rem', fontFamily: T.mono, padding: '0.38rem 1rem', borderBottom: i < logs.length - 1 ? T.border : 'none', alignItems: 'center' }}>
-            <span style={{ color: T.muted, flexShrink: 0, fontSize: '0.6rem' }}>{new Date(log.at || Date.now()).toLocaleTimeString()}</span>
-            <span style={{ color: log.success !== false ? T.mint : T.red, flexShrink: 0 }}>{log.success !== false ? '✓' : '✗'}</span>
-            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.message || 'Completed'}</span>
-            {log.powerWh !== undefined && <span style={{ color: T.orange, flexShrink: 0, fontSize: '0.58rem' }}>⚡{(log.powerWh * 1000).toFixed(4)}mWh {log.wallSec ? `${log.wallSec.toFixed(1)}s` : ''}</span>}
+    <div style={{ padding: '1.25rem' }}>
+      {/* Stats row */}
+      <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {[
+          { label: 'Alerts fired', value: alerts.length, color: T.orange },
+          { label: 'Failures', value: failures.length, color: T.red },
+          { label: 'Calls queued', value: calls.length, color: T.blue },
+          ...(callErrs.length ? [{ label: 'Call errors', value: callErrs.length, color: T.red }] : []),
+          ...(measured > 0 ? [{ label: 'Energy', value: (totalWh * 1000).toFixed(3) + ' mWh', color: T.muted }] : []),
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.4rem 0.75rem', fontSize: '0.65rem', fontFamily: T.mono }}>
+            <div style={{ color: T.muted, fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{label}</div>
+            <div style={{ color, fontWeight: 700 }}>{value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Log rows */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+        {sorted.map((log, i) => {
+          const color = rowColor(log);
+          return (
+            <div key={i} style={{ display: 'flex', gap: '0.65rem', fontSize: '0.68rem', fontFamily: T.mono, padding: '0.42rem 0.9rem', borderBottom: i < sorted.length - 1 ? T.border : 'none', alignItems: 'flex-start', borderLeft: `3px solid ${color}40` }}>
+              <span style={{ color: T.muted, flexShrink: 0, fontSize: '0.58rem', paddingTop: 2, minWidth: 60 }}>
+                {new Date(log.at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
+              <span style={{ color, flexShrink: 0, fontSize: '0.8rem' }}>{rowIcon(log)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: log.success === false || log.type?.includes('error') ? T.red : T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rowLabel(log)}</div>
+                {log.trigger && <div style={{ fontSize: '0.58rem', color: T.muted, marginTop: 1 }}>trigger: {log.trigger}</div>}
+                {log.stock !== undefined && <div style={{ fontSize: '0.58rem', color: T.muted, marginTop: 1 }}>stock: {log.stock}</div>}
+              </div>
+              {log.powerWh !== undefined && (
+                <span style={{ color: T.orange, flexShrink: 0, fontSize: '0.56rem', paddingTop: 2 }}>⚡{(log.powerWh * 1000).toFixed(3)}mWh</span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

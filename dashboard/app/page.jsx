@@ -1770,12 +1770,25 @@ const SKILL_ICONS = {
   'call-webhook': '🔗', 'run-script': '⚙️', 'transform-data': '🔄',
   'condition': '🔀', 'wait': '⏱️',
 };
-const TRIGGER_ICONS = { schedule: '⏰', webhook: '🔗', manual: '▶️', message: '💬', 'platform-event': '📡' };
+const TRIGGER_ICONS = { schedule: '⏰', webhook: '🔗', manual: '▶️', message: '💬', 'platform-event': '📡', 'db-change': '🗄️', 'db-condition': '🔎' };
 
 function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientActive }) {
   const trigger = worker.trigger || {};
   const steps = worker.steps || [];
-  const triggerIcon = TRIGGER_ICONS[trigger.type] || '⚡';
+  const ttype = trigger.type || 'manual';
+  const triggerIcon = TRIGGER_ICONS[ttype] || '⚡';
+  const tcfg = trigger.config || {};
+  const phone = worker.phone || tcfg.phone || '';
+
+  // Build a concise trigger detail line
+  let triggerDetail = trigger.label || ttype;
+  if (ttype === 'db-condition' && tcfg.condition) {
+    triggerDetail = `WHERE ${tcfg.condition}` + (tcfg.table ? ` ON ${tcfg.table}` : '');
+  } else if (ttype === 'db-change' && tcfg.table) {
+    triggerDetail = `${tcfg.event || 'any'} on ${tcfg.table}`;
+  } else if (ttype === 'schedule' && tcfg.cron) {
+    triggerDetail = tcfg.cron;
+  }
 
   return (
     <div style={{ background: T.card, borderRadius: T.radius, boxShadow: T.shadow, border: T.border, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -1793,12 +1806,21 @@ function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientA
           } style={{ flexShrink: 0 }}>{worker.status || 'proposed'}</Badge>
         </div>
 
-        {/* Trigger pill */}
-        <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span style={{ fontSize: '0.78rem' }}>{triggerIcon}</span>
-          <span style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>
-            {trigger.label || (typeof worker.trigger === 'string' ? worker.trigger : trigger.type || 'manual')}
-          </span>
+        {/* Trigger block */}
+        <div style={{ marginTop: '0.65rem', background: T.faint, borderRadius: T.radius, padding: '0.4rem 0.65rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.8rem' }}>{triggerIcon}</span>
+            <span style={{ fontSize: '0.62rem', fontFamily: T.mono, color: T.blue, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{ttype}</span>
+            {tcfg.pollIntervalSec && <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted }}>· every {tcfg.pollIntervalSec}s</span>}
+          </div>
+          {triggerDetail && triggerDetail !== ttype && (
+            <div style={{ fontSize: '0.62rem', fontFamily: T.mono, color: T.text, background: 'rgba(0,0,0,0.04)', borderRadius: 3, padding: '0.15rem 0.4rem', wordBreak: 'break-all' }}>{triggerDetail}</div>
+          )}
+          {phone && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.6rem', fontFamily: T.mono, color: T.muted }}>
+              <span>📞</span><span>{phone}</span>
+            </div>
+          )}
         </div>
       </div>
 
