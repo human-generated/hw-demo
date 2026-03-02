@@ -1046,15 +1046,17 @@ function ObservabilityPanel() {
     if (!open) { if (esRef.current) { esRef.current.close(); esRef.current = null; setLive(false); } return; }
     const es = new EventSource('/api/demo/events/stream');
     esRef.current = es;
+    // Poll readyState: OPEN=1 means live. onerror alone is unreliable (fires on reconnects too).
+    const poll = setInterval(() => setLive(es.readyState === 1), 1500);
     es.onopen = () => setLive(true);
-    es.onerror = () => setLive(false);
     es.onmessage = (e) => {
+      setLive(true);
       try {
         const ev = JSON.parse(e.data);
         setEvents(prev => [ev, ...prev].slice(0, 120));
       } catch {}
     };
-    return () => { es.close(); esRef.current = null; setLive(false); };
+    return () => { clearInterval(poll); es.close(); esRef.current = null; setLive(false); };
   }, [open]);
 
   useEffect(() => {
