@@ -1033,30 +1033,37 @@ function ObservabilityPanel() {
   const esRef = useRef(null);
   const listRef = useRef(null);
 
-  // Load recent events on open
+  // Load recent events on open + poll every 10s as SSE fallback
   useEffect(() => {
     if (!open) return;
-    fetch('/api/demo/events?n=80').then(r => r.json()).then(d => {
-      if (Array.isArray(d)) setEvents(d.reverse());
-    }).catch(() => {});
+    function fetchEvents() {
+      fetch('/api/demo/events?n=80').then(r => r.json()).then(d => {
+        if (Array.isArray(d)) { setEvents(d.reverse()); setLive(true); }
+      }).catch(() => {});
+    }
+    fetchEvents();
+    const poll = setInterval(fetchEvents, 10000);
+    return () => clearInterval(poll);
   }, [open]);
 
   // SSE connection
+  const lastMsgRef = useRef(0);
   useEffect(() => {
     if (!open) { if (esRef.current) { esRef.current.close(); esRef.current = null; setLive(false); } return; }
     const es = new EventSource('/api/demo/events/stream');
     esRef.current = es;
-    // Poll readyState: OPEN=1 means live. onerror alone is unreliable (fires on reconnects too).
-    const poll = setInterval(() => setLive(es.readyState === 1), 1500);
     es.onopen = () => setLive(true);
+    // onerror fires on every Vercel reconnect — only mark dead if no message in 30s
+    es.onerror = () => { if (Date.now() - lastMsgRef.current > 30000) setLive(false); };
     es.onmessage = (e) => {
+      lastMsgRef.current = Date.now();
       setLive(true);
       try {
         const ev = JSON.parse(e.data);
         setEvents(prev => [ev, ...prev].slice(0, 120));
       } catch {}
     };
-    return () => { clearInterval(poll); es.close(); esRef.current = null; setLive(false); };
+    return () => { es.close(); esRef.current = null; setLive(false); };
   }, [open]);
 
   useEffect(() => {
