@@ -744,8 +744,7 @@ export default function App() {
       <div style={{ background: T.card, borderBottom: T.border, padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: T.shadow }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.02em' }}>H-Demo</span>
-          <span style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono }}>AI Back-Office Simulator</span>
-          {sessionId && <Badge color={T.faint} style={{ color: T.muted }}>{sessionId.slice(0, 8)}</Badge>}
+          {(company?.name || sessionId) && <Badge color={T.faint} style={{ color: T.muted }}>{company?.name || sessionId.slice(0, 8)}</Badge>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Phase indicator — clickable navigation */}
