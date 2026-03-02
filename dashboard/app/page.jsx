@@ -691,6 +691,14 @@ export default function App() {
         markAgent('worker-proposal-agent', 'running');
         handleProposeWorkers();
         return;
+      } else if (action.type === 'reconfigure_worker') {
+        // Worker was already reconfigured server-side; update local state to reflect new phone/threshold
+        const { workerId, phone, threshold } = action.params || {};
+        setWorkers(prev => prev.map(w =>
+          w.id === workerId
+            ? { ...w, ...(phone !== undefined ? { phone } : {}), ...(threshold !== undefined ? { threshold } : {}), status: 'deployed' }
+            : w
+        ));
       } else if (action.type === 'modify_platforms') {
         const { add = [], remove = [] } = action.params || {};
         setPlatforms(prev => {
