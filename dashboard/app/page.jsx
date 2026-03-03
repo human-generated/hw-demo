@@ -295,6 +295,19 @@ export default function App() {
     } catch {}
   }
 
+  // Re-fetch workers from session when tab regains focus (e.g. returning from worker detail page)
+  useEffect(() => {
+    function onFocus() {
+      if (!sessionId) return;
+      fetch(`/api/demo/session/${sessionId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.workers?.length > 0) setWorkers(d.workers); })
+        .catch(() => {});
+    }
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [sessionId]);
+
   function restoreFromSession(d) {
     const ph = d.phase || 'start';
     setPhase(ph);
