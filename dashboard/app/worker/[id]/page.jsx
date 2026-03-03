@@ -353,6 +353,162 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
   );
 }
 
+// ─── Replay Panel ─────────────────────────────────────────────────────────────
+function ReplayPanel({ logs, steps, trigger }) {
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const intervalRef = useRef(null);
+
+  const runs = logs || [];
+
+  // Group log entries by "run" (same trigger sequence)
+  // Each log entry = one event; we replay them in order
+  const timeline = [...runs].sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+
+  useEffect(() => {
+    if (playing) {
+      intervalRef.current = setInterval(() => {
+        setFrame(f => {
+          if (f >= timeline.length - 1) {
+            setPlaying(false);
+            return f;
+          }
+          return f + 1;
+        });
+      }, 800);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [playing, timeline.length]);
+
+  function togglePlay() {
+    if (frame >= timeline.length - 1) setFrame(0);
+    setPlaying(p => !p);
+  }
+
+  const currentEntry = timeline[frame];
+  const allSteps = steps || [];
+
+  // Determine which step is "active" based on current log entry
+  function guessActiveStep(entry) {
+    if (!entry) return null;
+    const msg = (entry.message || '').toLowerCase();
+    for (let i = 0; i < allSteps.length; i++) {
+      const s = allSteps[i];
+      if (msg.includes(s.name?.toLowerCase() || '') || msg.includes(s.skill?.toLowerCase() || '')) return s.id;
+    }
+    return null;
+  }
+  const activeStepId = guessActiveStep(currentEntry);
+  const triggerInfo = trigger || {};
+
+  if (timeline.length === 0) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>
+        No runs to replay yet. Run the worker first.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Playback controls */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <button
+          onClick={() => setFrame(0)}
+          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.3rem 0.55rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏮</button>
+        <button
+          onClick={togglePlay}
+          style={{ background: playing ? T.red : T.mint, border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: playing ? '#fff' : T.text }}>
+          {playing ? '⏸ Pause' : '▶ Play'}
+        </button>
+        <button
+          onClick={() => setFrame(f => Math.min(f + 1, timeline.length - 1))}
+          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.3rem 0.55rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏭</button>
+        <div style={{ flex: 1, position: 'relative', height: 6, background: T.faint, borderRadius: 99, cursor: 'pointer' }}
+          onClick={e => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            setFrame(Math.round(ratio * (timeline.length - 1)));
+          }}>
+          <div style={{ width: `${(frame / Math.max(timeline.length - 1, 1)) * 100}%`, height: '100%', background: T.blue, borderRadius: 99, transition: 'width 0.3s ease' }} />
+        </div>
+        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, whiteSpace: 'nowrap' }}>{frame + 1} / {timeline.length}</span>
+      </div>
+
+      {/* Workflow step visualization */}
+      <div>
+        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Workflow Execution</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflowX: 'auto', padding: '0.5rem 0' }}>
+          {/* Trigger */}
+          <div style={{ flexShrink: 0, background: activeStepId === '__trigger__' ? T.blue + '22' : T.faint, border: `2px solid ${activeStepId === '__trigger__' ? T.blue : 'transparent'}`, borderRadius: 8, padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontFamily: T.mono, transition: 'all 0.3s' }}>
+            <div style={{ fontSize: '0.9rem', marginBottom: 2 }}>⚡</div>
+            <div style={{ color: T.muted, fontSize: '0.55rem', textTransform: 'uppercase' }}>trigger</div>
+            <div style={{ fontWeight: 600, fontSize: '0.7rem' }}>{triggerInfo.type || 'manual'}</div>
+          </div>
+          {allSteps.map((s, i) => {
+            const isActive = activeStepId === s.id;
+            const stepIdx = timeline.slice(0, frame + 1).findIndex(e => (e.message || '').toLowerCase().includes(s.name?.toLowerCase() || '') || (e.message || '').toLowerCase().includes(s.skill?.toLowerCase() || ''));
+            const isDone = stepIdx >= 0 && stepIdx < frame;
+            return (
+              <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                <span style={{ color: T.muted, fontSize: '0.75rem' }}>›</span>
+                <div style={{
+                  background: isActive ? T.mint + '22' : isDone ? T.faint : 'rgba(0,0,0,0.03)',
+                  border: `2px solid ${isActive ? T.mint : isDone ? T.muted + '40' : 'transparent'}`,
+                  borderRadius: 8, padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontFamily: T.mono, transition: 'all 0.3s',
+                  boxShadow: isActive ? `0 0 8px ${T.mint}66` : 'none',
+                }}>
+                  <div style={{ fontSize: '0.9rem', marginBottom: 2 }}>{SKILLS.find(sk => sk.id === s.skill)?.icon || '●'}</div>
+                  <div style={{ color: T.muted, fontSize: '0.55rem', textTransform: 'uppercase' }}>{s.skill}</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.7rem' }}>{s.name || s.skill}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Current event */}
+      {currentEntry && (
+        <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem' }}>
+          <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
+            Event #{frame + 1} · {currentEntry.at ? new Date(currentEntry.at).toLocaleString() : ''}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: currentEntry.stock !== undefined || currentEntry.trigger ? '0.4rem' : 0 }}>
+            <span style={{ fontSize: '0.85rem' }}>{currentEntry.success === false ? '✗' : currentEntry.type === 'twilio_call' ? '📞' : '✓'}</span>
+            <span style={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 600, color: currentEntry.success === false ? T.red : T.text }}>{currentEntry.message || currentEntry.type || 'Event'}</span>
+          </div>
+          {currentEntry.trigger && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>trigger: {currentEntry.trigger}</div>}
+          {currentEntry.stock !== undefined && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>stock: {currentEntry.stock}</div>}
+          {currentEntry.powerWh !== undefined && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.orange }}>⚡ {(currentEntry.powerWh * 1000).toFixed(3)} mWh</div>}
+        </div>
+      )}
+
+      {/* Event log */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.5rem 0.9rem', borderBottom: T.border }}>All events</div>
+        {timeline.map((entry, i) => {
+          const isActive = i === frame;
+          const isPast = i < frame;
+          return (
+            <div key={i}
+              onClick={() => setFrame(i)}
+              style={{ display: 'flex', gap: '0.5rem', padding: '0.3rem 0.9rem', borderBottom: i < timeline.length - 1 ? T.border : 'none', cursor: 'pointer', background: isActive ? T.blue + '11' : 'transparent', alignItems: 'center', transition: 'background 0.2s' }}>
+              <span style={{ color: isActive ? T.blue : isPast ? T.muted : 'rgba(0,0,0,0.15)', fontSize: '0.6rem', flexShrink: 0 }}>{isActive ? '▶' : isPast ? '✓' : '○'}</span>
+              <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, flexShrink: 0, minWidth: 50 }}>
+                {entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i+1}`}
+              </span>
+              <span style={{ flex: 1, fontFamily: T.mono, fontSize: '0.65rem', color: entry.success === false ? T.red : isActive ? T.text : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {entry.message || entry.type || 'event'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Logs Panel ───────────────────────────────────────────────────────────────
 function LogsPanel({ logs }) {
   if (!logs || logs.length === 0) return (
@@ -587,8 +743,8 @@ export default function WorkerPage() {
 
       {/* Tabs */}
       <div style={{ background: T.card, borderBottom: T.border, padding: '0 1.25rem', display: 'flex' }}>
-        {['flow', 'logs'].map(tab => (
-          <button key={tab} onClick={() => { setActiveTab(tab); if (tab === 'logs') fetchLogs(); }} style={{ background: 'none', border: 'none', padding: '0.5rem 0.85rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: activeTab === tab ? T.text : T.muted, borderBottom: activeTab === tab ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1 }}>{tab}</button>
+        {['flow', 'logs', 'replay'].map(tab => (
+          <button key={tab} onClick={() => { setActiveTab(tab); if (tab === 'logs' || tab === 'replay') fetchLogs(); }} style={{ background: 'none', border: 'none', padding: '0.5rem 0.85rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: activeTab === tab ? T.text : T.muted, borderBottom: activeTab === tab ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1 }}>{tab}</button>
         ))}
       </div>
 
@@ -673,6 +829,12 @@ export default function WorkerPage() {
       {activeTab === 'logs' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <LogsPanel logs={logs} />
+        </div>
+      )}
+
+      {activeTab === 'replay' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <ReplayPanel logs={logs} steps={steps} trigger={trigger} />
         </div>
       )}
     </div>

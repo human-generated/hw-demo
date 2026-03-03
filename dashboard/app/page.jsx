@@ -250,6 +250,7 @@ export default function App() {
 
   // Settings panel
   const [showSettings, setShowSettings] = useState(false);
+  const [showNetwork, setShowNetwork] = useState(false);
 
   // Real client data
   const [showClientForm, setShowClientForm] = useState(false);
@@ -782,7 +783,7 @@ export default function App() {
               return (
                 <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   <div
-                    onClick={() => canNav && setPhase(p)}
+                    onClick={() => { if (canNav) { setPhase(p); setActivePlatformChat(null); setPlatformChatHistory([]); setActiveZcAgent(null); setZcChatHistory([]); setShowSettings(false); } }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.3rem',
                       padding: '0.25rem 0.5rem', borderRadius: T.radius,
@@ -803,6 +804,7 @@ export default function App() {
               );
             })}
           </div>
+          <Btn ghost small onClick={() => setShowNetwork(true)} style={{ fontFamily: T.mono }}>⬡ Network</Btn>
           <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
@@ -1019,6 +1021,13 @@ export default function App() {
         </div>
       </div>
       <ObservabilityPanel />
+      {showNetwork && (
+        <AgentNetwork3D
+          agentTree={agentTree}
+          workers={workers}
+          onClose={() => setShowNetwork(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1380,18 +1389,30 @@ function PlatformAgentPanel({ platform, history, input, setInput, onSend, loadin
 // ── Zeroclaw Agent Chat Panel ─────────────────────────────────────────────────
 function ZcAgentChatPanel({ agent, history, input, setInput, onSend, loading, historyLoading, onBack }) {
   const endRef = useRef(null);
+  const [tab, setTab] = useState('chat');
+  const [trace, setTrace] = useState([]);
+  const [traceLoading, setTraceLoading] = useState(false);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [history]);
+  useEffect(() => {
+    if (tab !== 'trace' || !agent?.id) return;
+    setTraceLoading(true);
+    fetch(`/api/demo/agents/${agent.id}/trace`)
+      .then(r => r.json())
+      .then(d => setTrace(d.trace || []))
+      .catch(() => {})
+      .finally(() => setTraceLoading(false));
+  }, [tab, agent?.id]);
   const STATUS_COLORS = { running: T.blue, done: T.mint, pending: T.muted, error: T.red };
   const sc = STATUS_COLORS[agent.status] || T.muted;
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '0.6rem 1rem', borderBottom: T.border, background: T.faint, flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: 4 }}>
+      <div style={{ padding: '0.55rem 1rem', borderBottom: T.border, background: T.faint, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 3 }}>
           <Btn ghost small onClick={onBack}>←</Btn>
           <span style={{ fontSize: '1rem', lineHeight: 1 }}>{agent.icon || '🤖'}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: T.mono, fontSize: '0.82rem', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.8rem', fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {agent.name}
             </div>
           </div>
@@ -1400,32 +1421,58 @@ function ZcAgentChatPanel({ agent, history, input, setInput, onSend, loading, hi
             <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: sc, textTransform: 'uppercase' }}>{agent.status}</span>
           </span>
         </div>
-        <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, paddingLeft: '2.2rem' }}>
-          zeroclaw instance · {agent.task || agent.role}
+        <div style={{ fontFamily: T.mono, fontSize: '0.56rem', color: T.muted, paddingLeft: '2.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ background: 'rgba(0,0,0,0.06)', border: T.border, borderRadius: 3, padding: '1px 5px', letterSpacing: '0.03em', color: T.text }}>{agent.id}</span>
+          <span>{agent.task || agent.role}</span>
         </div>
       </div>
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {historyLoading && (
-          <div style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono, textAlign: 'center', padding: '1rem' }}>Loading history…</div>
-        )}
-        {!historyLoading && history.map((m, i) => <ChatBubble key={i} msg={m} />)}
-        {loading && <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, fontStyle: 'italic' }}>Thinking…</div>}
-        <div ref={endRef} />
+      {/* Tabs */}
+      <div style={{ background: T.card, borderBottom: T.border, display: 'flex', flexShrink: 0 }}>
+        {['chat', 'trace'].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ background: 'none', border: 'none', padding: '0.35rem 0.85rem', cursor: 'pointer', fontSize: '0.57rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: tab === t ? T.text : T.muted, borderBottom: tab === t ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1 }}>{t}</button>
+        ))}
       </div>
-      {/* Input */}
-      <div style={{ borderTop: T.border, padding: '0.75rem', display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }}
-          placeholder={`Message ${agent.name}…`}
-          disabled={loading || historyLoading}
-          autoFocus
-          style={{ ...miniInputStyle, flex: 1 }}
-        />
-        <Btn small onClick={onSend} disabled={loading || historyLoading || !input.trim()}>→</Btn>
-      </div>
+      {tab === 'chat' && <>
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {historyLoading && <div style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono, textAlign: 'center', padding: '1rem' }}>Loading history…</div>}
+          {!historyLoading && history.map((m, i) => <ChatBubble key={i} msg={m} />)}
+          {loading && <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, fontStyle: 'italic' }}>Thinking…</div>}
+          <div ref={endRef} />
+        </div>
+        {/* Input */}
+        <div style={{ borderTop: T.border, padding: '0.75rem', display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend(); } }} placeholder={`Message ${agent.name}…`} disabled={loading || historyLoading} autoFocus style={{ ...miniInputStyle, flex: 1 }} />
+          <Btn small onClick={onSend} disabled={loading || historyLoading || !input.trim()}>→</Btn>
+        </div>
+      </>}
+      {tab === 'trace' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem' }}>
+          {traceLoading && <div style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono, textAlign: 'center', padding: '1rem' }}>Loading trace…</div>}
+          {!traceLoading && trace.length === 0 && <div style={{ color: T.muted, fontSize: '0.7rem', fontFamily: T.mono, textAlign: 'center', padding: '1rem', fontStyle: 'italic' }}>No trace data yet. Run the agent to see execution steps.</div>}
+          {trace.map((entry, i) => {
+            const borderColor = entry.type === 'tool_call' ? T.blue : entry.type === 'tool_result' ? T.mint : entry.type === 'error' ? T.red : T.muted;
+            return (
+              <div key={i} style={{ marginBottom: '0.45rem', background: T.faint, borderRadius: T.radius, padding: '0.4rem 0.6rem', borderLeft: `3px solid ${borderColor}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: 2 }}>
+                  <span style={{ fontSize: '0.56rem', fontFamily: T.mono, color: T.muted }}>
+                    {entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i+1}`}
+                  </span>
+                  <span style={{ fontSize: '0.58rem', fontFamily: T.mono, fontWeight: 700, color: borderColor, textTransform: 'uppercase' }}>
+                    {entry.type || 'event'}
+                  </span>
+                  {entry.tool && <span style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.text }}>{entry.tool}</span>}
+                </div>
+                {entry.content && (
+                  <pre style={{ margin: 0, fontSize: '0.63rem', fontFamily: T.mono, color: T.text, whiteSpace: 'pre-wrap', wordBreak: 'break-all', opacity: 0.85, maxHeight: 120, overflow: 'hidden' }}>
+                    {typeof entry.content === 'string' ? entry.content.slice(0, 400) : JSON.stringify(entry.content, null, 2).slice(0, 400)}
+                  </pre>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1808,6 +1855,21 @@ function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientA
   const triggerIcon = TRIGGER_ICONS[ttype] || '⚡';
   const tcfg = trigger.config || {};
   const phone = worker.phone || tcfg.phone || '';
+  const [showRuns, setShowRuns] = useState(false);
+  const [recentLogs, setRecentLogs] = useState(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  function toggleRuns() {
+    if (recentLogs === null) {
+      setLogsLoading(true);
+      fetch(`/api/demo/workers/${worker.id}/logs?sessionId=${sessionId}`)
+        .then(r => r.json())
+        .then(d => setRecentLogs((d.logs || []).slice(-8)))
+        .catch(() => setRecentLogs([]))
+        .finally(() => setLogsLoading(false));
+    }
+    setShowRuns(s => !s);
+  }
 
   // Build a concise trigger detail line
   let triggerDetail = trigger.label || ttype;
@@ -1868,6 +1930,37 @@ function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientA
         </div>
       )}
 
+      {/* Recent runs toggle */}
+      <div style={{ borderTop: T.border }}>
+        <div
+          onClick={toggleRuns}
+          style={{ padding: '0.4rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {logsLoading ? 'Loading…' : 'Recent runs'}
+          </span>
+          <span style={{ color: T.muted, fontSize: '0.65rem' }}>{showRuns ? '▲' : '▼'}</span>
+        </div>
+        {showRuns && recentLogs !== null && (
+          <div style={{ borderTop: T.border, background: T.bg, maxHeight: 160, overflowY: 'auto' }}>
+            {recentLogs.length === 0 ? (
+              <div style={{ padding: '0.5rem 1rem', fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, fontStyle: 'italic' }}>No runs yet</div>
+            ) : recentLogs.map((log, i) => {
+              const ok = log.success !== false && !log.type?.includes('error');
+              return (
+                <div key={i} style={{ display: 'flex', gap: '0.5rem', fontSize: '0.62rem', fontFamily: T.mono, padding: '0.28rem 1rem', borderBottom: i < recentLogs.length - 1 ? T.border : 'none', alignItems: 'center' }}>
+                  <span style={{ color: ok ? T.mint : T.red, flexShrink: 0 }}>{ok ? '✓' : '✗'}</span>
+                  <span style={{ color: T.muted, flexShrink: 0, fontSize: '0.56rem' }}>
+                    {log.at ? new Date(log.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: T.text }}>{log.message || log.type || 'run'}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Actions */}
       <div style={{ padding: '0.6rem 1rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
         <a
@@ -1884,6 +1977,201 @@ function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientA
           </Btn>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── 3D Agent Network ──────────────────────────────────────────────────────────
+function AgentNetwork3D({ agentTree, workers, onClose }) {
+  const mountRef = useRef(null);
+
+  useEffect(() => {
+    const el = mountRef.current;
+    if (!el) return;
+    let cleanup;
+
+    import('three').then(THREE => {
+      const w = el.clientWidth || window.innerWidth;
+      const h = el.clientHeight || window.innerHeight;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x05080f);
+      scene.fog = new THREE.FogExp2(0x05080f, 0.025);
+
+      const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
+      camera.position.set(0, 8, 26);
+      camera.lookAt(0, 0, 0);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      el.appendChild(renderer.domElement);
+
+      // Lights
+      scene.add(new THREE.AmbientLight(0x334466, 0.8));
+      const dl = new THREE.DirectionalLight(0x6699ff, 1.2);
+      dl.position.set(10, 20, 10);
+      scene.add(dl);
+      const dl2 = new THREE.DirectionalLight(0xaa66ff, 0.6);
+      dl2.position.set(-10, -5, -10);
+      scene.add(dl2);
+
+      function makeLabel(text, size = 22) {
+        const c = document.createElement('canvas');
+        c.width = 512; c.height = 80;
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, 512, 80);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.font = `bold ${size}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(text.slice(0, 24), 256, 54);
+        const tex = new THREE.CanvasTexture(c);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.scale.set(6, 1, 1);
+        return sprite;
+      }
+
+      const nodeMap = {};
+      const positions = {};
+      const allEdges = [];
+
+      // Orchestrator node
+      const orchGeo = new THREE.SphereGeometry(1.5, 32, 32);
+      const orchMat = new THREE.MeshPhongMaterial({ color: 0x3377ff, emissive: 0x1133aa, shininess: 100 });
+      const orchMesh = new THREE.Mesh(orchGeo, orchMat);
+      orchMesh.position.set(0, 0, 0);
+      scene.add(orchMesh);
+      const orchLabel = makeLabel('Orchestrator', 24);
+      orchLabel.position.set(0, 2.4, 0);
+      scene.add(orchLabel);
+      nodeMap['orchestrator'] = orchMesh;
+      positions['orchestrator'] = new THREE.Vector3(0, 0, 0);
+
+      // Agent nodes (arranged in ring)
+      const agtCount = Math.max(agentTree.length, 1);
+      agentTree.forEach((agent, i) => {
+        const angle = (i / agtCount) * Math.PI * 2;
+        const r = Math.min(7 + agtCount * 0.5, 12);
+        const y = (i % 2 === 0 ? 1 : -1) * 2;
+        const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+        positions[agent.id] = pos;
+
+        const color = agent.status === 'running' ? 0x44ddff : agent.status === 'done' ? 0x44ff88 : 0xaa55ff;
+        const geo = new THREE.SphereGeometry(0.9, 24, 24);
+        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.25), shininess: 70 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(pos);
+        scene.add(mesh);
+        const lbl = makeLabel(agent.name || agent.id, 20);
+        lbl.position.set(pos.x, pos.y + 1.6, pos.z);
+        scene.add(lbl);
+        nodeMap[agent.id] = mesh;
+        allEdges.push({ from: positions['orchestrator'], to: pos });
+      });
+
+      // Worker nodes (positioned below their parent agent)
+      workers.forEach((worker, i) => {
+        const parentAgent = agentTree[i % Math.max(agentTree.length, 1)];
+        const parentPos = parentAgent ? positions[parentAgent.id] : positions['orchestrator'];
+        const angle = (i / Math.max(workers.length, 1)) * Math.PI * 2;
+        const offset = new THREE.Vector3(Math.cos(angle) * 2, -4, Math.sin(angle) * 2);
+        const pos = parentPos ? parentPos.clone().add(offset) : new THREE.Vector3(i * 3 - 6, -7, 0);
+        positions[worker.id] = pos;
+
+        const color = worker.status === 'deployed' ? 0x33cc77 : worker.status === 'running' ? 0x44aaff : 0x556677;
+        const geo = new THREE.BoxGeometry(1.4, 0.85, 0.85);
+        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.18), shininess: 40 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(pos);
+        scene.add(mesh);
+        const lbl = makeLabel(worker.name || worker.id, 18);
+        lbl.position.set(pos.x, pos.y + 1.4, pos.z);
+        scene.add(lbl);
+        nodeMap[worker.id] = mesh;
+        const fromPos = parentAgent ? positions[parentAgent.id] : positions['orchestrator'];
+        if (fromPos) allEdges.push({ from: fromPos, to: pos });
+      });
+
+      // Draw edges
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x334488, transparent: true, opacity: 0.5 });
+      allEdges.forEach(edge => {
+        const pts = [edge.from.clone(), edge.to.clone()];
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        scene.add(new THREE.Line(geo, lineMat));
+      });
+
+      // Animated particles along edges
+      const particles = allEdges.map(edge => {
+        const pGeo = new THREE.SphereGeometry(0.09, 6, 6);
+        const pMat = new THREE.MeshBasicMaterial({ color: 0x88bbff });
+        const mesh = new THREE.Mesh(pGeo, pMat);
+        scene.add(mesh);
+        return { mesh, edge, t: Math.random(), speed: 0.004 + Math.random() * 0.006 };
+      });
+
+      // Resize handler
+      function onResize() {
+        const nw = el.clientWidth, nh = el.clientHeight;
+        camera.aspect = nw / nh;
+        camera.updateProjectionMatrix();
+        renderer.setSize(nw, nh);
+      }
+      window.addEventListener('resize', onResize);
+
+      // Animation
+      let raf;
+      let t = 0;
+      function animate() {
+        raf = requestAnimationFrame(animate);
+        t += 0.005;
+
+        // Orbit camera
+        camera.position.x = Math.sin(t * 0.35) * 28;
+        camera.position.z = Math.cos(t * 0.35) * 28;
+        camera.position.y = 10 + Math.sin(t * 0.18) * 4;
+        camera.lookAt(0, 0, 0);
+
+        // Pulse orchestrator
+        const s = 1 + Math.sin(t * 2.5) * 0.06;
+        orchMesh.scale.set(s, s, s);
+
+        // Move particles
+        particles.forEach(p => {
+          p.t = (p.t + p.speed) % 1;
+          p.mesh.position.lerpVectors(p.edge.from, p.edge.to, p.t);
+        });
+
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      cleanup = () => {
+        cancelAnimationFrame(raf);
+        window.removeEventListener('resize', onResize);
+        renderer.dispose();
+        if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
+      };
+    });
+
+    return () => { if (cleanup) cleanup(); };
+  }, [agentTree, workers]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#05080f' }}>
+      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+      {/* Legend */}
+      <div style={{ position: 'absolute', top: 20, left: 20, color: 'rgba(255,255,255,0.75)', fontFamily: "'JetBrains Mono','Fira Mono',monospace", fontSize: '0.65rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, color: '#fff' }}>Agent Network</div>
+        <div>● <span style={{ color: '#3377ff' }}>Orchestrator</span></div>
+        <div>● <span style={{ color: '#aa55ff' }}>Agents ({agentTree.length})</span></div>
+        <div>■ <span style={{ color: '#33cc77' }}>Workers ({workers.length})</span></div>
+      </div>
+      {/* Close */}
+      <button
+        onClick={onClose}
+        style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, padding: '0.4rem 1rem', color: '#fff', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.7rem', letterSpacing: '0.06em' }}
+      >✕ Close</button>
     </div>
   );
 }
