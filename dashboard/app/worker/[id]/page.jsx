@@ -355,135 +355,208 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
 }
 
 // ─── Replay Panel ─────────────────────────────────────────────────────────────
-function ReplayPanel({ logs }) {
-  const [frame, setFrame] = useState(0);
+// Shows each run (log entry) as a workflow execution — trigger + steps animated.
+function ReplayPanel({ logs, steps, trigger }) {
+  const runs = [...(logs || [])].sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+  // Which run we're viewing
+  const [runIdx, setRunIdx]   = useState(() => Math.max(0, runs.length - 1));
+  // Which node in the workflow is currently "active" (-1=none, 0=trigger, 1..n=step)
+  const [nodeIdx, setNodeIdx] = useState(-1);
   const [playing, setPlaying] = useState(false);
-  const activeRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const timeline = [...(logs || [])].sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+  const currentRun = runs[runIdx] || null;
+  const trig = trigger || {};
+  const allSteps = steps || [];
 
+  // All "workflow nodes": trigger node + step nodes
+  const flowNodes = [
+    { id: '__trigger__', label: trig.label || trig.type || 'Trigger', icon: TRIGGERS.find(t => t.id === trig.type)?.icon || '⚡', color: T.blue, skill: null },
+    ...allSteps.map(s => {
+      const sk = SKILLS.find(x => x.id === s.skill) || { icon: '●', color: T.muted };
+      return { id: s.id, label: s.name || s.skill, icon: sk.icon, color: sk.color, skill: s.skill };
+    }),
+  ];
+  const total = flowNodes.length;
+
+  // Derive a message for each workflow node from the current run's log entry
+  function nodeMessage(node, run) {
+    if (!run) return null;
+    if (node.id === '__trigger__') {
+      if (run.trigger)  return `Condition: ${run.trigger}`;
+      if (run.message)  return run.message.slice(0, 80);
+      return 'Worker triggered';
+    }
+    // Step messages derived from log data
+    const sk = node.skill;
+    if (sk === 'query-platform' || sk === 'transform-data') {
+      if (run.stock !== undefined) return `Result: stock = ${run.stock}`;
+      if (run.message?.includes('matched') || run.message?.includes('Alert')) return `Matched: ${run.message?.slice(0,60)}`;
+      return 'Platform queried';
+    }
+    if (sk === 'generate-report') return run.message ? run.message.slice(0, 80) : 'Report generated';
+    if (sk === 'send-notification') return run.message ? `Sent: ${run.message.slice(0,70)}` : 'Notification sent via Telegram';
+    if (sk === 'call-webhook')      return run.phone ? `Called ${run.phone}` : 'Webhook called';
+    if (sk === 'condition') {
+      return run.success !== false ? 'Condition: true → continue' : 'Condition: false → skip';
+    }
+    if (sk === 'wait') return 'Waiting…';
+    if (run.success === false) return `Error: ${run.message || 'unknown'}`;
+    return run.message?.slice(0, 80) || '✓ Complete';
+  }
+
+  // Play animation: step through nodes
   useEffect(() => {
     if (playing) {
       intervalRef.current = setInterval(() => {
-        setFrame(f => {
-          if (f >= timeline.length - 1) { setPlaying(false); return f; }
-          return f + 1;
+        setNodeIdx(n => {
+          if (n >= total - 1) { setPlaying(false); return n; }
+          return n + 1;
         });
-      }, 700);
+      }, 900);
     }
     return () => clearInterval(intervalRef.current);
-  }, [playing, timeline.length]);
+  }, [playing, total]);
 
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [frame]);
-
-  if (timeline.length === 0) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>No events to replay. Run the worker first.</div>;
+  function startPlay() {
+    setNodeIdx(0);
+    setPlaying(true);
   }
 
-  const cur = timeline[frame];
-  const isAlert = cur?.success === true && (cur?.message?.includes('Alert') || cur?.message?.includes('matched'));
-  const isCall  = cur?.type === 'twilio_call';
-  const isErr   = cur?.success === false || cur?.type?.includes('error');
-  const curColor = isErr ? T.red : isAlert || isCall ? T.orange : T.mint;
-  const curIcon  = isErr ? '✗' : isCall ? '📞' : isAlert ? '🔔' : '✓';
+  if (runs.length === 0) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>No runs yet. Click ▶ Run to trigger the worker.</div>;
+  }
 
-  // All keys of current entry except 'at'
-  const curFields = cur ? Object.entries(cur).filter(([k]) => k !== 'at') : [];
+  const isAlert = currentRun?.message?.includes('Alert') || currentRun?.message?.includes('matched');
+  const isErr   = currentRun?.success === false || currentRun?.type?.includes('error');
+  const runColor = isErr ? T.red : isAlert ? T.orange : T.mint;
 
   return (
     <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-      {/* Transport controls */}
-      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-        <button onClick={() => { setPlaying(false); setFrame(0); }} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏮</button>
-        <button onClick={() => setFrame(f => Math.max(0, f - 1))} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>◀</button>
-        <button
-          onClick={() => { if (frame >= timeline.length - 1) setFrame(0); setPlaying(p => !p); }}
-          style={{ background: playing ? T.red : T.mint, border: 'none', borderRadius: 4, padding: '0.3rem 0.85rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: playing ? '#fff' : T.text, fontWeight: 700 }}>
-          {playing ? '⏸ Pause' : '▶ Play'}
-        </button>
-        <button onClick={() => setFrame(f => Math.min(timeline.length - 1, f + 1))} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>▶</button>
-        <button onClick={() => { setPlaying(false); setFrame(timeline.length - 1); }} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏭</button>
-        {/* Scrubber */}
-        <div style={{ flex: 1, position: 'relative', height: 6, background: T.faint, borderRadius: 99, cursor: 'pointer' }}
-          onClick={e => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setFrame(Math.round((e.clientX - rect.left) / rect.width * (timeline.length - 1)));
-          }}>
-          <div style={{ width: `${(frame / Math.max(timeline.length - 1, 1)) * 100}%`, height: '100%', background: T.blue, borderRadius: 99 }} />
-          {/* tick marks for alerts/errors */}
-          {timeline.map((e, i) => {
-            const isE = e.success === false || e.type?.includes('error');
-            const isA = e.message?.includes('Alert') || e.message?.includes('matched') || e.type === 'twilio_call';
-            if (!isE && !isA) return null;
-            return <div key={i} style={{ position: 'absolute', left: `${(i / Math.max(timeline.length - 1, 1)) * 100}%`, top: -3, width: 3, height: 12, background: isE ? T.red : T.orange, borderRadius: 1, transform: 'translateX(-50%)' }} />;
-          })}
-        </div>
-        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, whiteSpace: 'nowrap' }}>{frame + 1}/{timeline.length}</span>
+      {/* Run selector */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Run</span>
+        <button onClick={() => { setRunIdx(i => Math.max(0, i - 1)); setNodeIdx(-1); setPlaying(false); }}
+          disabled={runIdx === 0}
+          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.22rem 0.45rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, opacity: runIdx === 0 ? 0.3 : 1 }}>◀</button>
+        <span style={{ fontFamily: T.mono, fontSize: '0.68rem', fontWeight: 700, color: runColor }}>
+          {runIdx + 1} / {runs.length}
+        </span>
+        <button onClick={() => { setRunIdx(i => Math.min(runs.length - 1, i + 1)); setNodeIdx(-1); setPlaying(false); }}
+          disabled={runIdx === runs.length - 1}
+          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.22rem 0.45rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, opacity: runIdx === runs.length - 1 ? 0.3 : 1 }}>▶</button>
+        {currentRun?.at && (
+          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, flex: 1, textAlign: 'right' }}>
+            {new Date(currentRun.at).toLocaleString()}
+          </span>
+        )}
+        {currentRun?.powerWh !== undefined && (
+          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.orange }}>⚡{(currentRun.powerWh * 1000).toFixed(2)}mWh</span>
+        )}
       </div>
 
-      {/* Current event spotlight */}
-      {cur && (
-        <div style={{ background: T.card, border: `2px solid ${curColor}44`, borderRadius: T.radius, padding: '0.8rem 1rem', boxShadow: `0 0 12px ${curColor}22` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>{curIcon}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, color: isErr ? T.red : T.text }}>{cur.message || cur.type || 'event'}</div>
-              <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, marginTop: 2 }}>
-                {cur.at ? new Date(cur.at).toLocaleString() : ''} · event {frame + 1} of {timeline.length}
-              </div>
-            </div>
-          </div>
-          {/* All fields */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {curFields.map(([k, v]) => (
-              <div key={k} style={{ background: T.faint, borderRadius: 4, padding: '0.2rem 0.5rem', fontSize: '0.62rem', fontFamily: T.mono }}>
-                <span style={{ color: T.muted }}>{k}: </span>
-                <span style={{ color: T.text, fontWeight: 600 }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-              </div>
+      {/* Run summary */}
+      {currentRun && (
+        <div style={{ background: T.card, border: `2px solid ${runColor}44`, borderRadius: T.radius, padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span style={{ fontSize: '1.1rem' }}>{isErr ? '✗' : isAlert ? '🔔' : currentRun.type === 'twilio_call' ? '📞' : '✓'}</span>
+          <span style={{ fontFamily: T.mono, fontSize: '0.72rem', fontWeight: 700, color: isErr ? T.red : T.text, flex: 1 }}>{currentRun.message || currentRun.type || 'Run completed'}</span>
+          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+            {Object.entries(currentRun).filter(([k]) => !['at','message','type','success','powerWh'].includes(k)).map(([k,v]) => (
+              <span key={k} style={{ fontFamily: T.mono, fontSize: '0.58rem', background: T.faint, borderRadius: 3, padding: '1px 5px', color: T.muted }}>
+                {k}: <strong style={{ color: T.text }}>{String(v)}</strong>
+              </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Full event list */}
+      {/* Workflow execution animation */}
       <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
-        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.45rem 0.9rem', borderBottom: T.border }}>All {timeline.length} events</div>
-        <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-          {timeline.map((entry, i) => {
-            const isActive = i === frame;
-            const isPast = i < frame;
-            const eIsErr = entry.success === false || entry.type?.includes('error');
-            const eIsAlert = entry.message?.includes('Alert') || entry.message?.includes('matched') || entry.type === 'twilio_call';
-            const eColor = eIsErr ? T.red : eIsAlert ? T.orange : T.muted;
+        <div style={{ padding: '0.5rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Execution flow</span>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button onClick={() => { setNodeIdx(-1); setPlaying(false); }}
+              style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.2rem 0.4rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>⏮</button>
+            <button onClick={() => setNodeIdx(n => Math.max(-1, n - 1))}
+              style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.2rem 0.4rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>◀</button>
+            <button
+              onClick={() => { if (nodeIdx >= total - 1) { setNodeIdx(0); setPlaying(true); } else { startPlay(); } }}
+              style={{ background: playing ? T.red : T.mint, border: 'none', borderRadius: 4, padding: '0.2rem 0.65rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: playing ? '#fff' : T.text, fontWeight: 700 }}>
+              {playing ? '⏸' : '▶'}
+            </button>
+            <button onClick={() => { setPlaying(false); setNodeIdx(n => Math.min(total - 1, n + 1)); }}
+              style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.2rem 0.4rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>▶</button>
+          </div>
+        </div>
+
+        {/* Step-by-step nodes */}
+        <div style={{ padding: '1rem' }}>
+          {flowNodes.map((node, i) => {
+            const isActive  = nodeIdx === i;
+            const isDone    = nodeIdx > i;
+            const isPending = nodeIdx < i;
+            const msg       = nodeMessage(node, currentRun);
+            const borderColor = isDone ? T.mint : isActive ? node.color : 'rgba(0,0,0,0.07)';
+            const bg          = isActive ? node.color + '14' : isDone ? T.mint + '08' : 'transparent';
             return (
-              <div key={i} ref={isActive ? activeRef : null}
-                onClick={() => { setPlaying(false); setFrame(i); }}
-                style={{ display: 'flex', gap: '0.5rem', padding: '0.32rem 0.9rem', borderBottom: i < timeline.length - 1 ? T.border : 'none', cursor: 'pointer', background: isActive ? T.blue + '14' : 'transparent', borderLeft: `3px solid ${isActive ? T.blue : eIsErr ? T.red : eIsAlert ? T.orange : 'transparent'}`, alignItems: 'flex-start' }}>
-                <span style={{ color: isActive ? T.blue : isPast ? T.muted : 'rgba(0,0,0,0.15)', fontSize: '0.62rem', flexShrink: 0, paddingTop: 1 }}>{isActive ? '▶' : isPast ? '·' : '○'}</span>
-                <span style={{ fontSize: '0.56rem', fontFamily: T.mono, color: T.muted, flexShrink: 0, minWidth: 54, paddingTop: 2 }}>
-                  {entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i+1}`}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: isActive ? T.text : eColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {entry.message || entry.type || 'event'}
+              <div key={node.id}>
+                {i > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 20, height: 24 }}>
+                    <div style={{ width: 2, height: 24, background: isDone ? T.mint + '80' : 'rgba(0,0,0,0.08)', marginLeft: 11, transition: 'background 0.4s' }} />
                   </div>
-                  {isActive && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: 3 }}>
-                      {Object.entries(entry).filter(([k]) => !['at','message','type','success'].includes(k)).map(([k, v]) => (
-                        <span key={k} style={{ fontSize: '0.56rem', fontFamily: T.mono, background: T.faint, borderRadius: 3, padding: '1px 4px', color: T.muted }}>
-                          {k}={typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {entry.powerWh !== undefined && (
-                  <span style={{ color: T.orange, fontSize: '0.55rem', fontFamily: T.mono, flexShrink: 0, paddingTop: 2 }}>⚡{(entry.powerWh * 1000).toFixed(2)}mWh</span>
                 )}
+                <div
+                  onClick={() => { setPlaying(false); setNodeIdx(isActive ? -1 : i); }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.55rem 0.65rem', borderRadius: T.radius, border: `2px solid ${borderColor}`, background: bg, cursor: 'pointer', transition: 'all 0.3s', boxShadow: isActive ? `0 0 10px ${node.color}33` : 'none' }}>
+                  {/* Icon circle */}
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: isActive ? node.color : isDone ? T.mint : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', flexShrink: 0, transition: 'background 0.3s' }}>
+                    {isDone ? <span style={{ fontSize: '0.75rem', color: '#fff' }}>✓</span> : node.icon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Step label */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: msg && isActive ? '0.3rem' : 0 }}>
+                      <span style={{ fontFamily: T.mono, fontSize: '0.68rem', fontWeight: isActive ? 700 : 600, color: isActive ? node.color : isDone ? T.text : T.muted }}>
+                        {node.label}
+                      </span>
+                      {isPending && nodeIdx === -1 && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted }}>waiting</span>}
+                      {isActive && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: node.color, animation: playing ? 'pulse 1s ease-in-out infinite alternate' : 'none' }}>● running</span>}
+                      {isDone && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.mint }}>done</span>}
+                    </div>
+                    {/* Message (shown when active or done) */}
+                    {msg && (isActive || isDone) && (
+                      <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: isActive ? T.text : T.muted, lineHeight: 1.5, background: isActive ? 'rgba(0,0,0,0.03)' : 'transparent', borderRadius: 4, padding: isActive ? '0.25rem 0.4rem' : '0' }}>
+                        {msg}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <style>{`@keyframes pulse { from { opacity: 0.5; } to { opacity: 1; } }`}</style>
+      </div>
+
+      {/* Run list at bottom */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.4rem 0.9rem', borderBottom: T.border }}>All {runs.length} runs</div>
+        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {[...runs].reverse().map((run, ri) => {
+            const realIdx = runs.length - 1 - ri;
+            const active  = realIdx === runIdx;
+            const rIsErr  = run.success === false || run.type?.includes('error');
+            const rIsAlert = run.message?.includes('Alert') || run.message?.includes('matched') || run.type === 'twilio_call';
+            return (
+              <div key={ri} onClick={() => { setRunIdx(realIdx); setNodeIdx(-1); setPlaying(false); }}
+                style={{ display: 'flex', gap: '0.5rem', padding: '0.28rem 0.9rem', borderBottom: ri < runs.length - 1 ? T.border : 'none', cursor: 'pointer', background: active ? T.blue + '12' : 'transparent', borderLeft: `3px solid ${active ? T.blue : rIsErr ? T.red : rIsAlert ? T.orange : 'transparent'}`, alignItems: 'center' }}>
+                <span style={{ fontSize: '0.7rem', flexShrink: 0 }}>{rIsErr ? '✗' : rIsAlert ? '🔔' : '✓'}</span>
+                <span style={{ fontFamily: T.mono, fontSize: '0.56rem', color: T.muted, flexShrink: 0 }}>
+                  {run.at ? new Date(run.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${realIdx+1}`}
+                </span>
+                <span style={{ flex: 1, fontFamily: T.mono, fontSize: '0.63rem', color: active ? T.text : rIsErr ? T.red : rIsAlert ? T.orange : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {run.message || run.type || 'run'}
+                </span>
               </div>
             );
           })}
@@ -825,7 +898,7 @@ export default function WorkerPage() {
 
       {activeTab === 'replay' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <ReplayPanel logs={logs} />
+          <ReplayPanel logs={logs} steps={steps} trigger={trigger} />
         </div>
       )}
     </div>
