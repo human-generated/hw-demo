@@ -121,16 +121,8 @@ function TriggerNode({ data }) {
           <div style={{ fontWeight: 700, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label || td.name}</div>
         </div>
       </div>
-      {resources.length > 0 && (
-        <div style={{ display: 'flex', gap: 3, marginTop: '0.3rem', flexWrap: 'wrap' }}>
-          {resources.map((r, i) => (
-            <span key={i} style={{ fontSize: '0.52rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>
-              {r.icon} {r.label}
-            </span>
-          ))}
-        </div>
-      )}
       <Handle type="source" position={Position.Bottom} style={{ background: td.color, width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right}  style={{ background: td.color, width: 6, height: 6, top: '50%' }} id="right" />
     </div>
   );
 }
@@ -140,7 +132,6 @@ function StepNode({ data }) {
   const s   = data.step || {};
   const sel = data.selected;
   const isCond = s.skill === 'condition';
-  const resources = resourcesOf(s.skill, s.params, null);
   const est = STEP_ESTIMATES[s.skill];
   return (
     <div
@@ -163,19 +154,16 @@ function StepNode({ data }) {
         </div>
         <Badge color={sk.color + '22'} style={{ color: sk.color, flexShrink: 0 }}>{s.skill}</Badge>
       </div>
-      {(resources.length > 0 || est) && (
+      {est && (
         <div style={{ display: 'flex', gap: 3, marginTop: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          {resources.map((r, i) => (
-            <span key={i} style={{ fontSize: '0.52rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>
-              {r.icon} {r.label}
-            </span>
-          ))}
-          {est?.sec > 0 && <span style={{ marginLeft: 'auto', fontSize: '0.52rem', fontFamily: T.mono, background: T.faint, color: T.muted, borderRadius: 3, padding: '1px 5px' }}>~{est.sec}s</span>}
-          {est?.tokens > 0 && <span style={{ fontSize: '0.52rem', fontFamily: T.mono, background: T.purple + '18', color: T.purple, borderRadius: 3, padding: '1px 5px' }}>~{est.tokens}t</span>}
+          {est.sec > 0    && <span style={{ fontSize: '0.52rem', fontFamily: T.mono, background: T.faint, color: T.muted, borderRadius: 3, padding: '1px 5px' }}>~{est.sec}s</span>}
+          {est.tokens > 0 && <span style={{ fontSize: '0.52rem', fontFamily: T.mono, background: T.purple + '18', color: T.purple, borderRadius: 3, padding: '1px 5px' }}>~{est.tokens}t</span>}
+          {est.costUsd > 0 && <span style={{ fontSize: '0.52rem', fontFamily: T.mono, background: T.orange + '18', color: T.orange, borderRadius: 3, padding: '1px 5px' }}>${est.costUsd.toFixed(4)}</span>}
         </div>
       )}
       <Handle type="target" position={Position.Top}    style={{ background: sk.color, width: 8, height: 8 }} />
       <Handle type="source" position={Position.Bottom} style={{ background: sk.color, width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right}  style={{ background: sk.color, width: 6, height: 6, top: '50%' }} id="right" />
     </div>
   );
 }
@@ -189,14 +177,44 @@ function EndNode() {
   );
 }
 
-const NODE_TYPES = { trigger: TriggerNode, step: StepNode, end: EndNode };
+function ResourceNode({ data }) {
+  const r = data.resource;
+  return (
+    <div style={{ padding: '0.28rem 0.6rem', borderRadius: 6, background: r.color + '14', border: `1.5px dashed ${r.color}60`, display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+      <span style={{ fontSize: '0.85rem' }}>{r.icon}</span>
+      <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: r.color, fontWeight: 600 }}>{r.label}</span>
+      <Handle type="target" position={Position.Left} style={{ background: r.color, width: 6, height: 6, border: 'none' }} />
+    </div>
+  );
+}
+
+const NODE_TYPES = { trigger: TriggerNode, step: StepNode, end: EndNode, resource: ResourceNode };
 
 // Build ReactFlow nodes + edges from trigger + steps
 function buildFlow(trigger, steps, selectedId, onSelect) {
-  const X = 0, GAP = 110;
+  const X = 0, GAP = 120;
+  const RES_X = 270; // x offset for resource nodes (to the right)
   const nodes = [];
   const edges = [];
 
+  // Helper: add resource nodes for a given parent node id + y position
+  function addResourceNodes(parentId, resources, baseY) {
+    resources.forEach((r, ri) => {
+      const rid = `__res__${parentId}_${ri}`;
+      nodes.push({
+        id: rid, type: 'resource',
+        position: { x: RES_X, y: baseY + ri * 32 - ((resources.length - 1) * 16) },
+        data: { resource: r }, draggable: false,
+      });
+      edges.push({
+        id: `er-${parentId}-${ri}`, source: parentId, target: rid,
+        style: { stroke: r.color + '70', strokeWidth: 1, strokeDasharray: '4 3' },
+        type: 'straight',
+      });
+    });
+  }
+
+  // Trigger node
   nodes.push({
     id: '__trigger__',
     type: 'trigger',
@@ -204,6 +222,8 @@ function buildFlow(trigger, steps, selectedId, onSelect) {
     data: { trigger, selected: selectedId === '__trigger__', onSelect: () => onSelect('__trigger__') },
     draggable: false,
   });
+  const trigRs = resourcesOf(null, null, trigger);
+  if (trigRs.length) addResourceNodes('__trigger__', trigRs, 8);
 
   steps.forEach((s, i) => {
     const y = (i + 1) * GAP;
@@ -224,6 +244,8 @@ function buildFlow(trigger, steps, selectedId, onSelect) {
       style: { stroke: isCond ? T.purple : 'rgba(0,0,0,0.2)', strokeWidth: 1.5 },
       type: 'smoothstep',
     });
+    const stepRs = resourcesOf(s.skill, s.params, null);
+    if (stepRs.length) addResourceNodes(s.id, stepRs, y + 10);
   });
 
   const lastId = steps.length > 0 ? steps[steps.length - 1].id : '__trigger__';
