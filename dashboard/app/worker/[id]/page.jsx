@@ -42,6 +42,26 @@ const TRIGGERS = [
 function skillOf(id)   { return SKILLS.find(s => s.id === id)   || { icon: '●', color: T.muted,  name: id }; }
 function triggerOf(id) { return TRIGGERS.find(t => t.id === id) || TRIGGERS[6]; }
 
+// Provider alternatives per skill (for dropdown in ResourceNode)
+const SKILL_PROVIDERS = {
+  'send-notification': [
+    { icon: '📨', label: 'Telegram',     color: T.blue,   params: { channel: 'telegram' } },
+    { icon: '📞', label: 'Twilio Voice', color: T.mint,   params: { channel: 'phone',   provider: 'twilio' } },
+    { icon: '📱', label: 'Twilio SMS',   color: T.mint,   params: { channel: 'sms',     provider: 'twilio' } },
+    { icon: '💬', label: 'Slack',        color: T.purple, params: { channel: 'slack' } },
+    { icon: '📧', label: 'Email',        color: T.orange, params: { channel: 'email' } },
+  ],
+  'generate-report': [
+    { icon: '🔑', label: 'Anthropic Claude', color: T.purple, params: { model: 'claude-sonnet-4-6' } },
+    { icon: '🤖', label: 'OpenAI GPT-4',     color: T.mint,   params: { model: 'gpt-4o', provider: 'openai' } },
+  ],
+  'call-webhook': [
+    { icon: '📞', label: 'Twilio Voice', color: T.mint,   params: { provider: 'twilio' } },
+    { icon: '🔗', label: 'HTTP Webhook', color: T.orange, params: { provider: '' } },
+    { icon: '💬', label: 'Slack',        color: T.purple, params: { provider: 'slack' } },
+  ],
+};
+
 // Resources used by each step/trigger
 function resourcesOf(skill, params, trigger) {
   if (!skill) {
@@ -55,13 +75,31 @@ function resourcesOf(skill, params, trigger) {
   }
   const p = params || {};
   switch (skill) {
-    case 'query-platform':    return [{ icon: '🗄️', label: p.table || p.platform || 'platform DB', color: T.blue }];
+    case 'query-platform':    return [{ icon: '🗄️', label: p.table || p.platform || p.module || p.endpoint?.split('/').slice(-1)[0] || 'platform DB', color: T.blue }];
     case 'generate-report':   return [{ icon: '🔑', label: 'Anthropic Claude', color: T.purple }];
-    case 'send-notification': return [{ icon: '📨', label: 'Telegram Bot', color: T.blue }];
-    case 'call-webhook':
-      if ((p.url || '').toLowerCase().includes('twilio') || (p.url || '').includes('/Calls'))
+    case 'send-notification': {
+      const ch = (p.channel || '').toLowerCase();
+      const pr = (p.provider || '').toLowerCase();
+      if (ch === 'phone' || ch === 'twilio' || pr === 'twilio')
         return [{ icon: '📞', label: 'Twilio Voice', color: T.mint }];
-      return [{ icon: '🔗', label: p.url ? p.url.replace(/^https?:\/\//, '').slice(0, 22) : 'Webhook URL', color: T.orange }];
+      if (ch === 'sms' || pr === 'sms' || pr === 'twilio-sms')
+        return [{ icon: '📱', label: 'Twilio SMS', color: T.mint }];
+      if (ch === 'email' || pr === 'sendgrid' || pr === 'ses' || pr === 'smtp')
+        return [{ icon: '📧', label: pr || 'Email', color: T.orange }];
+      if (ch === 'slack')
+        return [{ icon: '💬', label: 'Slack', color: T.purple }];
+      // Default: Telegram (channel telegram or unset)
+      return [{ icon: '📨', label: 'Telegram Bot', color: T.blue }];
+    }
+    case 'call-webhook': {
+      const pr2 = (p.provider || '').toLowerCase();
+      const url = p.url || '';
+      if (pr2 === 'twilio' || url.toLowerCase().includes('twilio') || url.includes('/Calls') || p.to || p.phone)
+        return [{ icon: '📞', label: 'Twilio Voice', color: T.mint }];
+      if (pr2 === 'slack' || url.includes('hooks.slack'))
+        return [{ icon: '💬', label: 'Slack', color: T.purple }];
+      return [{ icon: '🔗', label: url ? url.replace(/^https?:\/\//, '').split('/')[0].slice(0, 22) : 'Webhook', color: T.orange }];
+    }
     case 'run-script':      return [{ icon: '⚙️', label: p.file || 'script', color: T.muted }];
     case 'transform-data':  return [{ icon: '🔄', label: 'in-memory', color: T.yellow }];
     default: return [];
@@ -179,10 +217,34 @@ function EndNode() {
 
 function ResourceNode({ data }) {
   const r = data.resource;
+  const alts = data.alternatives || [];
+  const hasAlts = alts.length > 1;
+  const [open, setOpen] = useState(false);
   return (
-    <div style={{ padding: '0.28rem 0.6rem', borderRadius: 6, background: r.color + '14', border: `1.5px dashed ${r.color}60`, display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
-      <span style={{ fontSize: '0.85rem' }}>{r.icon}</span>
-      <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: r.color, fontWeight: 600 }}>{r.label}</span>
+    <div style={{ position: 'relative' }}>
+      <div
+        onClick={() => hasAlts && setOpen(o => !o)}
+        style={{ padding: '0.28rem 0.65rem', borderRadius: 6, background: r.color + '14', border: `1.5px dashed ${r.color}70`, display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap', cursor: hasAlts ? 'pointer' : 'default', userSelect: 'none' }}>
+        <span style={{ fontSize: '0.85rem' }}>{r.icon}</span>
+        <span style={{ fontSize: '0.59rem', fontFamily: T.mono, color: r.color, fontWeight: 600 }}>{r.label}</span>
+        {hasAlts && <span style={{ fontSize: '0.5rem', color: r.color, opacity: 0.7, marginLeft: 1 }}>▾</span>}
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', left: 0, top: '110%', zIndex: 999, background: '#fff', border: '1.5px solid rgba(0,0,0,0.12)', borderRadius: 7, boxShadow: '0 4px 18px rgba(0,0,0,0.12)', minWidth: 152, overflow: 'hidden' }}>
+          {alts.map((alt, i) => (
+            <div
+              key={i}
+              onClick={e => { e.stopPropagation(); data.onProviderChange(alt); setOpen(false); }}
+              style={{ padding: '0.32rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', background: alt.label === r.label ? alt.color + '14' : 'transparent', borderLeft: alt.label === r.label ? `3px solid ${alt.color}` : '3px solid transparent' }}
+              onMouseEnter={e => e.currentTarget.style.background = alt.color + '12'}
+              onMouseLeave={e => e.currentTarget.style.background = alt.label === r.label ? alt.color + '14' : 'transparent'}
+            >
+              <span style={{ fontSize: '0.85rem' }}>{alt.icon}</span>
+              <span style={{ fontSize: '0.59rem', fontFamily: T.mono, color: alt.color, fontWeight: 600 }}>{alt.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <Handle type="target" position={Position.Left} style={{ background: r.color, width: 6, height: 6, border: 'none' }} />
     </div>
   );
@@ -191,24 +253,37 @@ function ResourceNode({ data }) {
 const NODE_TYPES = { trigger: TriggerNode, step: StepNode, end: EndNode, resource: ResourceNode };
 
 // Build ReactFlow nodes + edges from trigger + steps
-function buildFlow(trigger, steps, selectedId, onSelect) {
-  const X = 0, GAP = 120;
-  const RES_X = 270; // x offset for resource nodes (to the right)
+// onProviderChange(stepIdx, paramPatch) called when user picks a provider from dropdown
+function buildFlow(trigger, steps, selectedId, onSelect, onProviderChange) {
+  const X = 0, GAP = 130;
+  const RES_X = 260; // x for resource nodes
+  const TRIG_H = 65, STEP_H = 65; // approx node heights for centering
   const nodes = [];
   const edges = [];
 
-  // Helper: add resource nodes for a given parent node id + y position
-  function addResourceNodes(parentId, resources, baseY) {
+  function addResourceNodes(parentId, resources, centerY, stepIdx) {
+    const total = resources.length;
     resources.forEach((r, ri) => {
       const rid = `__res__${parentId}_${ri}`;
+      const altList = stepIdx >= 0 ? (SKILL_PROVIDERS[steps[stepIdx]?.skill] || []) : [];
+      // y: center the resource cluster around the parent's vertical center
+      const resY = centerY + (ri - (total - 1) / 2) * 36 - 12; // -12 to align with node mid
       nodes.push({
         id: rid, type: 'resource',
-        position: { x: RES_X, y: baseY + ri * 32 - ((resources.length - 1) * 16) },
-        data: { resource: r }, draggable: false,
+        position: { x: RES_X, y: resY },
+        data: {
+          resource: r,
+          alternatives: altList,
+          onProviderChange: stepIdx >= 0
+            ? (alt) => onProviderChange(stepIdx, alt.params)
+            : () => {},
+        },
+        draggable: false,
       });
       edges.push({
-        id: `er-${parentId}-${ri}`, source: parentId, target: rid,
-        style: { stroke: r.color + '70', strokeWidth: 1, strokeDasharray: '4 3' },
+        id: `er-${parentId}-${ri}`, source: parentId, sourceHandle: 'right',
+        target: rid,
+        style: { stroke: r.color + '60', strokeWidth: 1.2, strokeDasharray: '5 4' },
         type: 'straight',
       });
     });
@@ -223,7 +298,7 @@ function buildFlow(trigger, steps, selectedId, onSelect) {
     draggable: false,
   });
   const trigRs = resourcesOf(null, null, trigger);
-  if (trigRs.length) addResourceNodes('__trigger__', trigRs, 8);
+  if (trigRs.length) addResourceNodes('__trigger__', trigRs, TRIG_H / 2, -1);
 
   steps.forEach((s, i) => {
     const y = (i + 1) * GAP;
@@ -245,7 +320,7 @@ function buildFlow(trigger, steps, selectedId, onSelect) {
       type: 'smoothstep',
     });
     const stepRs = resourcesOf(s.skill, s.params, null);
-    if (stepRs.length) addResourceNodes(s.id, stepRs, y + 10);
+    if (stepRs.length) addResourceNodes(s.id, stepRs, y + STEP_H / 2, i);
   });
 
   const lastId = steps.length > 0 ? steps[steps.length - 1].id : '__trigger__';
@@ -988,7 +1063,14 @@ export default function WorkerPage() {
   // Sync ReactFlow graph whenever trigger/steps/selectedNodeId changes
   useEffect(() => {
     if (!trigger) return;
-    const { nodes, edges } = buildFlow(trigger, steps, selectedNodeId, id => setSelectedNodeId(prev => prev === id ? null : id));
+    const { nodes, edges } = buildFlow(
+      trigger, steps, selectedNodeId,
+      id => setSelectedNodeId(prev => prev === id ? null : id),
+      (stepIdx, paramPatch) => {
+        setSteps(prev => prev.map((s, i) => i === stepIdx ? { ...s, params: { ...s.params, ...paramPatch } } : s));
+        setDirty(true);
+      },
+    );
     setRfNodes(nodes);
     setRfEdges(edges);
   }, [trigger, steps, selectedNodeId]);
@@ -1125,7 +1207,7 @@ export default function WorkerPage() {
           {/* ReactFlow canvas */}
           <div style={{ flex: 1, position: 'relative' }}>
             <ReactFlow
-              key={trigger?.type}
+              key={`${trigger?.type}_${steps.length}_${steps.map(s=>s.skill).join(',')}`}
               nodes={rfNodes}
               edges={rfEdges}
               onNodesChange={onNodesChange}
