@@ -514,7 +514,184 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
   );
 }
 
-// ─── Simulate Panel ───────────────────────────────────────────────────────────
+// ─── Run Panel (Soft Run / Hard Run) ──────────────────────────────────────────
+function RunStepCard({ stepNum, name, skill, status, input, output, durationMs, error, resources }) {
+  const [open, setOpen] = useState(false);
+  const sk = skillOf(skill);
+  const isRunning = status === 'running';
+  const isDone    = status === 'ok' || status === 'done';
+  const isError   = status === 'error';
+  const isSkipped = status === 'skipped';
+  const borderColor = isRunning ? sk.color : isDone ? T.mint : isError ? T.red : isSkipped ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.07)';
+  const bg          = isRunning ? sk.color + '0d' : isError ? T.red + '08' : 'transparent';
+
+  return (
+    <div style={{ background: T.card, border: `2px solid ${borderColor}`, borderRadius: T.radius, overflow: 'hidden', transition: 'border-color 0.25s', boxShadow: isRunning ? `0 0 14px ${sk.color}28` : 'none' }}>
+      <div onClick={() => (isDone || isError) && setOpen(o => !o)} style={{ padding: '0.55rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.55rem', cursor: (isDone || isError) ? 'pointer' : 'default' }}>
+        <div style={{ width: 26, height: 26, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', background: isDone ? T.mint : isError ? T.red : isRunning ? sk.color : T.faint, transition: 'background 0.25s' }}>
+          {isDone ? <span style={{ fontSize: '0.72rem', color: '#fff' }}>✓</span> : isError ? <span style={{ fontSize: '0.72rem', color: '#fff' }}>✗</span> : isSkipped ? <span style={{ fontSize: '0.65rem', color: T.muted }}>—</span> : isRunning ? <span style={{ fontSize: '0.72rem', color: '#fff', animation: 'pulse 0.8s ease-in-out infinite alternate' }}>●</span> : <span>{sk.icon}</span>}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.68rem', fontWeight: 700, color: isRunning ? sk.color : isError ? T.red : isSkipped ? T.muted : T.text }}>
+            {stepNum != null ? `Step ${stepNum}: ` : ''}{name}
+          </div>
+          {resources?.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+              {resources.map((r, i) => <span key={i} style={{ fontSize: '0.51rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>{r.icon} {r.label}</span>)}
+            </div>
+          )}
+          {isError && error && <div style={{ fontSize: '0.62rem', color: T.red, fontFamily: T.mono, marginTop: 2 }}>✗ {error}</div>}
+        </div>
+        {durationMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, flexShrink: 0 }}>{durationMs < 1000 ? durationMs + 'ms' : (durationMs/1000).toFixed(1) + 's'}</span>}
+        {(isDone || isError) && <span style={{ fontSize: '0.55rem', color: T.muted, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>}
+      </div>
+      {open && (
+        <div style={{ borderTop: T.border, padding: '0.55rem 0.85rem', display: 'flex', gap: '0.7rem', background: T.faint }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.53rem', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Input</div>
+            <pre style={{ margin: 0, fontFamily: T.mono, fontSize: '0.59rem', color: T.text, background: '#fff', borderRadius: 4, padding: '0.4rem', overflowX: 'auto', maxHeight: 180, whiteSpace: 'pre-wrap', wordBreak: 'break-all', border: T.border }}>
+              {input != null ? JSON.stringify(input, null, 2) : '—'}
+            </pre>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.53rem', color: isDone ? T.mint : T.red, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Output</div>
+            <pre style={{ margin: 0, fontFamily: T.mono, fontSize: '0.59rem', color: T.text, background: isDone ? T.mint + '08' : T.red + '08', borderRadius: 4, padding: '0.4rem', overflowX: 'auto', maxHeight: 180, whiteSpace: 'pre-wrap', wordBreak: 'break-all', border: `1px solid ${isDone ? T.mint + '40' : T.red + '40'}` }}>
+              {output != null ? JSON.stringify(output, null, 2) : '—'}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RunPanel({ trigger, steps, sessionId, workerId }) {
+  const [runData,  setRunData]  = useState(null);   // { mode, triggerData, steps, totalDurationMs }
+  const [running,  setRunning]  = useState(false);
+  const [runMode,  setRunMode]  = useState(null);   // 'soft' | 'hard'
+  const [visibleN, setVisibleN] = useState(0);      // how many steps to reveal (animated)
+  const intRef = useRef(null);
+
+  async function startRun(mode) {
+    setRunning(true); setRunMode(mode); setRunData(null); setVisibleN(0);
+    clearInterval(intRef.current);
+    try {
+      const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, mode }),
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      setRunData(d);
+      // Animate reveal: show one step every 600ms
+      let n = 0;
+      intRef.current = setInterval(() => {
+        n++;
+        setVisibleN(n);
+        if (n >= (d.steps || []).length) clearInterval(intRef.current);
+      }, 600);
+    } catch(e) {
+      setRunData({ error: e.message, steps: [] });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const isSoft = runMode === 'soft';
+  const modeColor = isSoft ? T.blue : T.red;
+  const totalMs = runData?.totalDurationMs;
+
+  return (
+    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+
+      {/* Mode header */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.8rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.68rem', fontWeight: 700, marginBottom: 3 }}>
+            {runData ? (isSoft ? '🔍 Soft Run' : '⚡ Hard Run') + ' · ' + (runData.steps?.length || 0) + ' steps' : 'Run Workflow'}
+          </div>
+          <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted }}>
+            {runData
+              ? (isSoft ? 'Read-only · no external actions performed' : 'Live · real calls / messages / DB writes performed')
+              : 'Soft run = read only, inspect values. Hard run = real external actions (calls, messages, DB writes).'}
+          </div>
+        </div>
+        {runData && !running && <button onClick={() => { setRunData(null); setVisibleN(0); }} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '0.28rem 0.6rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>Reset</button>}
+        <Btn small ghost onClick={() => startRun('soft')} disabled={running} style={{ borderColor: T.blue + '80', color: T.blue }}>
+          {running && runMode === 'soft' ? '⟳ Running…' : '🔍 Soft Run'}
+        </Btn>
+        <Btn small color={T.red} onClick={() => startRun('hard')} disabled={running}>
+          {running && runMode === 'hard' ? '⟳ Running…' : '⚡ Hard Run'}
+        </Btn>
+      </div>
+
+      {runData?.error && (
+        <div style={{ background: T.red + '12', border: `1px solid ${T.red}40`, borderRadius: T.radius, padding: '0.65rem 1rem', fontFamily: T.mono, fontSize: '0.7rem', color: T.red }}>
+          ✗ {runData.error}
+        </div>
+      )}
+
+      {/* Trigger result */}
+      {runData && (
+        <RunStepCard
+          stepNum={null}
+          name={trigger?.label || trigger?.type || 'Trigger'}
+          skill={null}
+          status="ok"
+          input={{ type: trigger?.type, ...trigger?.config }}
+          output={runData.triggerData}
+          durationMs={null}
+          resources={resourcesOf(null, null, trigger)}
+        />
+      )}
+
+      {/* Step results */}
+      {runData && (runData.steps || []).map((sr, i) => (
+        <div key={sr.id} style={{ opacity: i < visibleN ? 1 : 0.25, transform: i < visibleN ? 'translateY(0)' : 'translateY(6px)', transition: 'opacity 0.35s, transform 0.35s' }}>
+          {i > 0 && <div style={{ height: 20, display: 'flex', alignItems: 'center', paddingLeft: 22 }}><div style={{ width: 2, height: 20, background: i < visibleN ? T.mint + '60' : 'rgba(0,0,0,0.07)', marginLeft: 11, transition: 'background 0.4s' }} /></div>}
+          <RunStepCard
+            stepNum={i + 1}
+            name={sr.name}
+            skill={sr.skill}
+            status={i < visibleN ? sr.status : 'pending'}
+            input={sr.input}
+            output={sr.output}
+            durationMs={i < visibleN ? sr.durationMs : null}
+            error={sr.error}
+            resources={resourcesOf(sr.skill, steps[i]?.params, null)}
+          />
+        </div>
+      ))}
+
+      {/* Pending step placeholders (before run) */}
+      {!runData && steps.map((step, i) => (
+        <div key={step.id}>
+          {i > 0 && <div style={{ height: 18, display: 'flex', alignItems: 'center', paddingLeft: 22 }}><div style={{ width: 2, height: 18, background: 'rgba(0,0,0,0.07)', marginLeft: 11 }} /></div>}
+          <RunStepCard stepNum={i + 1} name={step.name || step.skill} skill={step.skill} status="pending" input={null} output={null} durationMs={null} resources={resourcesOf(step.skill, step.params, null)} />
+        </div>
+      ))}
+
+      {steps.length === 0 && !runData && (
+        <div style={{ textAlign: 'center', color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, padding: '1.5rem' }}>No steps configured. Add steps in the Flow tab.</div>
+      )}
+
+      {/* Summary */}
+      {runData && visibleN >= (runData.steps || []).length && (
+        <div style={{ background: T.card, border: `2px solid ${modeColor}30`, borderRadius: T.radius, padding: '0.7rem 1rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: modeColor, fontWeight: 700, textTransform: 'uppercase' }}>{isSoft ? '🔍 Soft Run' : '⚡ Hard Run'} complete</span>
+          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>
+            {(runData.steps || []).filter(s => s.status === 'ok').length} ok ·{' '}
+            {(runData.steps || []).filter(s => s.status === 'error').length} errors ·{' '}
+            {(runData.steps || []).filter(s => s.status === 'skipped').length} skipped
+          </span>
+          {totalMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginLeft: 'auto' }}>⏱ {totalMs < 1000 ? totalMs + 'ms' : (totalMs/1000).toFixed(1) + 's'} total</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Old Simulate Panel (replaced by RunPanel above) ──────────────────────────
 function SimStepCard({ index, label, icon, color, resources, input, output, status, estimate }) {
   const [expanded, setExpanded] = useState(false);
   const isActive = status === 'active';
@@ -1293,7 +1470,7 @@ export default function WorkerPage() {
 
       {activeTab === 'simulate' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <SimulatePanel trigger={trigger} steps={steps} logs={logs} sessionId={sessionId} workerId={workerId} />
+          <RunPanel trigger={trigger} steps={steps} sessionId={sessionId} workerId={workerId} />
         </div>
       )}
     </div>
