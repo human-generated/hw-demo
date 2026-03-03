@@ -42,6 +42,44 @@ const TRIGGERS = [
 function skillOf(id)   { return SKILLS.find(s => s.id === id)   || { icon: '●', color: T.muted,  name: id }; }
 function triggerOf(id) { return TRIGGERS.find(t => t.id === id) || TRIGGERS[6]; }
 
+// Resources used by each step/trigger
+function resourcesOf(skill, params, trigger) {
+  if (!skill) {
+    const rs = []; const type = trigger?.type; const cfg = trigger?.config || {};
+    if (type === 'db-condition' || type === 'db-change')
+      rs.push({ icon: '🗄️', label: cfg.table || 'DB table', color: T.blue });
+    if (type === 'message') rs.push({ icon: '📨', label: 'Telegram', color: T.blue });
+    if (cfg.phone)          rs.push({ icon: '📞', label: 'Twilio', color: T.mint });
+    if (type === 'webhook') rs.push({ icon: '🔗', label: 'Webhook', color: T.orange });
+    return rs;
+  }
+  const p = params || {};
+  switch (skill) {
+    case 'query-platform':    return [{ icon: '🗄️', label: p.table || p.platform || 'platform DB', color: T.blue }];
+    case 'generate-report':   return [{ icon: '🔑', label: 'Anthropic Claude', color: T.purple }];
+    case 'send-notification': return [{ icon: '📨', label: 'Telegram Bot', color: T.blue }];
+    case 'call-webhook':
+      if ((p.url || '').toLowerCase().includes('twilio') || (p.url || '').includes('/Calls'))
+        return [{ icon: '📞', label: 'Twilio Voice', color: T.mint }];
+      return [{ icon: '🔗', label: p.url ? p.url.replace(/^https?:\/\//, '').slice(0, 22) : 'Webhook URL', color: T.orange }];
+    case 'run-script':      return [{ icon: '⚙️', label: p.file || 'script', color: T.muted }];
+    case 'transform-data':  return [{ icon: '🔄', label: 'in-memory', color: T.yellow }];
+    default: return [];
+  }
+}
+
+// Static per-step performance estimates
+const STEP_ESTIMATES = {
+  'query-platform':    { sec: 0.15, tokens: 0,    costUsd: 0,       wh: 0.00005 },
+  'generate-report':   { sec: 3.2,  tokens: 1200, costUsd: 0.00036, wh: 0.0006  },
+  'send-notification': { sec: 0.4,  tokens: 0,    costUsd: 0,       wh: 0.00005 },
+  'call-webhook':      { sec: 1.5,  tokens: 0,    costUsd: 0.014,   wh: 0.0001  },
+  'condition':         { sec: 0.01, tokens: 0,    costUsd: 0,       wh: 0       },
+  'transform-data':    { sec: 0.05, tokens: 0,    costUsd: 0,       wh: 0       },
+  'run-script':        { sec: 0.8,  tokens: 0,    costUsd: 0,       wh: 0.0001  },
+  'wait':              { sec: 1.0,  tokens: 0,    costUsd: 0,       wh: 0       },
+};
+
 // ─── Mini helpers ─────────────────────────────────────────────────────────────
 function Badge({ color, children, style = {} }) {
   return <span style={{ background: color || T.faint, borderRadius: 4, padding: '2px 7px', fontSize: '0.57rem', fontFamily: T.mono, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'inline-block', ...style }}>{children}</span>;
@@ -64,23 +102,34 @@ function TriggerNode({ data }) {
   const td = triggerOf(data.trigger?.type);
   const t  = data.trigger || { type: 'manual', label: 'Manual', config: {} };
   const sel = data.selected;
+  const resources = resourcesOf(null, null, t);
   return (
     <div
       onClick={data.onSelect}
       style={{
-        width: 220, padding: '0.55rem 0.8rem', borderRadius: 10,
+        width: 230, padding: '0.55rem 0.8rem', borderRadius: 10,
         background: sel ? td.color + '1A' : '#fff',
         border: `2px solid ${sel ? td.color : 'rgba(0,0,0,0.10)'}`,
         boxShadow: sel ? `0 0 0 4px ${td.color}28` : '0 2px 8px rgba(0,0,0,0.07)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.55rem',
-        transition: 'all 0.12s',
+        cursor: 'pointer', transition: 'all 0.12s',
       }}
     >
-      <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{td.icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.55rem', fontFamily: T.mono, color: td.color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Trigger</div>
-        <div style={{ fontWeight: 700, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label || td.name}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+        <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{td.icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '0.55rem', fontFamily: T.mono, color: td.color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Trigger</div>
+          <div style={{ fontWeight: 700, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.label || td.name}</div>
+        </div>
       </div>
+      {resources.length > 0 && (
+        <div style={{ display: 'flex', gap: 3, marginTop: '0.3rem', flexWrap: 'wrap' }}>
+          {resources.map((r, i) => (
+            <span key={i} style={{ fontSize: '0.52rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>
+              {r.icon} {r.label}
+            </span>
+          ))}
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} style={{ background: td.color, width: 8, height: 8 }} />
     </div>
   );
@@ -91,26 +140,40 @@ function StepNode({ data }) {
   const s   = data.step || {};
   const sel = data.selected;
   const isCond = s.skill === 'condition';
+  const resources = resourcesOf(s.skill, s.params, null);
+  const est = STEP_ESTIMATES[s.skill];
   return (
     <div
       onClick={data.onSelect}
       style={{
-        width: 220, padding: '0.5rem 0.75rem', borderRadius: 8,
+        width: 230, padding: '0.5rem 0.75rem', borderRadius: 8,
         background: sel ? sk.color + '14' : '#fff',
         border: `2px solid ${sel ? sk.color : isCond ? sk.color + '60' : 'rgba(0,0,0,0.08)'}`,
         borderLeft: isCond ? `4px solid ${sk.color}` : undefined,
         boxShadow: sel ? `0 0 0 4px ${sk.color}22` : '0 1px 5px rgba(0,0,0,0.05)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-        transition: 'all 0.12s',
+        cursor: 'pointer', transition: 'all 0.12s',
       }}
     >
-      <div style={{ width: 20, height: 20, borderRadius: isCond ? 4 : '50%', background: sel ? sk.color : isCond ? sk.color + '22' : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontFamily: T.mono, color: sel ? '#fff' : sk.color, flexShrink: 0, fontWeight: 700 }}>{isCond ? '?' : data.index + 1}</div>
-      <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sk.icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.79rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name || sk.name}</div>
-        {s.description && <div style={{ fontSize: '0.61rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ width: 20, height: 20, borderRadius: isCond ? 4 : '50%', background: sel ? sk.color : isCond ? sk.color + '22' : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.58rem', fontFamily: T.mono, color: sel ? '#fff' : sk.color, flexShrink: 0, fontWeight: 700 }}>{isCond ? '?' : data.index + 1}</div>
+        <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sk.icon}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.79rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name || sk.name}</div>
+          {s.description && <div style={{ fontSize: '0.61rem', color: T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</div>}
+        </div>
+        <Badge color={sk.color + '22'} style={{ color: sk.color, flexShrink: 0 }}>{s.skill}</Badge>
       </div>
-      <Badge color={sk.color + '22'} style={{ color: sk.color, flexShrink: 0 }}>{s.skill}</Badge>
+      {(resources.length > 0 || est) && (
+        <div style={{ display: 'flex', gap: 3, marginTop: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {resources.map((r, i) => (
+            <span key={i} style={{ fontSize: '0.52rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>
+              {r.icon} {r.label}
+            </span>
+          ))}
+          {est?.sec > 0 && <span style={{ marginLeft: 'auto', fontSize: '0.52rem', fontFamily: T.mono, background: T.faint, color: T.muted, borderRadius: 3, padding: '1px 5px' }}>~{est.sec}s</span>}
+          {est?.tokens > 0 && <span style={{ fontSize: '0.52rem', fontFamily: T.mono, background: T.purple + '18', color: T.purple, borderRadius: 3, padding: '1px 5px' }}>~{est.tokens}t</span>}
+        </div>
+      )}
       <Handle type="target" position={Position.Top}    style={{ background: sk.color, width: 8, height: 8 }} />
       <Handle type="source" position={Position.Bottom} style={{ background: sk.color, width: 8, height: 8 }} />
     </div>
@@ -350,6 +413,228 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
           })}
         </div>
       </>}
+    </div>
+  );
+}
+
+// ─── Simulate Panel ───────────────────────────────────────────────────────────
+function SimStepCard({ index, label, icon, color, resources, input, output, status, estimate }) {
+  const [expanded, setExpanded] = useState(false);
+  const isActive = status === 'active';
+  const isDone   = status === 'done';
+  return (
+    <div style={{ background: T.card, border: `2px solid ${isActive ? color : isDone ? T.mint + '80' : 'rgba(0,0,0,0.07)'}`, borderRadius: T.radius, overflow: 'hidden', transition: 'border-color 0.35s', boxShadow: isActive ? `0 0 12px ${color}33` : 'none' }}>
+      <div onClick={() => setExpanded(e => !e)} style={{ padding: '0.6rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.55rem', cursor: 'pointer' }}>
+        <div style={{ width: 26, height: 26, borderRadius: '50%', background: isDone ? T.mint : isActive ? color : T.faint, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background 0.3s' }}>
+          {isDone ? <span style={{ fontSize: '0.75rem', color: '#fff' }}>✓</span> : <span style={{ fontSize: '0.9rem' }}>{icon}</span>}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.7rem', fontWeight: 700, color: isActive ? color : isDone ? T.text : T.muted }}>
+            {index >= 0 ? `Step ${index + 1}: ` : ''}{label}
+          </div>
+          {resources?.length > 0 && (
+            <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+              {resources.map((r, i) => (
+                <span key={i} style={{ fontSize: '0.52rem', fontFamily: T.mono, background: r.color + '20', color: r.color, borderRadius: 3, padding: '1px 5px' }}>
+                  {r.icon} {r.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {estimate && (
+          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+            {estimate.sec > 0   && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', background: T.faint,           color: T.muted,   borderRadius: 3, padding: '1px 5px' }}>⏱ {estimate.sec}s</span>}
+            {estimate.tokens > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', background: T.purple + '18', color: T.purple,  borderRadius: 3, padding: '1px 5px' }}>🔤 {estimate.tokens}</span>}
+            {estimate.costUsd > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', background: T.orange + '18', color: T.orange, borderRadius: 3, padding: '1px 5px' }}>${estimate.costUsd.toFixed(4)}</span>}
+            {estimate.wh > 0   && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', background: T.mint + '18',    color: T.mint,    borderRadius: 3, padding: '1px 5px' }}>⚡{(estimate.wh * 1000).toFixed(2)}mWh</span>}
+          </div>
+        )}
+        <span style={{ fontSize: '0.58rem', color: T.muted, transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+      </div>
+      {expanded && (
+        <div style={{ borderTop: T.border, padding: '0.6rem 0.85rem', display: 'flex', gap: '0.75rem' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.3rem' }}>Input</div>
+            <pre style={{ margin: 0, fontFamily: T.mono, fontSize: '0.59rem', color: T.text, background: T.faint, borderRadius: 4, padding: '0.4rem', overflowX: 'auto', maxHeight: 140, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {input ? JSON.stringify(input, null, 2) : '—'}
+            </pre>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.mint, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.3rem' }}>Expected Output</div>
+            <pre style={{ margin: 0, fontFamily: T.mono, fontSize: '0.59rem', color: T.text, background: T.mint + '08', borderRadius: 4, padding: '0.4rem', overflowX: 'auto', maxHeight: 140, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {output != null ? JSON.stringify(output, null, 2) : '(run simulation to see output)'}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SimulatePanel({ trigger, steps, logs, sessionId, workerId }) {
+  const [simulating, setSimulating] = useState(false);
+  const [simData,    setSimData]    = useState(null);
+  const [activeStep, setActiveStep] = useState(-1);
+  const [playing,    setPlaying]    = useState(false);
+  const intRef = useRef(null);
+
+  // Derive input/output shape per step from trigger data + step config
+  function buildStepSims(triggerData) {
+    const tRows = triggerData?.rows || [];
+    const tRow  = tRows[0] || {};
+    return steps.map((step, i) => {
+      const p = step.params || {};
+      const est = { ...(STEP_ESTIMATES[step.skill] || { sec: 0.1, tokens: 0, costUsd: 0, wh: 0 }) };
+      let input = {}, output = {};
+      switch (step.skill) {
+        case 'query-platform':
+          input  = { table: p.table || trigger?.config?.table || '?', condition: p.condition || trigger?.config?.condition };
+          output = { rows: tRows, count: tRows.length };
+          break;
+        case 'generate-report':
+          input  = { data: tRow, prompt: (p.prompt || 'Analyze the following data').slice(0, 80) + '…' };
+          output = { report: '## Report\n\n*AI-generated summary would appear here.*', tokens_used: est.tokens };
+          break;
+        case 'send-notification':
+          input  = { chat_id: p.chatId || p.chat_id || '(from config)', message: (p.message || 'Alert: {item} stock={stock}').replace(/{(\w+)}/g, (_, k) => tRow[k] ?? `{${k}}`) };
+          output = { sent: true, message_id: Math.floor(Math.random() * 900000 + 100000) };
+          break;
+        case 'call-webhook':
+          input  = { url: p.url || '(configured URL)', method: 'POST', body: tRow };
+          output = { status: 200, response: { queued: true } };
+          break;
+        case 'condition':
+          input  = { value: tRow, condition: p.condition || '?' };
+          output = { pass: true, matched_value: tRow };
+          break;
+        case 'transform-data':
+          input  = { data: tRow, transform: p.transform || 'passthrough' };
+          output = { transformed: tRow };
+          break;
+        default:
+          input  = tRow;
+          output = { success: true };
+      }
+      return { step, resources: resourcesOf(step.skill, p, null), input, output, estimate: est };
+    });
+  }
+
+  async function runSimulation() {
+    setSimulating(true); setSimData(null); setActiveStep(-1); setPlaying(false);
+    clearInterval(intRef.current);
+    let triggerData = null;
+    try {
+      const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/simulate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (r.ok) { const d = await r.json(); triggerData = d.triggerData || null; }
+    } catch {}
+    const stepSims = buildStepSims(triggerData);
+    setSimData({ triggerData, stepSims });
+    setActiveStep(0);
+    setPlaying(true);
+    setSimulating(false);
+  }
+
+  useEffect(() => {
+    if (!playing || !simData) return;
+    const total = simData.stepSims.length;
+    intRef.current = setInterval(() => {
+      setActiveStep(n => {
+        if (n >= total - 1) { setPlaying(false); return n; }
+        return n + 1;
+      });
+    }, 1300);
+    return () => clearInterval(intRef.current);
+  }, [playing, simData]);
+
+  const trigRs = resourcesOf(null, null, trigger);
+  const totalEst = simData?.stepSims?.reduce((acc, ss) => ({
+    sec: acc.sec + ss.estimate.sec, tokens: acc.tokens + ss.estimate.tokens,
+    costUsd: acc.costUsd + ss.estimate.costUsd, wh: acc.wh + ss.estimate.wh,
+  }), { sec: 0, tokens: 0, costUsd: 0, wh: 0 }) || null;
+
+  // Per-step log-based refinement: use avg powerWh from logs
+  const avgWh = logs.filter(l => l.powerWh).reduce((s, l) => s + l.powerWh, 0) / Math.max(1, logs.filter(l => l.powerWh).length);
+
+  return (
+    <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      {/* Header */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.68rem', fontWeight: 700, marginBottom: 3 }}>Workflow Simulation</div>
+          <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted }}>
+            Dry-run each step · show data flow · estimate cost &amp; duration
+            {logs.length > 0 && <span style={{ color: T.mint }}> · {logs.length} historical run{logs.length !== 1 ? 's' : ''}</span>}
+          </div>
+        </div>
+        {simData && !playing && (
+          <button onClick={() => { setSimData(null); setActiveStep(-1); }} style={{ background: 'none', border: T.border, borderRadius: T.radius, padding: '0.28rem 0.6rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>Reset</button>
+        )}
+        <Btn small color={T.purple} onClick={runSimulation} disabled={simulating}>
+          {simulating ? '⟳ Simulating…' : simData ? '↺ Re-run' : '▶ Simulate'}
+        </Btn>
+      </div>
+
+      {/* Trigger card */}
+      <SimStepCard
+        index={-1}
+        label={trigger?.label || trigger?.type || 'Trigger'}
+        icon={TRIGGERS.find(t => t.id === trigger?.type)?.icon || '⚡'}
+        color={T.orange}
+        resources={trigRs}
+        input={{ type: trigger?.type, table: trigger?.config?.table, condition: trigger?.config?.condition }}
+        output={simData?.triggerData ? { matched: simData.triggerData.matched, rows: simData.triggerData.rows, count: simData.triggerData.count } : simData ? { matched: true, note: 'live check unavailable — using config' } : null}
+        status={simData ? 'done' : 'pending'}
+        estimate={null}
+      />
+
+      {/* Step cards */}
+      {(simData?.stepSims || steps.map(step => ({ step, resources: resourcesOf(step.skill, step.params, null), input: null, output: null, estimate: STEP_ESTIMATES[step.skill] || { sec: 0.1, tokens: 0, costUsd: 0, wh: 0 } }))).map((ss, i) => (
+        <SimStepCard
+          key={ss.step.id}
+          index={i}
+          label={ss.step.name || ss.step.skill}
+          icon={skillOf(ss.step.skill).icon}
+          color={skillOf(ss.step.skill).color}
+          resources={ss.resources}
+          input={ss.input}
+          output={activeStep > i || (!playing && simData) ? ss.output : null}
+          status={!simData ? 'pending' : activeStep > i ? 'done' : activeStep === i ? 'active' : 'pending'}
+          estimate={ss.estimate}
+        />
+      ))}
+
+      {steps.length === 0 && (
+        <div style={{ textAlign: 'center', color: T.muted, fontSize: '0.72rem', fontFamily: T.mono, padding: '1rem' }}>
+          No steps yet — add steps from the Flow tab.
+        </div>
+      )}
+
+      {/* Totals summary */}
+      {totalEst && !playing && (
+        <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem' }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+            Run Estimates · {steps.length} step{steps.length !== 1 ? 's' : ''}
+            {logs.length > 0 && avgWh > 0 && <span style={{ color: T.mint }}> · actual avg {(avgWh * 1000).toFixed(2)} mWh</span>}
+          </div>
+          <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
+            {[
+              { icon: '⏱', label: 'Duration',   value: totalEst.sec.toFixed(2) + 's',           color: T.text   },
+              { icon: '🔤', label: 'Tokens',     value: totalEst.tokens.toLocaleString(),        color: T.purple },
+              { icon: '💰', label: 'Cost',       value: '$' + totalEst.costUsd.toFixed(4),       color: T.orange },
+              { icon: '⚡', label: 'Energy',     value: (totalEst.wh * 1000).toFixed(2) + ' mWh', color: T.mint  },
+            ].map(({ icon, label, value, color }) => (
+              <div key={label} style={{ background: T.faint, borderRadius: T.radius, padding: '0.4rem 0.7rem', fontFamily: T.mono, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.55rem', color: T.muted, textTransform: 'uppercase', marginBottom: 2 }}>{icon} {label}</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -807,8 +1092,8 @@ export default function WorkerPage() {
 
       {/* Tabs */}
       <div style={{ background: T.card, borderBottom: T.border, padding: '0 1.25rem', display: 'flex' }}>
-        {['flow', 'logs', 'replay'].map(tab => (
-          <button key={tab} onClick={() => { setActiveTab(tab); if (tab === 'logs' || tab === 'replay') fetchLogs(); }} style={{ background: 'none', border: 'none', padding: '0.5rem 0.85rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: activeTab === tab ? T.text : T.muted, borderBottom: activeTab === tab ? `2px solid ${T.text}` : '2px solid transparent', marginBottom: -1 }}>{tab}</button>
+        {['flow', 'logs', 'replay', 'simulate'].map(tab => (
+          <button key={tab} onClick={() => { setActiveTab(tab); if (tab === 'logs' || tab === 'replay' || tab === 'simulate') fetchLogs(); }} style={{ background: 'none', border: 'none', padding: '0.5rem 0.85rem', cursor: 'pointer', fontSize: '0.6rem', fontFamily: T.mono, textTransform: 'uppercase', letterSpacing: '0.06em', color: activeTab === tab ? T.text : T.muted, borderBottom: activeTab === tab ? `2px solid ${tab === 'simulate' ? T.purple : T.text}` : '2px solid transparent', marginBottom: -1 }}>{tab === 'simulate' ? '⟳ Simulate' : tab}</button>
         ))}
       </div>
 
@@ -899,6 +1184,12 @@ export default function WorkerPage() {
       {activeTab === 'replay' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <ReplayPanel logs={logs} steps={steps} trigger={trigger} />
+        </div>
+      )}
+
+      {activeTab === 'simulate' && (
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <SimulatePanel trigger={trigger} steps={steps} logs={logs} sessionId={sessionId} workerId={workerId} />
         </div>
       )}
     </div>
