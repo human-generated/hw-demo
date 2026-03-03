@@ -515,7 +515,7 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
 }
 
 // ─── Run Panel (Soft Run / Hard Run) ──────────────────────────────────────────
-function RunStepCard({ stepNum, name, skill, status, input, output, durationMs, error, resources }) {
+function RunStepCard({ stepNum, name, skill, status, input, output, durationMs, error, resources, tokens, costUsd }) {
   const [open, setOpen] = useState(false);
   const sk = skillOf(skill);
   const isRunning = status === 'running';
@@ -523,7 +523,6 @@ function RunStepCard({ stepNum, name, skill, status, input, output, durationMs, 
   const isError   = status === 'error';
   const isSkipped = status === 'skipped';
   const borderColor = isRunning ? sk.color : isDone ? T.mint : isError ? T.red : isSkipped ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.07)';
-  const bg          = isRunning ? sk.color + '0d' : isError ? T.red + '08' : 'transparent';
 
   return (
     <div style={{ background: T.card, border: `2px solid ${borderColor}`, borderRadius: T.radius, overflow: 'hidden', transition: 'border-color 0.25s', boxShadow: isRunning ? `0 0 14px ${sk.color}28` : 'none' }}>
@@ -542,7 +541,11 @@ function RunStepCard({ stepNum, name, skill, status, input, output, durationMs, 
           )}
           {isError && error && <div style={{ fontSize: '0.62rem', color: T.red, fontFamily: T.mono, marginTop: 2 }}>✗ {error}</div>}
         </div>
-        {durationMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, flexShrink: 0 }}>{durationMs < 1000 ? durationMs + 'ms' : (durationMs/1000).toFixed(1) + 's'}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+          {tokens > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.52rem', background: T.purple + '18', color: T.purple, borderRadius: 3, padding: '1px 5px' }}>🔤 {tokens.toLocaleString()}t</span>}
+          {costUsd > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.52rem', background: T.orange + '18', color: T.orange, borderRadius: 3, padding: '1px 5px' }}>${costUsd.toFixed(4)}</span>}
+          {durationMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted }}>{durationMs < 1000 ? durationMs + 'ms' : (durationMs/1000).toFixed(1) + 's'}</span>}
+        </div>
         {(isDone || isError) && <span style={{ fontSize: '0.55rem', color: T.muted, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>}
       </div>
       {open && (
@@ -659,6 +662,8 @@ function RunPanel({ trigger, steps, sessionId, workerId }) {
             durationMs={i < visibleN ? sr.durationMs : null}
             error={sr.error}
             resources={resourcesOf(sr.skill, steps[i]?.params, null)}
+            tokens={i < visibleN ? sr.tokens : undefined}
+            costUsd={i < visibleN ? sr.costUsd : undefined}
           />
         </div>
       ))}
@@ -676,17 +681,24 @@ function RunPanel({ trigger, steps, sessionId, workerId }) {
       )}
 
       {/* Summary */}
-      {runData && visibleN >= (runData.steps || []).length && (
-        <div style={{ background: T.card, border: `2px solid ${modeColor}30`, borderRadius: T.radius, padding: '0.7rem 1rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: modeColor, fontWeight: 700, textTransform: 'uppercase' }}>{isSoft ? '🔍 Soft Run' : '⚡ Hard Run'} complete</span>
-          <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>
-            {(runData.steps || []).filter(s => s.status === 'ok').length} ok ·{' '}
-            {(runData.steps || []).filter(s => s.status === 'error').length} errors ·{' '}
-            {(runData.steps || []).filter(s => s.status === 'skipped').length} skipped
-          </span>
-          {totalMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginLeft: 'auto' }}>⏱ {totalMs < 1000 ? totalMs + 'ms' : (totalMs/1000).toFixed(1) + 's'} total</span>}
-        </div>
-      )}
+      {runData && visibleN >= (runData.steps || []).length && (() => {
+        const allSteps = runData.steps || [];
+        const totalTokens = allSteps.reduce((s, r) => s + (r.tokens || 0), 0);
+        const totalCost   = allSteps.reduce((s, r) => s + (r.costUsd || 0), 0);
+        return (
+          <div style={{ background: T.card, border: `2px solid ${modeColor}30`, borderRadius: T.radius, padding: '0.7rem 1rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: modeColor, fontWeight: 700, textTransform: 'uppercase' }}>{isSoft ? '🔍 Soft Run' : '⚡ Hard Run'} complete</span>
+            <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>
+              {allSteps.filter(s => s.status === 'ok').length} ok ·{' '}
+              {allSteps.filter(s => s.status === 'error').length} errors ·{' '}
+              {allSteps.filter(s => s.status === 'skipped').length} skipped
+            </span>
+            {totalTokens > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.6rem', background: T.purple + '18', color: T.purple, borderRadius: 3, padding: '1px 6px' }}>🔤 {totalTokens.toLocaleString()} tokens</span>}
+            {totalCost > 0 && <span style={{ fontFamily: T.mono, fontSize: '0.6rem', background: T.orange + '18', color: T.orange, borderRadius: 3, padding: '1px 6px' }}>💰 ${totalCost.toFixed(4)}</span>}
+            {totalMs != null && <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginLeft: 'auto' }}>⏱ {totalMs < 1000 ? totalMs + 'ms' : (totalMs/1000).toFixed(1) + 's'} total</span>}
+          </div>
+        );
+      })()}
     </div>
   );
 }
