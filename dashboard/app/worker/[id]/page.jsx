@@ -227,6 +227,7 @@ function TriggerConfigPanel({ trigger, onChange }) {
         </Field>
         <Field label="Row filter (optional)"><Input value={t.config?.condition || ''} onChange={v => updCfg({ condition: v })} placeholder="amount > 1000" /></Field>
         <Field label="Poll interval (s)"><Input value={String(t.config?.pollIntervalSec || 30)} onChange={v => updCfg({ pollIntervalSec: parseInt(v) || 30 })} /></Field>
+        <Field label="Alert phone (Twilio call on trigger)"><Input value={t.config?.phone || ''} onChange={v => updCfg({ phone: v })} placeholder="+1234567890" /></Field>
       </>}
 
       {t.type === 'db-condition' && <>
@@ -237,8 +238,8 @@ function TriggerConfigPanel({ trigger, onChange }) {
           <textarea value={t.config?.condition || ''} onChange={e => updCfg({ condition: e.target.value })} placeholder="status = 'overdue' AND amount > 500" rows={3} style={{ width: '100%', boxSizing: 'border-box', background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.32rem 0.55rem', fontFamily: T.mono, fontSize: '0.7rem', color: T.text, outline: 'none', resize: 'vertical' }} />
         </Field>
         <Field label="Poll interval (s)"><Input value={String(t.config?.pollIntervalSec || 60)} onChange={v => updCfg({ pollIntervalSec: parseInt(v) || 60 })} /></Field>
+        <Field label="Alert phone (Twilio call on match)"><Input value={t.config?.phone || ''} onChange={v => updCfg({ phone: v })} placeholder="+1234567890" /></Field>
       </>}
-
       {t.type === 'message' && (
         <Field label="Telegram pattern">
           <Input value={t.config?.pattern || ''} onChange={v => { updCfg({ pattern: v }); upd({ label: `Message · ${v}` }); }} placeholder="/report or keyword" />
@@ -354,156 +355,139 @@ function SkillsPalette({ onAdd, nfsSkills = [] }) {
 }
 
 // ─── Replay Panel ─────────────────────────────────────────────────────────────
-function ReplayPanel({ logs, steps, trigger }) {
+function ReplayPanel({ logs }) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const activeRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const runs = logs || [];
-
-  // Group log entries by "run" (same trigger sequence)
-  // Each log entry = one event; we replay them in order
-  const timeline = [...runs].sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+  const timeline = [...(logs || [])].sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
 
   useEffect(() => {
     if (playing) {
       intervalRef.current = setInterval(() => {
         setFrame(f => {
-          if (f >= timeline.length - 1) {
-            setPlaying(false);
-            return f;
-          }
+          if (f >= timeline.length - 1) { setPlaying(false); return f; }
           return f + 1;
         });
-      }, 800);
+      }, 700);
     }
     return () => clearInterval(intervalRef.current);
   }, [playing, timeline.length]);
 
-  function togglePlay() {
-    if (frame >= timeline.length - 1) setFrame(0);
-    setPlaying(p => !p);
-  }
-
-  const currentEntry = timeline[frame];
-  const allSteps = steps || [];
-
-  // Determine which step is "active" based on current log entry
-  function guessActiveStep(entry) {
-    if (!entry) return null;
-    const msg = (entry.message || '').toLowerCase();
-    for (let i = 0; i < allSteps.length; i++) {
-      const s = allSteps[i];
-      if (msg.includes(s.name?.toLowerCase() || '') || msg.includes(s.skill?.toLowerCase() || '')) return s.id;
-    }
-    return null;
-  }
-  const activeStepId = guessActiveStep(currentEntry);
-  const triggerInfo = trigger || {};
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [frame]);
 
   if (timeline.length === 0) {
-    return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>
-        No runs to replay yet. Run the worker first.
-      </div>
-    );
+    return <div style={{ padding: '2rem', textAlign: 'center', color: T.muted, fontSize: '0.78rem', fontFamily: T.mono }}>No events to replay. Run the worker first.</div>;
   }
+
+  const cur = timeline[frame];
+  const isAlert = cur?.success === true && (cur?.message?.includes('Alert') || cur?.message?.includes('matched'));
+  const isCall  = cur?.type === 'twilio_call';
+  const isErr   = cur?.success === false || cur?.type?.includes('error');
+  const curColor = isErr ? T.red : isAlert || isCall ? T.orange : T.mint;
+  const curIcon  = isErr ? '✗' : isCall ? '📞' : isAlert ? '🔔' : '✓';
+
+  // All keys of current entry except 'at'
+  const curFields = cur ? Object.entries(cur).filter(([k]) => k !== 'at') : [];
 
   return (
     <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* Playback controls */}
-      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+      {/* Transport controls */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <button onClick={() => { setPlaying(false); setFrame(0); }} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏮</button>
+        <button onClick={() => setFrame(f => Math.max(0, f - 1))} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>◀</button>
         <button
-          onClick={() => setFrame(0)}
-          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.3rem 0.55rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏮</button>
-        <button
-          onClick={togglePlay}
-          style={{ background: playing ? T.red : T.mint, border: 'none', borderRadius: 4, padding: '0.3rem 0.75rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: playing ? '#fff' : T.text }}>
+          onClick={() => { if (frame >= timeline.length - 1) setFrame(0); setPlaying(p => !p); }}
+          style={{ background: playing ? T.red : T.mint, border: 'none', borderRadius: 4, padding: '0.3rem 0.85rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: playing ? '#fff' : T.text, fontWeight: 700 }}>
           {playing ? '⏸ Pause' : '▶ Play'}
         </button>
-        <button
-          onClick={() => setFrame(f => Math.min(f + 1, timeline.length - 1))}
-          style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.3rem 0.55rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏭</button>
+        <button onClick={() => setFrame(f => Math.min(timeline.length - 1, f + 1))} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>▶</button>
+        <button onClick={() => { setPlaying(false); setFrame(timeline.length - 1); }} style={{ background: 'none', border: T.border, borderRadius: 4, padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.65rem', color: T.muted }}>⏭</button>
+        {/* Scrubber */}
         <div style={{ flex: 1, position: 'relative', height: 6, background: T.faint, borderRadius: 99, cursor: 'pointer' }}
           onClick={e => {
             const rect = e.currentTarget.getBoundingClientRect();
-            const ratio = (e.clientX - rect.left) / rect.width;
-            setFrame(Math.round(ratio * (timeline.length - 1)));
+            setFrame(Math.round((e.clientX - rect.left) / rect.width * (timeline.length - 1)));
           }}>
-          <div style={{ width: `${(frame / Math.max(timeline.length - 1, 1)) * 100}%`, height: '100%', background: T.blue, borderRadius: 99, transition: 'width 0.3s ease' }} />
+          <div style={{ width: `${(frame / Math.max(timeline.length - 1, 1)) * 100}%`, height: '100%', background: T.blue, borderRadius: 99 }} />
+          {/* tick marks for alerts/errors */}
+          {timeline.map((e, i) => {
+            const isE = e.success === false || e.type?.includes('error');
+            const isA = e.message?.includes('Alert') || e.message?.includes('matched') || e.type === 'twilio_call';
+            if (!isE && !isA) return null;
+            return <div key={i} style={{ position: 'absolute', left: `${(i / Math.max(timeline.length - 1, 1)) * 100}%`, top: -3, width: 3, height: 12, background: isE ? T.red : T.orange, borderRadius: 1, transform: 'translateX(-50%)' }} />;
+          })}
         </div>
-        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, whiteSpace: 'nowrap' }}>{frame + 1} / {timeline.length}</span>
+        <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, whiteSpace: 'nowrap' }}>{frame + 1}/{timeline.length}</span>
       </div>
 
-      {/* Workflow step visualization */}
-      <div>
-        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>Workflow Execution</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflowX: 'auto', padding: '0.5rem 0' }}>
-          {/* Trigger */}
-          <div style={{ flexShrink: 0, background: activeStepId === '__trigger__' ? T.blue + '22' : T.faint, border: `2px solid ${activeStepId === '__trigger__' ? T.blue : 'transparent'}`, borderRadius: 8, padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontFamily: T.mono, transition: 'all 0.3s' }}>
-            <div style={{ fontSize: '0.9rem', marginBottom: 2 }}>⚡</div>
-            <div style={{ color: T.muted, fontSize: '0.55rem', textTransform: 'uppercase' }}>trigger</div>
-            <div style={{ fontWeight: 600, fontSize: '0.7rem' }}>{triggerInfo.type || 'manual'}</div>
+      {/* Current event spotlight */}
+      {cur && (
+        <div style={{ background: T.card, border: `2px solid ${curColor}44`, borderRadius: T.radius, padding: '0.8rem 1rem', boxShadow: `0 0 12px ${curColor}22` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>{curIcon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 700, color: isErr ? T.red : T.text }}>{cur.message || cur.type || 'event'}</div>
+              <div style={{ fontFamily: T.mono, fontSize: '0.58rem', color: T.muted, marginTop: 2 }}>
+                {cur.at ? new Date(cur.at).toLocaleString() : ''} · event {frame + 1} of {timeline.length}
+              </div>
+            </div>
           </div>
-          {allSteps.map((s, i) => {
-            const isActive = activeStepId === s.id;
-            const stepIdx = timeline.slice(0, frame + 1).findIndex(e => (e.message || '').toLowerCase().includes(s.name?.toLowerCase() || '') || (e.message || '').toLowerCase().includes(s.skill?.toLowerCase() || ''));
-            const isDone = stepIdx >= 0 && stepIdx < frame;
+          {/* All fields */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {curFields.map(([k, v]) => (
+              <div key={k} style={{ background: T.faint, borderRadius: 4, padding: '0.2rem 0.5rem', fontSize: '0.62rem', fontFamily: T.mono }}>
+                <span style={{ color: T.muted }}>{k}: </span>
+                <span style={{ color: T.text, fontWeight: 600 }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Full event list */}
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.45rem 0.9rem', borderBottom: T.border }}>All {timeline.length} events</div>
+        <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+          {timeline.map((entry, i) => {
+            const isActive = i === frame;
+            const isPast = i < frame;
+            const eIsErr = entry.success === false || entry.type?.includes('error');
+            const eIsAlert = entry.message?.includes('Alert') || entry.message?.includes('matched') || entry.type === 'twilio_call';
+            const eColor = eIsErr ? T.red : eIsAlert ? T.orange : T.muted;
             return (
-              <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                <span style={{ color: T.muted, fontSize: '0.75rem' }}>›</span>
-                <div style={{
-                  background: isActive ? T.mint + '22' : isDone ? T.faint : 'rgba(0,0,0,0.03)',
-                  border: `2px solid ${isActive ? T.mint : isDone ? T.muted + '40' : 'transparent'}`,
-                  borderRadius: 8, padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontFamily: T.mono, transition: 'all 0.3s',
-                  boxShadow: isActive ? `0 0 8px ${T.mint}66` : 'none',
-                }}>
-                  <div style={{ fontSize: '0.9rem', marginBottom: 2 }}>{SKILLS.find(sk => sk.id === s.skill)?.icon || '●'}</div>
-                  <div style={{ color: T.muted, fontSize: '0.55rem', textTransform: 'uppercase' }}>{s.skill}</div>
-                  <div style={{ fontWeight: 600, fontSize: '0.7rem' }}>{s.name || s.skill}</div>
+              <div key={i} ref={isActive ? activeRef : null}
+                onClick={() => { setPlaying(false); setFrame(i); }}
+                style={{ display: 'flex', gap: '0.5rem', padding: '0.32rem 0.9rem', borderBottom: i < timeline.length - 1 ? T.border : 'none', cursor: 'pointer', background: isActive ? T.blue + '14' : 'transparent', borderLeft: `3px solid ${isActive ? T.blue : eIsErr ? T.red : eIsAlert ? T.orange : 'transparent'}`, alignItems: 'flex-start' }}>
+                <span style={{ color: isActive ? T.blue : isPast ? T.muted : 'rgba(0,0,0,0.15)', fontSize: '0.62rem', flexShrink: 0, paddingTop: 1 }}>{isActive ? '▶' : isPast ? '·' : '○'}</span>
+                <span style={{ fontSize: '0.56rem', fontFamily: T.mono, color: T.muted, flexShrink: 0, minWidth: 54, paddingTop: 2 }}>
+                  {entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i+1}`}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: isActive ? T.text : eColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {entry.message || entry.type || 'event'}
+                  </div>
+                  {isActive && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: 3 }}>
+                      {Object.entries(entry).filter(([k]) => !['at','message','type','success'].includes(k)).map(([k, v]) => (
+                        <span key={k} style={{ fontSize: '0.56rem', fontFamily: T.mono, background: T.faint, borderRadius: 3, padding: '1px 4px', color: T.muted }}>
+                          {k}={typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                {entry.powerWh !== undefined && (
+                  <span style={{ color: T.orange, fontSize: '0.55rem', fontFamily: T.mono, flexShrink: 0, paddingTop: 2 }}>⚡{(entry.powerWh * 1000).toFixed(2)}mWh</span>
+                )}
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* Current event */}
-      {currentEntry && (
-        <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem' }}>
-          <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
-            Event #{frame + 1} · {currentEntry.at ? new Date(currentEntry.at).toLocaleString() : ''}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: currentEntry.stock !== undefined || currentEntry.trigger ? '0.4rem' : 0 }}>
-            <span style={{ fontSize: '0.85rem' }}>{currentEntry.success === false ? '✗' : currentEntry.type === 'twilio_call' ? '📞' : '✓'}</span>
-            <span style={{ fontFamily: T.mono, fontSize: '0.75rem', fontWeight: 600, color: currentEntry.success === false ? T.red : T.text }}>{currentEntry.message || currentEntry.type || 'Event'}</span>
-          </div>
-          {currentEntry.trigger && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>trigger: {currentEntry.trigger}</div>}
-          {currentEntry.stock !== undefined && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted }}>stock: {currentEntry.stock}</div>}
-          {currentEntry.powerWh !== undefined && <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.orange }}>⚡ {(currentEntry.powerWh * 1000).toFixed(3)} mWh</div>}
-        </div>
-      )}
-
-      {/* Event log */}
-      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
-        <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.5rem 0.9rem', borderBottom: T.border }}>All events</div>
-        {timeline.map((entry, i) => {
-          const isActive = i === frame;
-          const isPast = i < frame;
-          return (
-            <div key={i}
-              onClick={() => setFrame(i)}
-              style={{ display: 'flex', gap: '0.5rem', padding: '0.3rem 0.9rem', borderBottom: i < timeline.length - 1 ? T.border : 'none', cursor: 'pointer', background: isActive ? T.blue + '11' : 'transparent', alignItems: 'center', transition: 'background 0.2s' }}>
-              <span style={{ color: isActive ? T.blue : isPast ? T.muted : 'rgba(0,0,0,0.15)', fontSize: '0.6rem', flexShrink: 0 }}>{isActive ? '▶' : isPast ? '✓' : '○'}</span>
-              <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, flexShrink: 0, minWidth: 50 }}>
-                {entry.at ? new Date(entry.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `#${i+1}`}
-              </span>
-              <span style={{ flex: 1, fontFamily: T.mono, fontSize: '0.65rem', color: entry.success === false ? T.red : isActive ? T.text : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {entry.message || entry.type || 'event'}
-              </span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -685,9 +669,12 @@ export default function WorkerPage() {
   async function handleDeploy() {
     setDeploying(true);
     try {
+      // Always save current flow first so session has latest trigger.config (phone, etc.)
+      await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/flow`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, flow: { trigger, steps } }) });
       const r = await fetch('/api/demo/workers/deploy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, worker: { ...worker, trigger, steps } }) });
       const d = await r.json();
       setWorker(prev => ({ ...prev, status: d.status || 'deployed' }));
+      setDirty(false);
     } catch {} finally { setDeploying(false); }
   }
 
@@ -735,10 +722,14 @@ export default function WorkerPage() {
         {dirty && <Badge color={T.yellow} style={{ color: '#000' }}>Unsaved</Badge>}
         <div style={{ flex: 1 }} />
         {dirty && <Btn small onClick={saveFlow} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Btn>}
-        {worker?.status === 'deployed'
-          ? <Btn small color={T.blue} onClick={handleRun} disabled={running}>{running ? 'Running…' : '▶ Run'}</Btn>
-          : <Btn small color={T.mint} style={{ color: T.text }} onClick={handleDeploy} disabled={deploying}>{deploying ? 'Deploying…' : 'Deploy'}</Btn>
-        }
+        {worker?.status === 'deployed' ? (
+          <>
+            <Btn small ghost onClick={handleDeploy} disabled={deploying}>{deploying ? 'Redeploying…' : '↺ Redeploy'}</Btn>
+            <Btn small color={T.blue} onClick={handleRun} disabled={running}>{running ? 'Running…' : '▶ Run'}</Btn>
+          </>
+        ) : (
+          <Btn small color={T.mint} style={{ color: T.text }} onClick={handleDeploy} disabled={deploying}>{deploying ? 'Deploying…' : 'Deploy'}</Btn>
+        )}
       </div>
 
       {/* Tabs */}
@@ -834,7 +825,7 @@ export default function WorkerPage() {
 
       {activeTab === 'replay' && (
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <ReplayPanel logs={logs} steps={steps} trigger={trigger} />
+          <ReplayPanel logs={logs} />
         </div>
       )}
     </div>

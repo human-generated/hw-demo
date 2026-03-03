@@ -1109,7 +1109,16 @@ function ObservabilityPanel() {
     const d = ev.data || {};
     if (ev.type === 'agent:spawn') return `${d.name || d.agentId} (${d.role || ''})`;
     if (ev.type === 'agent:reply') return `${d.agentId}: "${(d.reply || '').slice(0, 80)}${(d.reply||'').length > 80 ? '…' : ''}"`;
-    if (ev.type === 'worker:trigger') return `${d.workerName || d.workerId}: $${d.amount} — ${d.contactName || ''} ${d.phone ? '(' + d.phone + ')' : ''}`;
+    if (ev.type === 'worker:trigger') {
+      const parts = [d.workerName || d.workerId];
+      if (d.amount !== undefined) parts.push(`$${d.amount}`);
+      if (d.item) parts.push(d.item);
+      if (d.stock !== undefined) parts.push(`stock=${d.stock}`);
+      if (d.trigger) parts.push(d.trigger);
+      if (d.contactName) parts.push(d.contactName);
+      if (d.phone) parts.push(`(${d.phone})`);
+      return parts.join(' · ');
+    }
     if (ev.type === 'worker:twilio_call') return `Call to ${d.to} — SID ${(d.sid||'').slice(0,16)}… status=${d.status}`;
     if (ev.type === 'worker:error') return `${d.workerName || d.workerId}: ${d.error}`;
     return JSON.stringify(d).slice(0, 100);
