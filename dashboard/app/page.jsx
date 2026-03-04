@@ -279,7 +279,7 @@ export default function App() {
         const r = await fetch(`/api/demo/session/${urlSession}`);
         if (r.ok) {
           const d = await r.json();
-          if (d && d.sessionId) {
+          if (d && (d.id || d.phase)) {
             setSessionId(urlSession);
             if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', urlSession);
             restoreFromSession(d);
