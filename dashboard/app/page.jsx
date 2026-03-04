@@ -2297,7 +2297,6 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
   const [canvasTab, setCanvasTab] = useState('agents');
   const [artifacts, setArtifacts] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [selectedRd, setSelectedRd] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => { if (canvasTab === 'artifacts') loadArtifacts(); }, [canvasTab]);
@@ -2359,41 +2358,25 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
 
         {/* ─ Remote Desktop tab ─ */}
         {canvasTab === 'remote' && (
-          selectedRd ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Btn ghost small onClick={() => setSelectedRd(null)}>← Back</Btn>
-                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.label}</span>
-                <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.ip}:{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.port}</span>
-              </div>
-              <iframe
-                src={`http://${REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.ip}:${REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.port}/vnc.html?autoconnect=1&resize=scale`}
-                style={{ flex: 1, width: '100%', minHeight: 500, border: 'none', borderRadius: T.radius }}
-                title="Remote Desktop"
-              />
+          <>
+            <SectionLabel>Worker PCs — click to open noVNC in new tab</SectionLabel>
+            <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.75rem 1rem', fontSize: '0.7rem', color: T.muted, marginBottom: '0.5rem' }}>
+              ℹ️ noVNC runs over HTTP. Browsers block HTTP iframes inside HTTPS pages — use the buttons below to open in a new tab.
             </div>
-          ) : (
-            <>
-              <SectionLabel>Worker PCs — click to connect via noVNC</SectionLabel>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                {REMOTE_DESKTOPS.map(rd => (
-                  <div key={rd.id} onClick={() => setSelectedRd(rd.id)} style={{
-                    background: T.card, border: T.border, borderRadius: T.radius, padding: '1.5rem',
-                    cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    gap: '0.5rem', transition: 'box-shadow 0.15s',
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-                  >
-                    <div style={{ fontSize: '2rem' }}>🖥️</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{rd.label}</div>
-                    <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>{rd.ip}:{rd.port}</div>
-                    <div style={{ fontSize: '0.65rem', color: T.blue, marginTop: '0.25rem' }}>Click to open VNC →</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {REMOTE_DESKTOPS.map(rd => (
+                <div key={rd.id} style={{
+                  background: T.card, border: T.border, borderRadius: T.radius, padding: '1.5rem',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+                }}>
+                  <div style={{ fontSize: '2rem' }}>🖥️</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{rd.label}</div>
+                  <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>{rd.ip}:{rd.port}</div>
+                  <Btn small onClick={() => window.open(`http://${rd.ip}:${rd.port}/vnc.html?autoconnect=1&resize=scale`, '_blank')}>Open VNC →</Btn>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* ─ Artifacts tab ─ */}
