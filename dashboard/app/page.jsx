@@ -325,12 +325,16 @@ export default function App() {
     if (d.workers && d.workers.length > 0) setWorkers(d.workers);
     const nP = (d.platforms || []).filter(p => p.status === 'deployed').length;
     const nW = (d.workers || []).length;
-    // Reset chat to just the restore summary — don't replay old steps
-    setChat([{
-      role: 'assistant',
-      content: `Session restored.${d.company ? ` Company: ${d.company.name}.` : ''}${nP ? ` ${nP} platform${nP > 1 ? 's' : ''} deployed.` : ''}${nW ? ` ${nW} worker${nW > 1 ? 's' : ''} configured.` : ''} Phase: ${ph}.`,
-      tag: 'agent:info',
-    }]);
+    // Restore chat history if available, otherwise show restore summary
+    if (d.chatHistory && d.chatHistory.length > 0) {
+      setChat(d.chatHistory);
+    } else {
+      setChat([{
+        role: 'assistant',
+        content: `Session restored.${d.company ? ` Company: ${d.company.name}.` : ''}${nP ? ` ${nP} platform${nP > 1 ? 's' : ''} deployed.` : ''}${nW ? ` ${nW} worker${nW > 1 ? 's' : ''} configured.` : ''} Phase: ${ph}.`,
+        tag: 'agent:info',
+      }]);
+    }
   }
 
   // Poll session state
@@ -361,7 +365,18 @@ export default function App() {
   }, [sessionId]);
 
   function addChat(role, content, tag) {
-    setChat(prev => [...prev, { role, content, tag, at: new Date().toISOString() }]);
+    setChat(prev => {
+      const updated = [...prev, { role, content, tag, at: new Date().toISOString() }];
+      // Persist chat history to server (fire-and-forget, last 60 messages)
+      if (sessionId) {
+        fetch('/api/demo/session/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, chatHistory: updated.slice(-60) }),
+        }).catch(() => {});
+      }
+      return updated;
+    });
   }
 
   // Spawn a zeroclaw workspace for a tree node (fire-and-forget)
@@ -783,7 +798,7 @@ export default function App() {
               return (
                 <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   <div
-                    onClick={() => { if (canNav) { setPhase(p); setActivePlatformChat(null); setPlatformChatHistory([]); setActiveZcAgent(null); setZcChatHistory([]); setShowSettings(false); } }}
+                    onClick={() => { if (canNav) { setPhase(p); setActivePlatformChat(null); setPlatformChatHistory([]); setShowSettings(false); } }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.3rem',
                       padding: '0.25rem 0.5rem', borderRadius: T.radius,
