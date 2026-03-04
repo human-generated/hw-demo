@@ -254,6 +254,7 @@ export default function App() {
   // Settings panel
   const [showSettings, setShowSettings] = useState(false);
   const [showNetwork, setShowNetwork] = useState(false);
+  const [rightView, setRightView] = useState('demo'); // 'demo' | 'canvas'
 
   // Real client data
   const [showClientForm, setShowClientForm] = useState(false);
@@ -977,7 +978,34 @@ export default function App() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 1, overflowY: showSettings ? 'hidden' : 'auto', padding: showSettings ? 0 : '1.5rem', display: 'flex', flexDirection: 'column', gap: showSettings ? 0 : '1.5rem' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Right panel tab bar */}
+          {!showSettings && (
+            <div style={{ borderBottom: T.border, background: T.card, padding: '0 1rem', display: 'flex', gap: 0, flexShrink: 0 }}>
+              {[{ id: 'demo', label: 'Demo' }, { id: 'canvas', label: '⬡ Canvas' }].map(v => (
+                <button key={v.id} onClick={() => setRightView(v.id)} style={{
+                  background: 'none', border: 'none', borderBottom: rightView === v.id ? `2px solid ${T.text}` : '2px solid transparent',
+                  padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.62rem',
+                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  color: rightView === v.id ? T.text : T.muted, marginBottom: -1,
+                }}>{v.label}</button>
+              ))}
+            </div>
+          )}
+          {/* Canvas view */}
+          {!showSettings && rightView === 'canvas' && (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <CanvasPanel
+                workers={workers}
+                sessionId={sessionId}
+                onRun={handleRunWorker}
+                fetchLogs={fetchWorkerLogs}
+                logs={workerLogs}
+              />
+            </div>
+          )}
+          {/* Demo view */}
+          <div style={{ flex: rightView === 'canvas' && !showSettings ? 0 : 1, overflowY: showSettings ? 'hidden' : 'auto', padding: showSettings || rightView === 'canvas' ? 0 : '1.5rem', display: rightView === 'canvas' && !showSettings ? 'none' : 'flex', flexDirection: 'column', gap: showSettings ? 0 : '1.5rem' }}>
           {showSettings && <SettingsPanel />}
           {!showSettings && <>
             {phase === 'start' && (
@@ -1056,6 +1084,7 @@ export default function App() {
               />
             )}
           </>}
+          </div>
         </div>
       </div>
       <ObservabilityPanel />
@@ -2231,6 +2260,215 @@ function SectionLabel({ children, style = {} }) {
       textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.75rem',
       ...style,
     }}>{children}</div>
+  );
+}
+
+// ── Canvas Panel ───────────────────────────────────────────────────────────────
+const REMOTE_DESKTOPS = [
+  { id: 'rd1', label: 'Worker PC 1', ip: '164.90.197.224', port: 6080 },
+  { id: 'rd2', label: 'Worker PC 2', ip: '167.99.222.95', port: 6080 },
+  { id: 'rd3', label: 'Worker PC 3', ip: '178.128.247.39', port: 6080 },
+  { id: 'rd4', label: 'Worker PC 4', ip: '142.93.131.96', port: 6080 },
+];
+
+function ArtifactCard({ file }) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+  const url = `/api/nfs/file?path=uploads/${encodeURIComponent(file.name)}`;
+  const iconMap = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', mp4: '🎥', webm: '🎥', zip: '🗜️', json: '{}', js: '📜', txt: '📋' };
+  const icon = isImage ? null : iconMap[ext] || '📁';
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+      <div style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden', cursor: 'pointer' }}>
+        {isImage
+          ? <img src={url} alt={file.name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+          : <div style={{ aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', background: T.bg, fontSize: '2rem' }}>{icon}</div>
+        }
+        <div style={{ padding: '0.4rem 0.6rem' }}>
+          <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+          <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted }}>{((file.size || 0) / 1024).toFixed(1)} KB</div>
+        </div>
+      </div>
+    </a>
+  );
+}
+
+function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
+  const [canvasTab, setCanvasTab] = useState('agents');
+  const [artifacts, setArtifacts] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [selectedRd, setSelectedRd] = useState(null);
+  const fileRef = useRef();
+
+  useEffect(() => { if (canvasTab === 'artifacts') loadArtifacts(); }, [canvasTab]);
+
+  async function loadArtifacts() {
+    try {
+      const r = await fetch('/api/nfs?path=uploads');
+      if (r.ok) { const d = await r.json(); setArtifacts(d.entries || []); }
+    } catch {}
+  }
+
+  async function uploadFile(file) {
+    setUploading(true);
+    try {
+      await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
+        method: 'POST', body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      });
+      loadArtifacts();
+    } finally { setUploading(false); }
+  }
+
+  const CANVAS_TABS = [
+    { id: 'agents', label: '🤖 Agents' },
+    { id: 'remote', label: '🖥️ Remote Desktop' },
+    { id: 'artifacts', label: '📁 Artifacts' },
+  ];
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Canvas sub-tabs */}
+      <div style={{ borderBottom: T.border, background: T.card, padding: '0 1rem', display: 'flex', flexShrink: 0 }}>
+        {CANVAS_TABS.map(t => (
+          <button key={t.id} onClick={() => setCanvasTab(t.id)} style={{
+            background: 'none', border: 'none',
+            borderBottom: canvasTab === t.id ? `2px solid ${T.text}` : '2px solid transparent',
+            padding: '0.55rem 1rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.62rem',
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+            color: canvasTab === t.id ? T.text : T.muted, marginBottom: -1,
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflowY: canvasTab === 'remote' && selectedRd ? 'hidden' : 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+        {/* ─ Agents tab ─ */}
+        {canvasTab === 'agents' && (
+          <>
+            <SectionLabel>Deployed Workers — {workers.filter(w => w.status === 'deployed').length}/{workers.length} active</SectionLabel>
+            {workers.length === 0 ? (
+              <div style={{ color: T.muted, fontSize: '0.8rem' }}>No workers deployed yet. Complete the workers phase to see agent cards here.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                {workers.map(w => <CanvasWorkerCard key={w.id} worker={w} sessionId={sessionId} onRun={onRun} fetchLogs={fetchLogs} logs={logs} />)}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ─ Remote Desktop tab ─ */}
+        {canvasTab === 'remote' && (
+          selectedRd ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Btn ghost small onClick={() => setSelectedRd(null)}>← Back</Btn>
+                <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.label}</span>
+                <span style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.ip}:{REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.port}</span>
+              </div>
+              <iframe
+                src={`http://${REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.ip}:${REMOTE_DESKTOPS.find(r => r.id === selectedRd)?.port}/vnc.html?autoconnect=1&resize=scale`}
+                style={{ flex: 1, width: '100%', minHeight: 500, border: 'none', borderRadius: T.radius }}
+                title="Remote Desktop"
+              />
+            </div>
+          ) : (
+            <>
+              <SectionLabel>Worker PCs — click to connect via noVNC</SectionLabel>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {REMOTE_DESKTOPS.map(rd => (
+                  <div key={rd.id} onClick={() => setSelectedRd(rd.id)} style={{
+                    background: T.card, border: T.border, borderRadius: T.radius, padding: '1.5rem',
+                    cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: '0.5rem', transition: 'box-shadow 0.15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+                  >
+                    <div style={{ fontSize: '2rem' }}>🖥️</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{rd.label}</div>
+                    <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted }}>{rd.ip}:{rd.port}</div>
+                    <div style={{ fontSize: '0.65rem', color: T.blue, marginTop: '0.25rem' }}>Click to open VNC →</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )
+        )}
+
+        {/* ─ Artifacts tab ─ */}
+        {canvasTab === 'artifacts' && (
+          <>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <SectionLabel style={{ marginBottom: 0 }}>Shared Artifacts (NFS)</SectionLabel>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem' }}>
+                <Btn small ghost onClick={loadArtifacts}>Refresh</Btn>
+                <Btn small onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? '...' : '↑ Upload'}</Btn>
+                <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) uploadFile(e.target.files[0]); e.target.value = ''; }} />
+              </div>
+            </div>
+            {artifacts.length === 0 ? (
+              <div style={{ color: T.muted, fontSize: '0.8rem' }}>No artifacts yet. Upload files to share with agents via /mnt/shared/uploads.</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                {artifacts.map(f => <ArtifactCard key={f.name} file={f} />)}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs }) {
+  const [expanded, setExpanded] = useState(false);
+  const workerLogs = logs[worker.id] || [];
+  const lastLog = workerLogs[workerLogs.length - 1];
+  const isDeployed = worker.status === 'deployed';
+  const triggerLabel = typeof worker.trigger === 'object' ? worker.trigger?.label : worker.trigger;
+
+  return (
+    <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+      {/* Header: name + status dot */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: isDeployed ? T.mint : T.muted, boxShadow: isDeployed ? `0 0 6px ${T.mint}` : 'none' }} />
+        <span style={{ fontWeight: 700, fontSize: '0.88rem', flex: 1 }}>{worker.name}</span>
+        <Badge color={isDeployed ? 'rgba(108,239,160,0.15)' : T.faint} style={{ color: isDeployed ? T.mint : T.muted }}>{worker.status || 'idle'}</Badge>
+      </div>
+
+      {/* Worker ID — debug info */}
+      <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, letterSpacing: '0.02em' }}>{worker.id}</div>
+
+      {/* Trigger */}
+      {triggerLabel && <div style={{ fontSize: '0.7rem', color: T.muted }}>⚡ {triggerLabel}</div>}
+
+      {/* Last log line */}
+      {lastLog && (
+        <div style={{ fontFamily: T.mono, fontSize: '0.6rem', background: T.bg, padding: '0.3rem 0.5rem', borderRadius: T.radius, color: lastLog.success === false ? T.red : T.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {lastLog.at ? new Date(lastLog.at).toLocaleTimeString() + ' ' : ''}{lastLog.message || JSON.stringify(lastLog).slice(0, 80)}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+        <Btn small ghost onClick={() => { fetchLogs(worker.id, sessionId); setExpanded(true); }}>Logs</Btn>
+        <Btn small onClick={() => onRun(worker)}>▶ Run</Btn>
+        <Btn small ghost onClick={() => window.open(`/worker/${worker.id}?session=${sessionId}`, '_blank')}>Detail →</Btn>
+      </div>
+
+      {/* Expanded log */}
+      {expanded && workerLogs.length > 0 && (
+        <div style={{ maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, borderTop: T.border, paddingTop: '0.5rem' }}>
+          {workerLogs.slice(-8).map((l, i) => (
+            <div key={i} style={{ fontFamily: T.mono, fontSize: '0.58rem', color: l.success === false ? T.red : T.muted, display: 'flex', gap: '0.4rem' }}>
+              {l.at && <span style={{ color: T.faint }}>{new Date(l.at).toLocaleTimeString()}</span>}
+              <span>{l.message || JSON.stringify(l).slice(0, 80)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1368,7 +1368,10 @@ export default function WorkerPage() {
       <div style={{ background: T.card, borderBottom: T.border, padding: '0 1.25rem', height: 50, display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, boxShadow: T.shadow }}>
         <a href={sessionId ? `/?session=${sessionId}` : '/'} style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, textDecoration: 'none', textTransform: 'uppercase', letterSpacing: '0.06em' }}>← H-Demo</a>
         <span style={{ color: 'rgba(0,0,0,0.12)' }}>|</span>
-        <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.88rem' }}>{worker?.name}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.88rem' }}>{worker?.name}</span>
+          <span style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.muted, letterSpacing: '0.02em' }}>{workerId}</span>
+        </div>
         <Badge color={statusColor}>{worker?.status || 'proposed'}</Badge>
         {dirty && <Badge color={T.yellow} style={{ color: '#000' }}>Unsaved</Badge>}
         <div style={{ flex: 1 }} />
