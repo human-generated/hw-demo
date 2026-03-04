@@ -1001,6 +1001,7 @@ export default function App() {
                 onRun={handleRunWorker}
                 fetchLogs={fetchWorkerLogs}
                 logs={workerLogs}
+                onOpenZcAgent={openZcAgent}
               />
             </div>
           )}
@@ -2293,7 +2294,7 @@ function ArtifactCard({ file }) {
   );
 }
 
-function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
+function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent }) {
   const [canvasTab, setCanvasTab] = useState('agents');
   const [artifacts, setArtifacts] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -2350,7 +2351,7 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
               <div style={{ color: T.muted, fontSize: '0.8rem' }}>No workers deployed yet. Complete the workers phase to see agent cards here.</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-                {workers.map(w => <CanvasWorkerCard key={w.id} worker={w} sessionId={sessionId} onRun={onRun} fetchLogs={fetchLogs} logs={logs} />)}
+                {workers.map(w => <CanvasWorkerCard key={w.id} worker={w} sessionId={sessionId} onRun={onRun} fetchLogs={fetchLogs} logs={logs} onOpenZcAgent={onOpenZcAgent} />)}
               </div>
             )}
           </>
@@ -2404,12 +2405,13 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs }) {
   );
 }
 
-function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs }) {
+function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs, onOpenZcAgent }) {
   const [expanded, setExpanded] = useState(false);
   const workerLogs = logs[worker.id] || [];
   const lastLog = workerLogs[workerLogs.length - 1];
   const isDeployed = worker.status === 'deployed';
   const triggerLabel = typeof worker.trigger === 'object' ? worker.trigger?.label : worker.trigger;
+  const hasZcAgent = !!worker.zcAgentId;
 
   return (
     <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -2421,7 +2423,10 @@ function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs }) {
       </div>
 
       {/* Worker ID — debug info */}
-      <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, letterSpacing: '0.02em' }}>{worker.id}</div>
+      <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted, letterSpacing: '0.02em' }}>
+        {worker.id}
+        {hasZcAgent && <span style={{ marginLeft: '0.5rem', color: T.blue, fontSize: '0.5rem' }}>⬡ ZC</span>}
+      </div>
 
       {/* Trigger */}
       {triggerLabel && <div style={{ fontSize: '0.7rem', color: T.muted }}>⚡ {triggerLabel}</div>}
@@ -2437,6 +2442,9 @@ function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs }) {
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
         <Btn small ghost onClick={() => { fetchLogs(worker.id, sessionId); setExpanded(true); }}>Logs</Btn>
         <Btn small onClick={() => onRun(worker)}>▶ Run</Btn>
+        {hasZcAgent && onOpenZcAgent && (
+          <Btn small ghost onClick={() => onOpenZcAgent({ id: worker.zcAgentId, name: worker.name + ' Agent', task: `Automation worker for ${worker.name}. Trigger: ${triggerLabel || 'scheduled'}` })}>⬡ Chat</Btn>
+        )}
         <Btn small ghost onClick={() => window.open(`/worker/${worker.id}?session=${sessionId}`, '_blank')}>Detail →</Btn>
       </div>
 
