@@ -209,6 +209,7 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
 export default function App() {
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
+  const [maxPhase, setMaxPhase] = useState('start');
   const [chat, setChat] = useState([{ role: 'assistant', content: 'Welcome to H-Demo. Enter a company name to begin your AI back-office simulation.' }]);
   const [usage, setUsage] = useState({ tokens: 0, requests: 0, estimatedCostUsd: 0 });
   const [power, setPower] = useState({ totalWh: 0, runs: 0 });
@@ -309,9 +310,15 @@ export default function App() {
     return () => window.removeEventListener('focus', onFocus);
   }, [sessionId]);
 
+  function advancePhase(p) {
+    setPhase(p);
+    setMaxPhase(prev => PHASES.indexOf(p) > PHASES.indexOf(prev) ? p : prev);
+  }
+
   function restoreFromSession(d) {
     const ph = d.phase || 'start';
     setPhase(ph);
+    setMaxPhase(ph);
     if (d.company) setCompany(d.company);
     if (d.usage) setUsage(d.usage);
     if (d.power) setPower(d.power);
@@ -434,7 +441,7 @@ export default function App() {
     const name = (co || '').trim();
     if (!name) return;
     setLoading(true);
-    setPhase('research');
+    advancePhase('research');
     addChat('user', name);
     addChat('assistant', `Researching ${name}...`, 'agent:research');
     // Spawn research sub-agents
@@ -501,7 +508,7 @@ export default function App() {
   async function handleBuildPlatforms() {
     const selected = platforms.filter(p => p.selected);
     if (!selected.length) return;
-    setPhase('building');
+    advancePhase('building');
     addChat('assistant', `Building ${selected.length} platform sandboxes with shared database...`, 'agent:build');
     const init = {};
     selected.forEach(p => { init[p.id] = { status: 'queued', progress: 0, name: p.name }; });
@@ -532,7 +539,7 @@ export default function App() {
         setDeployedPlatforms(d.platforms);
         setAgentTree(prev => prev.map(n => n.role.startsWith('ba-') || n.role === 'build-agent' ? { ...n, status: 'done' } : n));
         addChat('assistant', `All ${d.platforms.length} platforms deployed. You can preview and customize each one.`, 'agent:done');
-        setPhase('platforms');
+        advancePhase('platforms');
       }
     } catch (e) {
       addChat('assistant', 'Build error: ' + e.message, 'agent:error');
@@ -583,7 +590,7 @@ export default function App() {
       const d = await r.json();
       if (d.workers) {
         setWorkers(d.workers);
-        setPhase('workers');
+        advancePhase('workers');
         setAgentTree(prev => prev.map(n => n.role.startsWith('worker-agent-') ? { ...n, status: 'done' } : n.role === 'worker-proposal-agent' ? { ...n, status: 'done' } : n));
         const redelegated = d.workers.filter(w => w.redelegated).length;
         const summary = redelegated > 0
@@ -790,11 +797,11 @@ export default function App() {
           {/* Phase indicator — clickable navigation */}
           <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
             {PHASES.filter(p => p !== 'start').map((p, i, arr) => {
-              const phaseIdx = PHASES.indexOf(phase);
+              const maxIdx  = PHASES.indexOf(maxPhase);
               const thisIdx = PHASES.indexOf(p);
               const isActive = phase === p;
-              const isDone = phaseIdx > thisIdx;
-              const canNav = isDone || isActive;
+              const isDone = PHASES.indexOf(phase) > thisIdx;
+              const canNav = thisIdx <= maxIdx;
               return (
                 <div key={p} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                   <div
@@ -2214,6 +2221,7 @@ function SectionLabel({ children, style = {} }) {
 // ── Settings Panel ────────────────────────────────────────────────────────────
 function SettingsPanel() {
   const [keys, setKeys]             = useState(null);
+  const [vars, setVars]             = useState(null);
   const [skills, setSkills]         = useState([]);
   const [accounts, setAccounts]     = useState([]);
   const [nfsTree, setNfsTree]       = useState(null);
@@ -2223,6 +2231,9 @@ function SettingsPanel() {
   const [editKey, setEditKey]       = useState(null);
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyVal, setNewKeyVal]   = useState('');
+  const [editVar, setEditVar]       = useState(null);
+  const [newVarName, setNewVarName] = useState('');
+  const [newVarVal, setNewVarVal]   = useState('');
   const [newSkill, setNewSkill]     = useState(null);
   const [savingSkill, setSavingSkill] = useState(false);
   const [expandedSkill, setExpandedSkill] = useState(null);
@@ -2233,6 +2244,7 @@ function SettingsPanel() {
 
   useEffect(() => {
     fetch('/api/config/keys').then(r => r.json()).then(setKeys).catch(() => setKeys({}));
+    fetch('/api/config/variables').then(r => r.json()).then(setVars).catch(() => setVars({}));
     fetch('/api/skills').then(r => r.json()).then(d => setSkills(d.skills || [])).catch(() => {});
     fetch('/api/service-accounts').then(r => r.json()).then(d => setAccounts(d.accounts || [])).catch(() => {});
   }, []);
@@ -2253,6 +2265,17 @@ function SettingsPanel() {
   async function deleteKey(name) {
     await fetch(`/api/config/keys?key=${encodeURIComponent(name)}`, { method: 'DELETE' });
     setKeys(prev => { const k = { ...prev }; delete k[name]; return k; });
+  }
+
+  async function saveVar(name, value) {
+    await fetch('/api/config/variables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [name]: value }) });
+    setVars(prev => ({ ...prev, [name]: value }));
+    setEditVar(null); setNewVarName(''); setNewVarVal('');
+  }
+
+  async function deleteVar(name) {
+    await fetch(`/api/config/variables?key=${encodeURIComponent(name)}`, { method: 'DELETE' });
+    setVars(prev => { const k = { ...prev }; delete k[name]; return k; });
   }
 
   async function createSkill() {
@@ -2290,10 +2313,11 @@ function SettingsPanel() {
   }
 
   const tabs = [
-    { id: 'keys',     label: '🔑 API Keys' },
-    { id: 'accounts', label: '🪪 Service Accounts' },
-    { id: 'skills',   label: '⚙️ Skill Library' },
-    { id: 'nfs',      label: '🗄️ NFS Storage' },
+    { id: 'keys',      label: '🔑 API Keys' },
+    { id: 'variables', label: '📦 Variables' },
+    { id: 'accounts',  label: '🪪 Service Accounts' },
+    { id: 'skills',    label: '⚙️ Skill Library' },
+    { id: 'nfs',       label: '🗄️ NFS Storage' },
   ];
 
   const sInput = { background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.35rem 0.6rem', fontFamily: T.mono, fontSize: '0.72rem', color: T.text, outline: 'none', width: '100%', boxSizing: 'border-box' };
@@ -2348,6 +2372,49 @@ function SettingsPanel() {
                     <input value={newKeyVal} onChange={e => setNewKeyVal(e.target.value)} placeholder="value" type="password" style={{ ...sInput, flex: 1, minWidth: 160 }} />
                     <Btn small onClick={() => saveKey(newKeyName, newKeyVal)} disabled={!newKeyName || !newKeyVal || savingKeys}>+ Add</Btn>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Variables ── */}
+        {section === 'variables' && (
+          <div>
+            <div style={{ fontSize: '0.68rem', color: T.muted, fontFamily: T.mono, marginBottom: '1rem', lineHeight: 1.6 }}>
+              Shared non-secret config in <code>/mnt/shared/variables.json</code> · readable by all workers at runtime
+            </div>
+            {vars === null ? (
+              <div style={{ color: T.muted, fontSize: '0.72rem', fontFamily: T.mono }}>Loading…</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                {Object.entries(vars).map(([name, value]) => (
+                  <div key={name} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.6rem 0.85rem' }}>
+                    {editVar?.name === name ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ fontSize: '0.6rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{name}</div>
+                        <input defaultValue={value} id={`var-edit-${name}`} style={sInput} autoFocus />
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <Btn small onClick={() => saveVar(name, document.getElementById(`var-edit-${name}`).value)}>Save</Btn>
+                          <Btn small ghost onClick={() => setEditVar(null)}>Cancel</Btn>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: T.mono, fontSize: '0.62rem', fontWeight: 700, color: T.text }}>{name}</div>
+                          <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</div>
+                        </div>
+                        <Btn small ghost onClick={() => setEditVar({ name })}>Edit</Btn>
+                        <Btn small ghost onClick={() => deleteVar(name)} style={{ color: T.red, borderColor: T.red + '40' }}>✕</Btn>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <input value={newVarName} onChange={e => setNewVarName(e.target.value)} placeholder="variable_name" style={{ ...sInput, width: 140, flex: 'none' }} />
+                  <input value={newVarVal} onChange={e => setNewVarVal(e.target.value)} placeholder="value" style={sInput} />
+                  <Btn small onClick={() => saveVar(newVarName, newVarVal)} disabled={!newVarName || !newVarVal}>+ Add</Btn>
                 </div>
               </div>
             )}
