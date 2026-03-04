@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -207,6 +208,7 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
+  const searchParams = useSearchParams();
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -266,15 +268,15 @@ export default function App() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
 
-  // Init session
+  // Init session — re-run if searchParams changes (e.g. ?session= on first load)
   useEffect(() => {
     initSession();
-  }, []);
+  }, [searchParams]);
 
   async function initSession() {
     try {
       // Check URL ?session= param first
-      const urlSession = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null;
+      const urlSession = searchParams.get('session');
       if (urlSession) {
         const r = await fetch(`/api/demo/session/${urlSession}`);
         if (r.ok) {
