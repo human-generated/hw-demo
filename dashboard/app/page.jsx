@@ -273,6 +273,20 @@ export default function App() {
 
   async function initSession() {
     try {
+      // Check URL ?session= param first
+      const urlSession = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null;
+      if (urlSession) {
+        const r = await fetch(`/api/demo/session/${urlSession}`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d && d.sessionId) {
+            setSessionId(urlSession);
+            if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', urlSession);
+            restoreFromSession(d);
+            return;
+          }
+        }
+      }
       // Try to restore a previous session from localStorage
       const saved = typeof window !== 'undefined' ? localStorage.getItem('hw-demo-session') : null;
       if (saved) {
