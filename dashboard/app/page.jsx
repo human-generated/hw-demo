@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -207,7 +207,7 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
-export default function App() {
+function AppInner() {
   const searchParams = useSearchParams();
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
@@ -2812,4 +2812,8 @@ function SettingsPanel() {
       </div>
     </div>
   );
+}
+
+export default function App() {
+  return <Suspense><AppInner /></Suspense>;
 }
