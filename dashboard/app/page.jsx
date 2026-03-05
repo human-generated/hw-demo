@@ -861,7 +861,10 @@ function AppInner() {
             const r = await fetch(`/api/demo/session/${id}`);
             if (!r.ok) return;
             const d = await r.json();
-            if (typeof window !== 'undefined') localStorage.setItem('hw-demo-session', id);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('hw-demo-session', id);
+              window.history.replaceState(null, '', `?session=${id}`);
+            }
             setSessionId(id);
             setAgentTree([]);
             restoreFromSession(d);
