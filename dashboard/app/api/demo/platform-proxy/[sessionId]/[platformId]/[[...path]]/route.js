@@ -49,9 +49,10 @@ async function proxyRequest(req, sessionId, platformId, pathParts, method, bodyB
   if (ct.includes('text/html')) {
     let html = await resp.text();
     const proxyBase = `/api/demo/platform-proxy/${sessionId}/${platformId}/`;
-    html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${proxyBase}">`);
+    // Rewrite URLs FIRST, then inject <base> so the injected href is not itself rewritten
     html = html.replace(/(['"`])(\/api\/)/g, `$1${proxyBase}api/`);
     html = html.replace(/fetch\s*\(\s*(['"`])\/((?!api\/demo\/platform-proxy\/))/g, `fetch($1${proxyBase}`);
+    html = html.replace(/<head([^>]*)>/i, `<head$1><base href="${proxyBase}">`);
     return new Response(html, {
       status: resp.status,
       headers: {
