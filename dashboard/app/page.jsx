@@ -219,6 +219,8 @@ function AppInner() {
   const [loading, setLoading] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [agentTree, setAgentTree] = useState([]); // delegation tree nodes
+  const [agentRetries, setAgentRetries] = useState({}); // agentId → {attempt, maxRetries, reason}
+  const [supervisorMsgs, setSupervisorMsgs] = useState([]); // recent supervisor messages
   const [activeZcAgent, setActiveZcAgent] = useState(null); // clicked agent node for zeroclaw chat
   const [zcChatHistory, setZcChatHistory] = useState([]);
   const [zcChatInput, setZcChatInput] = useState('');
@@ -268,6 +270,39 @@ function AppInner() {
   const pollRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
+
+  // SSE listener for supervisor/retry events → update agent tree live
+  useEffect(() => {
+    if (!sessionId) return;
+    const es = new EventSource('/api/demo/events/stream');
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'agent:retry') {
+          const { agentId, attempt, maxRetries, reason } = ev.data || {};
+          setAgentRetries(prev => ({ ...prev, [agentId]: { attempt, maxRetries, reason } }));
+          setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'error' } : n));
+        } else if (ev.type === 'agent:supervisor') {
+          const { agentId, status } = ev.data || {};
+          if (status === 'recovered') {
+            setAgentRetries(prev => { const next = { ...prev }; delete next[agentId]; return next; });
+            setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'done' } : n));
+          } else if (status === 'exhausted') {
+            setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'error' } : n));
+          }
+        } else if (ev.type === 'agent:message') {
+          setSupervisorMsgs(prev => [{ ...ev.data, at: ev.at }, ...prev].slice(0, 50));
+        } else if (ev.type === 'agent:reply') {
+          const { agentId, attempts } = ev.data || {};
+          if (attempts && attempts > 1) {
+            setAgentRetries(prev => { const next = { ...prev }; delete next[agentId]; return next; });
+          }
+          setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'done' } : n));
+        }
+      } catch {}
+    };
+    return () => es.close();
+  }, [sessionId]);
 
   // Init session — re-run if searchParams changes (e.g. ?session= on first load)
   useEffect(() => {
@@ -411,6 +446,14 @@ function AppInner() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ agentId: node.id, name: node.name, role: node.role, systemPrompt, sessionId }),
     }).catch(() => {});
+    // Ensure a supervisor node exists in the tree
+    if (node.role !== 'supervisor') {
+      setAgentTree(prev => {
+        if (prev.some(n => n.role === 'supervisor')) return prev;
+        const supId = 'supervisor-' + (sessionId || 'global');
+        return [{ id: supId, name: 'ZC Supervisor', icon: '🛡️', role: 'supervisor', parentId: null, status: 'running', task: 'Monitors agents · Auto-retries on errors' }, ...prev];
+      });
+    }
   }
 
   async function handleZcChat() {
@@ -912,7 +955,8 @@ function AppInner() {
                   <div style={{ marginBottom: '0.5rem' }}>
                     <AgentFlowHover
                       treeNodes={agentTree}
-                      onClear={() => setAgentTree([])}
+                      agentRetries={agentRetries}
+                      onClear={() => { setAgentTree([]); setAgentRetries({}); setSupervisorMsgs([]); }}
                       onAgentClick={(nodeId) => {
                         const node = agentTree.find(n => n.id === nodeId);
                         if (node) openZcAgent(node);
@@ -1113,6 +1157,9 @@ const miniInputStyle = {
 const EV_COLORS = {
   'agent:spawn':        '#B06CEF',
   'agent:reply':        '#6CDDEF',
+  'agent:retry':        '#F59E0B',
+  'agent:supervisor':   '#8B5CF6',
+  'agent:message':      '#06B6D4',
   'worker:trigger':     '#6CEFA0',
   'worker:twilio_call': '#F5C842',
   'worker:error':       '#EF4444',
@@ -1121,6 +1168,9 @@ const EV_COLORS = {
 const EV_ICONS = {
   'agent:spawn':        '🤖',
   'agent:reply':        '💬',
+  'agent:retry':        '↺',
+  'agent:supervisor':   '🛡️',
+  'agent:message':      '→',
   'worker:trigger':     '⚡',
   'worker:twilio_call': '📞',
   'worker:error':       '✗',
@@ -1192,6 +1242,9 @@ function ObservabilityPanel() {
     }
     if (ev.type === 'worker:twilio_call') return `Call to ${d.to} — SID ${(d.sid||'').slice(0,16)}… status=${d.status}`;
     if (ev.type === 'worker:error') return `${d.workerName || d.workerId}: ${d.error}`;
+    if (ev.type === 'agent:retry') return `${d.agentId} — attempt ${d.attempt}/${d.maxRetries} · ${d.reason || ''}`;
+    if (ev.type === 'agent:supervisor') return `${d.agentId} ${d.status === 'recovered' ? '✓ recovered' : d.status === 'exhausted' ? '✗ exhausted' : d.status} after ${d.attempts} attempt(s)`;
+    if (ev.type === 'agent:message') return `${d.from} → ${d.to} [${d.type || ''}]${d.attempt ? ` #${d.attempt}` : ''}`;
     return JSON.stringify(d).slice(0, 100);
   }
 
@@ -1255,29 +1308,40 @@ function ObservabilityPanel() {
 const STATUS_COLOR = { running: T.blue, done: T.mint, pending: T.muted, delegating: T.orange, error: T.red };
 
 function AgentFlowNode({ data }) {
-  const sc = STATUS_COLOR[data.status] || T.muted;
+  const isRetrying = !!data.retryInfo;
+  const isSupervisor = data.role === 'supervisor';
+  const sc = isRetrying ? T.amber : (STATUS_COLOR[data.status] || T.muted);
   return (
     <div
       onClick={() => data.onNodeClick && data.onNodeClick(data.nodeId)}
       style={{
-        background: T.card, border: `1.5px solid ${sc}`, borderRadius: 6,
+        background: isSupervisor ? '#1a1040' : T.card,
+        border: `${isSupervisor ? 2 : 1.5}px solid ${sc}`,
+        borderRadius: 6,
         padding: '5px 10px', minWidth: 120, maxWidth: 160,
-        fontFamily: T.mono, fontSize: '0.62rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        fontFamily: T.mono, fontSize: '0.62rem',
+        boxShadow: isSupervisor ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : '0 2px 8px rgba(0,0,0,0.08)',
         cursor: 'pointer',
       }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <span style={{ fontSize: '0.8rem', lineHeight: 1, flexShrink: 0 }}>{data.icon}</span>
-        <span style={{ fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
+        <span style={{ fontWeight: 700, color: isSupervisor ? '#c4b5fd' : T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc, flexShrink: 0,
-          boxShadow: data.status === 'running' ? `0 0 4px ${sc}` : 'none' }} />
-        <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{data.status}</span>
+          boxShadow: (data.status === 'running' || isRetrying) ? `0 0 4px ${sc}` : 'none' }} />
+        <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{isRetrying ? 'retrying' : data.status}</span>
+        {isRetrying && <span style={{ color: T.amber, fontSize: '0.52rem', marginLeft: 2 }}>{data.retryInfo.attempt}/{data.retryInfo.maxRetries}</span>}
       </div>
-      {data.task && <div style={{ color: T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
-      <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>
+      {data.task && <div style={{ color: isSupervisor ? '#9f87d4' : T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
+      {isRetrying && data.retryInfo.reason && (
+        <div style={{ background: T.amber + '22', borderRadius: 3, padding: '1px 5px', fontSize: '0.5rem', color: T.amber, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {data.retryInfo.reason}
+        </div>
+      )}
+      {!isSupervisor && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -1285,10 +1349,10 @@ function AgentFlowNode({ data }) {
 
 const AGENT_NODE_TYPES = { agentNode: AgentFlowNode };
 
-function buildAgentFlow(treeNodes, onNodeClick) {
+function buildAgentFlow(treeNodes, onNodeClick, agentRetries) {
   if (!treeNodes.length) return { nodes: [], edges: [] };
   const NODE_W = 150, NODE_H = 74, V_GAP = 70, H_GAP = 16;
-  // BFS to assign depths
+  // BFS to assign depths (supervisor always at depth 0, others below)
   const depth = {}, children = {};
   treeNodes.forEach(n => { children[n.id] = treeNodes.filter(c => c.parentId === n.id); });
   const roots = treeNodes.filter(n => !n.parentId);
@@ -1298,7 +1362,6 @@ function buildAgentFlow(treeNodes, onNodeClick) {
     const n = queue.shift();
     (children[n.id] || []).forEach(c => { depth[c.id] = (depth[n.id] || 0) + 1; queue.push(c); });
   }
-  // Group by depth for horizontal spacing
   const byDepth = {};
   treeNodes.forEach(n => { const d = depth[n.id] || 0; (byDepth[d] = byDepth[d] || []).push(n); });
   const nodes = treeNodes.map(n => {
@@ -1307,28 +1370,48 @@ function buildAgentFlow(treeNodes, onNodeClick) {
     const idx = siblings.indexOf(n);
     const total = siblings.length;
     const x = idx * (NODE_W + H_GAP) - (total * (NODE_W + H_GAP) - H_GAP) / 2 + 200;
-    return { id: n.id, type: 'agentNode', position: { x, y: d * (NODE_H + V_GAP) }, data: { icon: n.icon, name: n.name, status: n.status, task: n.task, nodeId: n.id, onNodeClick } };
+    return {
+      id: n.id, type: 'agentNode',
+      position: { x, y: d * (NODE_H + V_GAP) },
+      data: { icon: n.icon, name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick,
+        retryInfo: (agentRetries || {})[n.id] || null },
+    };
   });
-  const edges = treeNodes.filter(n => n.parentId).map(n => ({
+  // Tree edges
+  const treeEdges = treeNodes.filter(n => n.parentId).map(n => ({
     id: `e-${n.parentId}-${n.id}`, source: n.parentId, target: n.id,
     style: { stroke: 'rgba(0,0,0,0.15)', strokeWidth: 1.5 },
     markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8, color: 'rgba(0,0,0,0.2)' },
   }));
-  return { nodes, edges };
+  // Supervisor overlay edges: faint dashed to all non-supervisor agents; amber + animated when retrying
+  const supNode = treeNodes.find(n => n.role === 'supervisor');
+  const supEdges = supNode ? treeNodes.filter(n => n.role !== 'supervisor' && !n.parentId === false || (n.role !== 'supervisor')).filter(n => n.id !== supNode.id).map(n => {
+    const isRetrying = !!(agentRetries || {})[n.id];
+    return {
+      id: `sup-${supNode.id}-${n.id}`, source: supNode.id, target: n.id,
+      animated: isRetrying,
+      style: { stroke: isRetrying ? T.amber : 'rgba(139,92,246,0.2)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '5,4' },
+      label: isRetrying ? `↺ ${(agentRetries[n.id] || {}).attempt}/${(agentRetries[n.id] || {}).maxRetries}` : undefined,
+      labelStyle: { fill: T.amber, fontSize: '0.5rem', fontFamily: 'monospace' },
+      markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined,
+      zIndex: isRetrying ? 10 : 0,
+    };
+  }) : [];
+  return { nodes, edges: [...treeEdges, ...supEdges] };
 }
 
-function AgentFlowHover({ treeNodes, onClear, onAgentClick }) {
+function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick }) {
   const [show, setShow] = useState(false);
-  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick);
+  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick, agentRetries);
   const [nodes, , onNodesChange] = useNodesState(rfNodes);
   const [edges, , onEdgesChange] = useEdgesState(rfEdges);
 
-  // Sync RF state when treeNodes changes
+  // Sync RF state when treeNodes or retries change
   useEffect(() => {
-    const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick);
+    const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick, agentRetries);
     onNodesChange(n.map(nd => ({ type: 'reset', item: nd })));
     onEdgesChange(e.map(ed => ({ type: 'reset', item: ed })));
-  }, [treeNodes, onAgentClick]);
+  }, [treeNodes, onAgentClick, agentRetries]);
 
   const running = treeNodes.filter(n => n.status === 'running').length;
   const total = treeNodes.length;
