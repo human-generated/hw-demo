@@ -430,9 +430,9 @@ function AppInner() {
     return () => clearInterval(poll);
   }, [sessionId]);
 
-  function addChat(role, content, tag) {
+  function addChat(role, content, tag, extra) {
     setChat(prev => {
-      const updated = [...prev, { role, content, tag, at: new Date().toISOString() }];
+      const updated = [...prev, { role, content, tag, at: new Date().toISOString(), ...(extra || {}) }];
       // Persist chat history to server (fire-and-forget, last 60 messages)
       if (sessionId) {
         fetch('/api/demo/session/chat', {
@@ -754,7 +754,7 @@ function AppInner() {
       }
 
       // Show orchestrator's reply first
-      if (d.message) addChat('assistant', d.message, 'agent:orchestrator');
+      if (d.message) addChat('assistant', d.message, 'agent:orchestrator', d.imageUrl ? { imageUrl: d.imageUrl } : undefined);
 
       // Execute the decided action
       function markAgent(role, status, subAgents) {
@@ -805,6 +805,9 @@ function AppInner() {
             ? { ...w, ...(phone !== undefined ? { phone } : {}), ...(threshold !== undefined ? { threshold } : {}), status: 'deployed' }
             : w
         ));
+      } else if (action.type === 'generate_image') {
+        // Image generation handled server-side; image shown via d.imageUrl in the message above
+        // Canvas artifacts tab will auto-switch via SSE artifact:created event
       } else if (action.type === 'modify_platforms') {
         const { add = [], remove = [] } = action.params || {};
         setPlatforms(prev => {
@@ -1521,6 +1524,11 @@ function ChatBubble({ msg }) {
         fontFamily: msg.tag === 'agent:plan' ? T.mono : T.ui,
         whiteSpace: msg.tag === 'agent:plan' ? 'pre-wrap' : 'normal',
       }}>{msg.content}</div>
+      {msg.imageUrl && (
+        <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" style={{ maxWidth: '90%', display: 'block', marginTop: '0.3rem' }}>
+          <img src={msg.imageUrl} alt={msg.content} style={{ width: '100%', maxWidth: 400, borderRadius: T.radius, display: 'block', border: T.border }} onError={e => { e.target.style.display='none'; }} />
+        </a>
+      )}
     </div>
   );
 }
