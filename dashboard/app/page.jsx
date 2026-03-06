@@ -2376,8 +2376,8 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
       const h = el.clientHeight || window.innerHeight;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x05080f);
-      scene.fog = new THREE.FogExp2(0x05080f, 0.025);
+      scene.background = new THREE.Color(0xf8fafc);
+      scene.fog = new THREE.FogExp2(0xf8fafc, 0.018);
 
       const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
       camera.position.set(0, 8, 26);
@@ -2388,12 +2388,12 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       el.appendChild(renderer.domElement);
 
-      // Lights
-      scene.add(new THREE.AmbientLight(0x334466, 0.8));
-      const dl = new THREE.DirectionalLight(0x6699ff, 1.2);
+      // Lights — bright white scene
+      scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+      const dl = new THREE.DirectionalLight(0xffffff, 0.8);
       dl.position.set(10, 20, 10);
       scene.add(dl);
-      const dl2 = new THREE.DirectionalLight(0xaa66ff, 0.6);
+      const dl2 = new THREE.DirectionalLight(0xe2e8f0, 0.4);
       dl2.position.set(-10, -5, -10);
       scene.add(dl2);
 
@@ -2402,7 +2402,7 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
         c.width = 512; c.height = 80;
         const ctx = c.getContext('2d');
         ctx.clearRect(0, 0, 512, 80);
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fillStyle = 'rgba(15,23,42,0.85)';
         ctx.font = `bold ${size}px monospace`;
         ctx.textAlign = 'center';
         ctx.fillText(text.slice(0, 24), 256, 54);
@@ -2419,7 +2419,7 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
 
       // Orchestrator node
       const orchGeo = new THREE.SphereGeometry(1.5, 32, 32);
-      const orchMat = new THREE.MeshPhongMaterial({ color: 0x3377ff, emissive: 0x1133aa, shininess: 100 });
+      const orchMat = new THREE.MeshPhongMaterial({ color: 0x334155, emissive: 0x1e293b, shininess: 80 });
       const orchMesh = new THREE.Mesh(orchGeo, orchMat);
       orchMesh.position.set(0, 0, 0);
       scene.add(orchMesh);
@@ -2438,9 +2438,9 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
         const pos = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
         positions[agent.id] = pos;
 
-        const color = agent.status === 'running' ? 0x44ddff : agent.status === 'done' ? 0x44ff88 : 0xaa55ff;
+        const color = agent.status === 'running' ? 0x64748b : agent.status === 'done' ? 0x94a3b8 : 0x94a3b8;
         const geo = new THREE.SphereGeometry(0.9, 24, 24);
-        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.25), shininess: 70 });
+        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.12), shininess: 50 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.copy(pos);
         scene.add(mesh);
@@ -2460,9 +2460,9 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
         const pos = parentPos ? parentPos.clone().add(offset) : new THREE.Vector3(i * 3 - 6, -7, 0);
         positions[worker.id] = pos;
 
-        const color = worker.status === 'deployed' ? 0x33cc77 : worker.status === 'running' ? 0x44aaff : 0x556677;
+        const color = worker.status === 'deployed' ? 0x475569 : worker.status === 'running' ? 0x64748b : 0xadb5bd;
         const geo = new THREE.BoxGeometry(1.4, 0.85, 0.85);
-        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.18), shininess: 40 });
+        const mat = new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.1), shininess: 30 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.copy(pos);
         scene.add(mesh);
@@ -2475,7 +2475,7 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
       });
 
       // Draw edges
-      const lineMat = new THREE.LineBasicMaterial({ color: 0x334488, transparent: true, opacity: 0.5 });
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.7 });
       allEdges.forEach(edge => {
         const pts = [edge.from.clone(), edge.to.clone()];
         const geo = new THREE.BufferGeometry().setFromPoints(pts);
@@ -2485,7 +2485,7 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
       // Animated particles along edges
       const particles = allEdges.map(edge => {
         const pGeo = new THREE.SphereGeometry(0.09, 6, 6);
-        const pMat = new THREE.MeshBasicMaterial({ color: 0x88bbff });
+        const pMat = new THREE.MeshBasicMaterial({ color: 0x64748b });
         const mesh = new THREE.Mesh(pGeo, pMat);
         scene.add(mesh);
         return { mesh, edge, t: Math.random(), speed: 0.004 + Math.random() * 0.006 };
@@ -2539,19 +2539,19 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
   }, [agentTree, workers]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#05080f' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#f8fafc' }}>
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
       {/* Legend */}
-      <div style={{ position: 'absolute', top: 20, left: 20, color: 'rgba(255,255,255,0.75)', fontFamily: "'JetBrains Mono','Fira Mono',monospace", fontSize: '0.65rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, color: '#fff' }}>Agent Network</div>
-        <div>● <span style={{ color: '#3377ff' }}>Orchestrator</span></div>
-        <div>● <span style={{ color: '#aa55ff' }}>Agents ({agentTree.length})</span></div>
-        <div>■ <span style={{ color: '#33cc77' }}>Workers ({workers.length})</span></div>
+      <div style={{ position: 'absolute', top: 20, left: 20, color: '#64748b', fontFamily: "'JetBrains Mono','Fira Mono',monospace", fontSize: '0.65rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>Agent Network</div>
+        <div>● <span style={{ color: '#334155' }}>Orchestrator</span></div>
+        <div>● <span style={{ color: '#64748b' }}>Agents ({agentTree.length})</span></div>
+        <div>■ <span style={{ color: '#475569' }}>Workers ({workers.length})</span></div>
       </div>
       {/* Close */}
       <button
         onClick={onClose}
-        style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 6, padding: '0.4rem 1rem', color: '#fff', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.7rem', letterSpacing: '0.06em' }}
+        style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '0.4rem 1rem', color: '#334155', cursor: 'pointer', fontFamily: 'monospace', fontSize: '0.7rem', letterSpacing: '0.06em' }}
       >✕ Close</button>
     </div>
   );
