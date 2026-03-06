@@ -2512,7 +2512,7 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
             <SectionLabel>Skill Agent — on-the-fly resource selection</SectionLabel>
             <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.6rem 0.9rem', fontSize: '0.68rem', color: T.muted }}>
-              Type any request. The Skill Agent picks the best available resource (agents, API keys, service accounts) and executes it, generating a Canvas artifact.
+              Type any request. The Skill Agent picks the best resource (agents, API keys, Wavespeed image gen, Bland voice calls) and executes it, generating a Canvas artifact.
             </div>
             {/* Chat history */}
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', minHeight: 0 }}>
@@ -2616,7 +2616,26 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {artifacts.map((a, i) => {
+                  const isImage = a.type === 'image';
                   const isSkillOutput = a.type === 'skill_output' || a.type === 'db_query' || a.type === 'orchestration';
+                  if (isImage) return (
+                    <div key={a.id || i} style={{ background: T.card, border: T.border, borderRadius: T.radius, overflow: 'hidden' }}>
+                      <a href={a.imageUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={a.imageUrl} alt={a.imagePrompt || a.title || 'Generated image'} style={{ width: '100%', display: 'block', maxHeight: 320, objectFit: 'contain', background: '#000' }} onError={e => { e.target.style.display='none'; }} />
+                      </a>
+                      <div style={{ padding: '0.5rem 0.8rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem' }}>🖼️</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title || 'Generated Image'}</div>
+                            {a.resource && <div style={{ fontFamily: T.mono, fontSize: '0.55rem', color: '#a78bfa', marginTop: 1 }}>⚡ {a.resource.name || a.resource}</div>}
+                          </div>
+                          <span style={{ fontFamily: T.mono, fontSize: '0.54rem', color: T.muted, flexShrink: 0 }}>{a.createdAt ? new Date(a.createdAt).toLocaleTimeString() : ''}</span>
+                        </div>
+                        {a.imagePrompt && <div style={{ fontFamily: T.mono, fontSize: '0.6rem', color: T.muted, marginTop: '0.3rem', fontStyle: 'italic' }}>{a.imagePrompt.slice(0, 150)}</div>}
+                      </div>
+                    </div>
+                  );
                   if (isSkillOutput) return (
                     <div key={a.id || i} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.9rem 1rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
