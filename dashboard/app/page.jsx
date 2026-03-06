@@ -334,6 +334,21 @@ function AppInner() {
               return [{ id: from, name: 'SQL Guard', icon: '🔁', role: 'orch-supervisor', parentId: null, status: 'running', task: 'Fixes bad SQL · Retries on error' }, ...prev];
             });
           }
+          // Track platform-agent messages
+          if (from && from.startsWith('platform-agent-')) {
+            setAgentTree(prev => prev.map(n => n.id === from ? { ...n, status: 'running', task: ev.data.message ? ev.data.message.slice(0, 50) : n.task } : n));
+          }
+          if (to && to.startsWith('platform-agent-')) {
+            setAgentTree(prev => prev.map(n => n.id === to ? { ...n, status: 'running' } : n));
+          }
+        } else if (ev.type === 'agent:spawn') {
+          const { agentId, name, role } = ev.data || {};
+          if (role === 'platform-agent' && agentId) {
+            setAgentTree(prev => {
+              if (prev.some(n => n.id === agentId)) return prev.map(n => n.id === agentId ? { ...n, status: 'running' } : n);
+              return [...prev, { id: agentId, name: name || agentId, icon: '🗄️', role: 'platform-agent', parentId: null, status: 'running', task: 'ZeroClaw · Supervised DB agent' }];
+            });
+          }
         }
       } catch {}
     };
@@ -1384,20 +1399,21 @@ function AgentFlowNode({ data }) {
   const isSupervisor = data.role === 'supervisor';
   const isMonitor = data.role === 'platform-monitor';
   const isPlatform = data.role === 'platform';
+  const isPlatformAgent = data.role === 'platform-agent';
   const isDown = isPlatform && data.status === 'error';
-  const sc = isRetrying ? T.amber : isDown ? T.red : (STATUS_COLOR[data.status] || T.muted);
-  const bg = isSupervisor ? '#1a1040' : isMonitor ? '#0f2010' : isPlatform ? (isDown ? '#200808' : '#0a1a0f') : T.card;
-  const nameColor = isSupervisor ? '#c4b5fd' : isMonitor ? '#6ee7b7' : isPlatform ? (isDown ? '#fca5a5' : '#6ee7b7') : T.text;
+  const sc = isRetrying ? T.amber : isDown ? T.red : isPlatformAgent ? '#22D3EE' : (STATUS_COLOR[data.status] || T.muted);
+  const bg = isSupervisor ? '#1a1040' : isMonitor ? '#0f2010' : isPlatform ? (isDown ? '#200808' : '#0a1a0f') : isPlatformAgent ? '#0a1a1f' : T.card;
+  const nameColor = isSupervisor ? '#c4b5fd' : isMonitor ? '#6ee7b7' : isPlatform ? (isDown ? '#fca5a5' : '#6ee7b7') : isPlatformAgent ? '#22D3EE' : T.text;
   return (
     <div
       onClick={() => data.onNodeClick && data.onNodeClick(data.nodeId)}
       style={{
         background: bg,
-        border: `${isSupervisor || isMonitor ? 2 : 1.5}px solid ${sc}`,
+        border: `${isSupervisor || isMonitor || isPlatformAgent ? 2 : 1.5}px solid ${sc}`,
         borderRadius: 6,
         padding: '5px 10px', minWidth: 120, maxWidth: 165,
         fontFamily: T.mono, fontSize: '0.62rem',
-        boxShadow: (isSupervisor || isMonitor) ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : isDown ? `0 0 8px ${T.red}66` : '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: (isSupervisor || isMonitor || isPlatformAgent) ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : isDown ? `0 0 8px ${T.red}66` : '0 2px 8px rgba(0,0,0,0.08)',
         cursor: 'pointer',
       }}
     >
@@ -1419,7 +1435,8 @@ function AgentFlowNode({ data }) {
           {data.retryInfo.reason}
         </div>
       )}
-      {!isSupervisor && !isMonitor && !isPlatform && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
+      {isPlatformAgent && <div style={{ color: '#22D3EEaa', fontSize: '0.5rem', marginTop: 2, letterSpacing: '0.03em' }}>ZeroClaw · supervised</div>}
+      {!isSupervisor && !isMonitor && !isPlatform && !isPlatformAgent && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -1438,7 +1455,8 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
   const orchSupNode = treeNodes.find(n => n.role === 'orch-supervisor' || n.id && n.id.startsWith('orch-supervisor'));
   const monitorNode = treeNodes.find(n => n.role === 'platform-monitor');
   const platformNodes = treeNodes.filter(n => n.role === 'platform');
-  const agentNodes = treeNodes.filter(n => !['orchestrator','supervisor','platform-monitor','platform'].includes(n.role));
+  const platformAgentNodes = treeNodes.filter(n => n.role === 'platform-agent');
+  const agentNodes = treeNodes.filter(n => !['orchestrator','supervisor','platform-monitor','platform','platform-agent'].includes(n.role));
 
   // Recent message pairs for animated edges
   const msgEdgeSet = new Set();
@@ -1485,8 +1503,17 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
     nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: n.icon || '🎯', name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: null } });
   });
 
+  // Row 3.5: Platform agents (between workers and platforms)
+  const rowPAY = (skillAgents.length ? row3Y : row2Y) + V_GAP + NODE_H;
+  platformAgentNodes.forEach((n, i) => {
+    const total = platformAgentNodes.length;
+    const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
+    positions[n.id] = { x, y: rowPAY };
+    nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: '🗄️', name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: (agentRetries || {})[n.id] || null } });
+  });
+
   // Row bottom: Platform nodes
-  const rowPY = (skillAgents.length ? row3Y : row2Y) + V_GAP + NODE_H;
+  const rowPY = (platformAgentNodes.length ? rowPAY : (skillAgents.length ? row3Y : row2Y)) + V_GAP + NODE_H;
   platformNodes.forEach((n, i) => {
     const total = platformNodes.length;
     const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
@@ -1528,6 +1555,24 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
       edges.push({ id: `orch-del-${n.id}`, source: orchNode.id, target: n.id, animated: true, style: { stroke: '#60A5FA', strokeWidth: 2 }, label: 'delegate', labelStyle: { fill: '#60A5FA', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#60A5FA' } });
     });
   }
+
+  // Orchestrator → platform agents (delegate)
+  if (orchNode) {
+    platformAgentNodes.forEach(n => {
+      const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id) || msgEdgeSet.has(n.id + '→' + orchNode.id);
+      edges.push({ id: `orch-pa-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg || n.status === 'running', style: { stroke: '#22D3EE', strokeWidth: hasMsg ? 2 : 1.2, strokeDasharray: '5,3', opacity: 0.8 }, label: 'delegate', labelStyle: { fill: '#22D3EE', fontSize: '0.45rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#22D3EE' } });
+    });
+  }
+
+  // Platform agents → platforms (data access)
+  platformAgentNodes.forEach(pa => {
+    // Try to match platform-agent-PLATFORMID → platform-PLATFORMID
+    const platformId = pa.id.replace('platform-agent-', '');
+    const matchedPlatform = platformNodes.find(p => p.id === 'platform-' + platformId || p.id.includes(platformId));
+    if (matchedPlatform && positions[matchedPlatform.id]) {
+      edges.push({ id: `pa-plat-${pa.id}`, source: pa.id, target: matchedPlatform.id, animated: pa.status === 'running', style: { stroke: '#22D3EE55', strokeWidth: 1.2, strokeDasharray: '4,4' }, label: 'db access', labelStyle: { fill: '#22D3EE99', fontSize: '0.42rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 6, height: 6, color: '#22D3EE' } });
+    }
+  });
 
   // Monitor → platforms
   if (monitorNode) {
