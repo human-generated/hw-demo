@@ -1401,19 +1401,20 @@ function AgentFlowNode({ data }) {
   const isPlatform = data.role === 'platform';
   const isPlatformAgent = data.role === 'platform-agent';
   const isDown = isPlatform && data.status === 'error';
-  const sc = isRetrying ? T.amber : isDown ? T.red : isPlatformAgent ? '#22D3EE' : (STATUS_COLOR[data.status] || T.muted);
-  const bg = isSupervisor ? '#1a1040' : isMonitor ? '#0f2010' : isPlatform ? (isDown ? '#200808' : '#0a1a0f') : isPlatformAgent ? '#0a1a1f' : T.card;
-  const nameColor = isSupervisor ? '#c4b5fd' : isMonitor ? '#6ee7b7' : isPlatform ? (isDown ? '#fca5a5' : '#6ee7b7') : isPlatformAgent ? '#22D3EE' : T.text;
+  const sc = isRetrying ? '#d97706' : isDown ? '#dc2626' : data.status === 'running' ? '#16a34a' : '#94a3b8';
+  const bg = isSupervisor ? '#f1f0f8' : isMonitor ? '#f0f4f0' : isPlatform ? (isDown ? '#fef2f2' : '#f0f7f0') : isPlatformAgent ? '#f0f6f8' : '#ffffff';
+  const nameColor = isSupervisor ? '#4c1d95' : isMonitor ? '#166534' : isPlatform ? (isDown ? '#dc2626' : '#166534') : isPlatformAgent ? '#0c4a6e' : '#0D0D0D';
+  const borderColor = isSupervisor ? '#7c3aed' : isMonitor ? '#16a34a' : isPlatformAgent ? '#0891b2' : sc;
   return (
     <div
       onClick={() => data.onNodeClick && data.onNodeClick(data.nodeId)}
       style={{
         background: bg,
-        border: `${isSupervisor || isMonitor || isPlatformAgent ? 2 : 1.5}px solid ${sc}`,
+        border: `1.5px solid ${borderColor}`,
         borderRadius: 6,
         padding: '5px 10px', minWidth: 120, maxWidth: 165,
         fontFamily: T.mono, fontSize: '0.62rem',
-        boxShadow: (isSupervisor || isMonitor || isPlatformAgent) ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : isDown ? `0 0 8px ${T.red}66` : '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: isDown ? `0 0 6px #dc262622` : '0 1px 4px rgba(0,0,0,0.08)',
         cursor: 'pointer',
       }}
     >
@@ -1421,22 +1422,21 @@ function AgentFlowNode({ data }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <span style={{ fontSize: '0.8rem', lineHeight: 1, flexShrink: 0 }}>{data.icon}</span>
         <span style={{ fontWeight: 700, color: nameColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
-        {isDown && <span style={{ fontSize: '0.5rem', color: T.red, marginLeft: 'auto' }}>DOWN</span>}
+        {isDown && <span style={{ fontSize: '0.5rem', color: '#dc2626', marginLeft: 'auto' }}>DOWN</span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc, flexShrink: 0,
-          boxShadow: (data.status === 'running' || isRetrying || isMonitor) ? `0 0 4px ${sc}` : 'none' }} />
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc, flexShrink: 0 }} />
         <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{isRetrying ? 'retrying' : data.status}</span>
-        {isRetrying && <span style={{ color: T.amber, fontSize: '0.52rem', marginLeft: 2 }}>{data.retryInfo.attempt}/{data.retryInfo.maxRetries}</span>}
+        {isRetrying && <span style={{ color: '#d97706', fontSize: '0.52rem', marginLeft: 2 }}>{data.retryInfo.attempt}/{data.retryInfo.maxRetries}</span>}
       </div>
-      {data.task && <div style={{ color: isMonitor ? '#6ee7b7aa' : isSupervisor ? '#9f87d4' : isPlatform ? nameColor + 'aa' : T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
+      {data.task && <div style={{ color: '#64748b', fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
       {isRetrying && data.retryInfo.reason && (
-        <div style={{ background: T.amber + '22', borderRadius: 3, padding: '1px 5px', fontSize: '0.5rem', color: T.amber, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ background: '#fef3c7', borderRadius: 3, padding: '1px 5px', fontSize: '0.5rem', color: '#d97706', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {data.retryInfo.reason}
         </div>
       )}
-      {isPlatformAgent && <div style={{ color: '#22D3EEaa', fontSize: '0.5rem', marginTop: 2, letterSpacing: '0.03em' }}>ZeroClaw · supervised</div>}
-      {!isSupervisor && !isMonitor && !isPlatform && !isPlatformAgent && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
+      {isPlatformAgent && <div style={{ color: '#0891b2', fontSize: '0.5rem', marginTop: 2, letterSpacing: '0.03em' }}>Data Agent · API</div>}
+      {!isSupervisor && !isMonitor && !isPlatform && !isPlatformAgent && <div style={{ color: '#64748b', fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -1523,13 +1523,13 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
 
   // ── Edges ──
   const edges = [];
-  const edgeColor = (role) => role === 'supervisor' ? '#8B5CF6' : role === 'platform-monitor' ? '#34D399' : role === 'orchestrator' ? '#60A5FA' : '#64748b';
+  const edgeColor = (role) => role === 'supervisor' ? '#7c3aed' : role === 'platform-monitor' ? '#16a34a' : role === 'orchestrator' ? '#475569' : '#94a3b8';
 
   // Orchestrator → row1 (supervisor, orch-supervisor, monitor)
   if (orchNode) {
     row1Nodes.forEach(n => {
       const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id) || msgEdgeSet.has(n.id + '→' + orchNode.id);
-      edges.push({ id: `e-orch-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg, style: { stroke: edgeColor(n.role), strokeWidth: hasMsg ? 2 : 1.2, strokeDasharray: '5,4', opacity: 0.7 }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: edgeColor(n.role) }, label: n.role === 'supervisor' ? 'supervises' : n.role === 'platform-monitor' ? 'monitors' : 'sql retry', labelStyle: { fill: edgeColor(n.role), fontSize: '0.45rem', fontFamily: 'monospace' } });
+      edges.push({ id: `e-orch-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg, style: { stroke: edgeColor(n.role), strokeWidth: hasMsg ? 1.5 : 1, strokeDasharray: '5,4', opacity: 0.7 }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: edgeColor(n.role) }, label: n.role === 'supervisor' ? 'supervises' : n.role === 'platform-monitor' ? 'monitors' : 'sql retry', labelStyle: { fill: edgeColor(n.role), fontSize: '0.45rem', fontFamily: 'monospace' } });
     });
   }
 
@@ -1537,14 +1537,14 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
   if (supNode) {
     allWorkers.forEach(n => {
       const isRetrying = !!(agentRetries || {})[n.id];
-      edges.push({ id: `sup-${n.id}`, source: supNode.id, target: n.id, animated: isRetrying, style: { stroke: isRetrying ? T.amber : 'rgba(139,92,246,0.25)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ ${(agentRetries[n.id] || {}).attempt}/${(agentRetries[n.id] || {}).maxRetries}` : 'watches', labelStyle: { fill: isRetrying ? T.amber : '#8B5CF666', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined, zIndex: isRetrying ? 10 : 0 });
+      edges.push({ id: `sup-${n.id}`, source: supNode.id, target: n.id, animated: isRetrying, style: { stroke: isRetrying ? '#d97706' : '#c4b5fd', strokeWidth: isRetrying ? 1.5 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ ${(agentRetries[n.id] || {}).attempt}/${(agentRetries[n.id] || {}).maxRetries}` : 'watches', labelStyle: { fill: isRetrying ? '#d97706' : '#a78bfa', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#d97706' } : undefined, zIndex: isRetrying ? 10 : 0 });
     });
   }
 
   // OrchestratorSupervisor → orchestrator retry edge
   if (orchSupNode && orchNode) {
     const isRetrying = !!(agentRetries || {})[orchSupNode.id];
-    edges.push({ id: `orchsup-orch`, source: orchSupNode.id, target: orchNode.id, animated: isRetrying, style: { stroke: isRetrying ? T.amber : 'rgba(251,191,36,0.3)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ fixing SQL` : 'sql guard', labelStyle: { fill: isRetrying ? T.amber : '#F59E0B66', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined });
+    edges.push({ id: `orchsup-orch`, source: orchSupNode.id, target: orchNode.id, animated: isRetrying, style: { stroke: isRetrying ? '#d97706' : '#fde68a', strokeWidth: isRetrying ? 1.5 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ fixing SQL` : 'sql guard', labelStyle: { fill: isRetrying ? '#d97706' : '#92400e', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#d97706' } : undefined });
   }
 
   // Orchestrator → worker agents (delegation)
@@ -1552,7 +1552,7 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
     allWorkers.forEach(n => {
       const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id);
       if (!hasMsg) return;
-      edges.push({ id: `orch-del-${n.id}`, source: orchNode.id, target: n.id, animated: true, style: { stroke: '#60A5FA', strokeWidth: 2 }, label: 'delegate', labelStyle: { fill: '#60A5FA', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#60A5FA' } });
+      edges.push({ id: `orch-del-${n.id}`, source: orchNode.id, target: n.id, animated: true, style: { stroke: '#64748b', strokeWidth: 1.5 }, label: 'delegate', labelStyle: { fill: '#64748b', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#64748b' } });
     });
   }
 
@@ -1560,7 +1560,7 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
   if (orchNode) {
     platformAgentNodes.forEach(n => {
       const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id) || msgEdgeSet.has(n.id + '→' + orchNode.id);
-      edges.push({ id: `orch-pa-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg || n.status === 'running', style: { stroke: '#22D3EE', strokeWidth: hasMsg ? 2 : 1.2, strokeDasharray: '5,3', opacity: 0.8 }, label: 'delegate', labelStyle: { fill: '#22D3EE', fontSize: '0.45rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#22D3EE' } });
+      edges.push({ id: `orch-pa-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg || n.status === 'running', style: { stroke: '#0891b2', strokeWidth: hasMsg ? 1.5 : 1, strokeDasharray: '5,3', opacity: 0.8 }, label: 'delegate', labelStyle: { fill: '#0891b2', fontSize: '0.45rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#0891b2' } });
     });
   }
 
@@ -1570,7 +1570,7 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
     const platformId = pa.id.replace('platform-agent-', '');
     const matchedPlatform = platformNodes.find(p => p.id === 'platform-' + platformId || p.id.includes(platformId));
     if (matchedPlatform && positions[matchedPlatform.id]) {
-      edges.push({ id: `pa-plat-${pa.id}`, source: pa.id, target: matchedPlatform.id, animated: pa.status === 'running', style: { stroke: '#22D3EE55', strokeWidth: 1.2, strokeDasharray: '4,4' }, label: 'db access', labelStyle: { fill: '#22D3EE99', fontSize: '0.42rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 6, height: 6, color: '#22D3EE' } });
+      edges.push({ id: `pa-plat-${pa.id}`, source: pa.id, target: matchedPlatform.id, animated: pa.status === 'running', style: { stroke: '#bae6fd', strokeWidth: 1.2, strokeDasharray: '4,4' }, label: 'db access', labelStyle: { fill: '#0c4a6e', fontSize: '0.42rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 6, height: 6, color: '#0891b2' } });
     }
   });
 
@@ -1578,7 +1578,7 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
   if (monitorNode) {
     platformNodes.forEach(n => {
       const isDown = n.status === 'error';
-      edges.push({ id: `mon-${n.id}`, source: monitorNode.id, target: n.id, animated: true, style: { stroke: isDown ? T.red : '#34D39977', strokeWidth: isDown ? 2 : 1.5, strokeDasharray: isDown ? '3,3' : '6,4' }, label: isDown ? '↺ restart' : '♥ ping', labelStyle: { fill: isDown ? T.red : '#34D399', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: isDown ? T.red : '#34D399' } });
+      edges.push({ id: `mon-${n.id}`, source: monitorNode.id, target: n.id, animated: true, style: { stroke: isDown ? '#dc2626' : '#bbf7d0', strokeWidth: isDown ? 1.5 : 1, strokeDasharray: isDown ? '3,3' : '6,4' }, label: isDown ? '↺ restart' : '♥ ping', labelStyle: { fill: isDown ? '#dc2626' : '#15803d', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: isDown ? '#dc2626' : '#16a34a' } });
     });
   }
 
@@ -1605,14 +1605,14 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
 function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick, recentMsgs }) {
   const [show, setShow] = useState(false);
   const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick, agentRetries, recentMsgs);
-  const [nodes, , onNodesChange] = useNodesState(rfNodes);
-  const [edges, , onEdgesChange] = useEdgesState(rfEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges);
 
   // Sync RF state when treeNodes or retries change
   useEffect(() => {
     const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick, agentRetries, recentMsgs);
-    onNodesChange(n.map(nd => ({ type: 'reset', item: nd })));
-    onEdgesChange(e.map(ed => ({ type: 'reset', item: ed })));
+    setNodes(n);
+    setEdges(e);
   }, [treeNodes, onAgentClick, agentRetries, recentMsgs]);
 
   const running = treeNodes.filter(n => n.status === 'running').length;
@@ -1632,8 +1632,8 @@ function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick, recent
         <div style={{
           position: 'absolute', bottom: '100%', left: 0, marginBottom: 8,
           width: 580, height: popH,
-          background: T.card, border: T.border, borderRadius: 8,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)', overflow: 'hidden', zIndex: 200,
+          background: '#ffffff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden', zIndex: 200,
           display: 'flex', flexDirection: 'column',
         }}>
           <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 6 }}>
@@ -1648,22 +1648,22 @@ function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick, recent
               nodesDraggable={false} nodesConnectable={false}
               elementsSelectable={false} zoomOnScroll={false}
               panOnDrag={false} preventScrolling={false}
-              style={{ background: T.bg }}
+              style={{ background: '#f8fafc' }}
             >
-              <Background gap={24} size={0.5} color="rgba(255,255,255,0.04)" />
+              <Background gap={24} size={0.5} color="rgba(0,0,0,0.05)" />
             </ReactFlow>
           </div>
           {recentMsgs && recentMsgs.length > 0 && (
-            <div style={{ height: MSG_H, background: '#0a0f1a', borderTop: T.border, overflowY: 'auto', padding: '4px 8px' }}>
-              <div style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#06B6D4', marginBottom: 3, letterSpacing: '0.05em' }}>MESSAGE PASSING</div>
+            <div style={{ height: MSG_H, background: '#f8fafc', borderTop: '1px solid rgba(0,0,0,0.08)', overflowY: 'auto', padding: '4px 8px' }}>
+              <div style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#475569', marginBottom: 3, letterSpacing: '0.05em' }}>MESSAGE PASSING</div>
               {recentMsgs.slice(0, 6).map((m, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
-                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: '#64748b', flexShrink: 0 }}>{new Date(m.at).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
-                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#60A5FA', flexShrink: 0 }}>{(m.from || '?').slice(0, 18)}</span>
-                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#334155' }}>→</span>
-                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#A78BFA', flexShrink: 0 }}>{(m.to || '?').slice(0, 18)}</span>
-                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: T.muted, background: '#1e293b', borderRadius: 3, padding: '0 4px', flexShrink: 0 }}>{(m.type || '').replace(/_/g, ' ')}</span>
-                  {m.message && <span style={{ fontFamily: T.mono, fontSize: '0.44rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.message.slice(0, 50)}</span>}
+                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: '#94a3b8', flexShrink: 0 }}>{new Date(m.at).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#2563eb', flexShrink: 0 }}>{(m.from || '?').slice(0, 18)}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#94a3b8' }}>→</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#7c3aed', flexShrink: 0 }}>{(m.to || '?').slice(0, 18)}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: '#64748b', background: '#e2e8f0', borderRadius: 3, padding: '0 4px', flexShrink: 0 }}>{(m.type || '').replace(/_/g, ' ')}</span>
+                  {m.message && <span style={{ fontFamily: T.mono, fontSize: '0.44rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.message.slice(0, 50)}</span>}
                 </div>
               ))}
             </div>
