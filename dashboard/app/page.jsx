@@ -298,6 +298,13 @@ function AppInner() {
             setAgentRetries(prev => { const next = { ...prev }; delete next[agentId]; return next; });
           }
           setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'done' } : n));
+        } else if (ev.type === 'skill:selected') {
+          const { agentId, selectedName, selectedType, rationale } = ev.data || {};
+          setAgentTree(prev => {
+            if (prev.some(n => n.id === agentId)) return prev.map(n => n.id === agentId ? { ...n, status: 'running' } : n);
+            const resourceNode = { id: agentId + '-resource', name: selectedName || 'Resource', icon: selectedType === 'agent' ? '🤖' : selectedType === 'api_key' ? '🔑' : selectedType === 'service_account' ? '🏢' : '⚙️', role: 'resource', parentId: agentId, status: 'running', task: rationale || '' };
+            return [...prev, { id: agentId, name: 'Skill Agent', icon: '🎯', role: 'skill-agent', parentId: null, status: 'running', task: 'Selects best resource on the fly' }, resourceNode];
+          });
         }
       } catch {}
     };
@@ -1049,6 +1056,9 @@ function AppInner() {
                 fetchLogs={fetchWorkerLogs}
                 logs={workerLogs}
                 onOpenZcAgent={openZcAgent}
+                onAgentSpawned={(data) => {
+                  // skill:selected event — already handled in AppInner SSE, but log it
+                }}
               />
             </div>
           )}
@@ -1160,6 +1170,8 @@ const EV_COLORS = {
   'agent:retry':        '#F59E0B',
   'agent:supervisor':   '#8B5CF6',
   'agent:message':      '#06B6D4',
+  'skill:selected':     '#A78BFA',
+  'artifact:created':   '#34D399',
   'worker:trigger':     '#6CEFA0',
   'worker:twilio_call': '#F5C842',
   'worker:error':       '#EF4444',
@@ -1171,6 +1183,8 @@ const EV_ICONS = {
   'agent:retry':        '↺',
   'agent:supervisor':   '🛡️',
   'agent:message':      '→',
+  'skill:selected':     '🎯',
+  'artifact:created':   '📄',
   'worker:trigger':     '⚡',
   'worker:twilio_call': '📞',
   'worker:error':       '✗',
@@ -1245,6 +1259,8 @@ function ObservabilityPanel() {
     if (ev.type === 'agent:retry') return `${d.agentId} — attempt ${d.attempt}/${d.maxRetries} · ${d.reason || ''}`;
     if (ev.type === 'agent:supervisor') return `${d.agentId} ${d.status === 'recovered' ? '✓ recovered' : d.status === 'exhausted' ? '✗ exhausted' : d.status} after ${d.attempts} attempt(s)`;
     if (ev.type === 'agent:message') return `${d.from} → ${d.to} [${d.type || ''}]${d.attempt ? ` #${d.attempt}` : ''}`;
+    if (ev.type === 'skill:selected') return `${d.selectedName} [${d.selectedType}] · ${(d.rationale||'').slice(0,60)}`;
+    if (ev.type === 'artifact:created') return `${d.title || d.artifactId} [${d.type}]${d.resource ? ' via ' + d.resource : ''}`;
     return JSON.stringify(d).slice(0, 100);
   }
 
@@ -2380,20 +2396,51 @@ function ArtifactCard({ file }) {
   );
 }
 
-function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent }) {
+function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent, onAgentSpawned }) {
   const [canvasTab, setCanvasTab] = useState('agents');
   const [artifacts, setArtifacts] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef();
+  // Orchestrate tab state
+  const [orchInput, setOrchInput] = useState('');
+  const [orchLoading, setOrchLoading] = useState(false);
+  const [orchHistory, setOrchHistory] = useState([]);
+  const orchEndRef = useRef();
 
-  useEffect(() => { if (canvasTab === 'artifacts') loadArtifacts(); }, [canvasTab]);
-
+  // Load session artifacts + NFS uploads
   async function loadArtifacts() {
+    const results = [];
+    try {
+      if (sessionId) {
+        const r = await fetch(`/api/demo/artifacts/${sessionId}`);
+        if (r.ok) { const d = await r.json(); results.push(...(d.artifacts || [])); }
+      }
+    } catch {}
     try {
       const r = await fetch('/api/nfs?path=uploads');
-      if (r.ok) { const d = await r.json(); setArtifacts(d.entries || []); }
+      if (r.ok) { const d = await r.json(); (d.entries || []).forEach(e => results.push({ ...e, type: 'upload', title: e.name })); }
     } catch {}
+    setArtifacts(results);
   }
+
+  useEffect(() => { if (canvasTab === 'artifacts') loadArtifacts(); }, [canvasTab, sessionId]);
+
+  // SSE: auto-refresh artifacts tab on artifact:created
+  useEffect(() => {
+    if (!sessionId) return;
+    const es = new EventSource('/api/demo/events/stream');
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'artifact:created' && ev.data?.sessionId === sessionId) {
+          loadArtifacts();
+          if (canvasTab !== 'artifacts') setCanvasTab('artifacts');
+        }
+        if (ev.type === 'skill:selected' && onAgentSpawned) onAgentSpawned(ev.data);
+      } catch {}
+    };
+    return () => es.close();
+  }, [sessionId, canvasTab]);
 
   async function uploadFile(file) {
     setUploading(true);
@@ -2406,7 +2453,38 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
     } finally { setUploading(false); }
   }
 
+  async function runSkillAgent(task) {
+    if (!task.trim() || orchLoading) return;
+    const msg = task.trim();
+    setOrchInput('');
+    setOrchHistory(prev => [...prev, { role: 'user', content: msg }]);
+    setOrchLoading(true);
+    try {
+      const r = await fetch('/api/demo/skill-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, task: msg }),
+      });
+      const d = await r.json();
+      if (d.error) {
+        setOrchHistory(prev => [...prev, { role: 'assistant', content: 'Error: ' + d.error }]);
+      } else {
+        const sel = d.selection || {};
+        setOrchHistory(prev => [...prev, {
+          role: 'assistant', content: d.result || '',
+          meta: { resource: sel.selected_name, type: sel.selected_type, rationale: sel.rationale, artifactId: d.artifact?.id },
+        }]);
+      }
+    } catch (e) {
+      setOrchHistory(prev => [...prev, { role: 'assistant', content: 'Error: ' + e.message }]);
+    }
+    setOrchLoading(false);
+  }
+
+  useEffect(() => { orchEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [orchHistory]);
+
   const CANVAS_TABS = [
+    { id: 'orchestrate', label: '🎯 Orchestrate' },
     { id: 'agents', label: '🤖 Agents' },
     { id: 'remote', label: '🖥️ Remote Desktop' },
     { id: 'artifacts', label: '📁 Artifacts' },
@@ -2428,6 +2506,62 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
       </div>
 
       <div style={{ flex: 1, overflowY: canvasTab === 'remote' && selectedRd ? 'hidden' : 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+        {/* ─ Orchestrate tab ─ */}
+        {canvasTab === 'orchestrate' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
+            <SectionLabel>Skill Agent — on-the-fly resource selection</SectionLabel>
+            <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.6rem 0.9rem', fontSize: '0.68rem', color: T.muted }}>
+              Type any request. The Skill Agent picks the best available resource (agents, API keys, service accounts) and executes it, generating a Canvas artifact.
+            </div>
+            {/* Chat history */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.6rem', minHeight: 0 }}>
+              {orchHistory.map((m, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    background: m.role === 'user' ? T.blue : T.card,
+                    color: m.role === 'user' ? '#fff' : T.text,
+                    border: m.role === 'user' ? 'none' : T.border,
+                    borderRadius: T.radius, padding: '0.5rem 0.75rem',
+                    fontSize: '0.75rem', maxWidth: '90%', whiteSpace: 'pre-wrap',
+                  }}>
+                    {m.content}
+                  </div>
+                  {m.meta && (
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontFamily: T.mono, fontSize: '0.56rem', background: '#1e1040', color: '#c4b5fd', borderRadius: 4, padding: '1px 7px', border: '1px solid #6d28d9' }}>
+                        🎯 {m.meta.resource || 'skill'} [{m.meta.type}]
+                      </span>
+                      {m.meta.rationale && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.muted }}>{m.meta.rationale.slice(0, 60)}</span>}
+                      {m.meta.artifactId && <span style={{ fontFamily: T.mono, fontSize: '0.55rem', color: T.mint }}>✓ artifact saved</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {orchLoading && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: T.muted, fontSize: '0.72rem' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.blue, animation: 'pulse 1s infinite' }} />
+                  Skill Agent selecting resource...
+                </div>
+              )}
+              <div ref={orchEndRef} />
+            </div>
+            {/* Input */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <input
+                value={orchInput}
+                onChange={e => setOrchInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runSkillAgent(orchInput); } }}
+                placeholder="Ask anything — e.g. 'Summarize recent CRM activity' or 'Check low stock items'..."
+                disabled={orchLoading}
+                style={{ flex: 1, background: T.card, border: T.border, borderRadius: T.radius, padding: '0.5rem 0.75rem', color: T.text, fontFamily: T.mono, fontSize: '0.72rem', outline: 'none' }}
+              />
+              <Btn small onClick={() => runSkillAgent(orchInput)} disabled={orchLoading || !orchInput.trim()}>
+                {orchLoading ? '...' : 'Run →'}
+              </Btn>
+            </div>
+          </div>
+        )}
 
         {/* ─ Agents tab ─ */}
         {canvasTab === 'agents' && (
@@ -2470,7 +2604,7 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
         {canvasTab === 'artifacts' && (
           <>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <SectionLabel style={{ marginBottom: 0 }}>Shared Artifacts (NFS)</SectionLabel>
+              <SectionLabel style={{ marginBottom: 0 }}>Artifacts</SectionLabel>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem' }}>
                 <Btn small ghost onClick={loadArtifacts}>Refresh</Btn>
                 <Btn small onClick={() => fileRef.current?.click()} disabled={uploading}>{uploading ? '...' : '↑ Upload'}</Btn>
@@ -2478,10 +2612,26 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
               </div>
             </div>
             {artifacts.length === 0 ? (
-              <div style={{ color: T.muted, fontSize: '0.8rem' }}>No artifacts yet. Upload files to share with agents via /mnt/shared/uploads.</div>
+              <div style={{ color: T.muted, fontSize: '0.8rem' }}>No artifacts yet. Run a skill agent request or upload files.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.75rem' }}>
-                {artifacts.map(f => <ArtifactCard key={f.name} file={f} />)}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {artifacts.map((a, i) => {
+                  const isSkillOutput = a.type === 'skill_output' || a.type === 'db_query' || a.type === 'orchestration';
+                  if (isSkillOutput) return (
+                    <div key={a.id || i} style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '0.9rem 1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
+                        <span style={{ fontSize: '0.9rem' }}>{a.type === 'db_query' ? '🗄️' : a.type === 'orchestration' ? '🎭' : '🎯'}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title || 'Artifact'}</div>
+                          {a.resource && <div style={{ fontFamily: T.mono, fontSize: '0.56rem', color: '#c4b5fd', marginTop: 2 }}>🎯 {a.resource.name || a.resource}</div>}
+                        </div>
+                        <span style={{ fontFamily: T.mono, fontSize: '0.54rem', color: T.muted, flexShrink: 0 }}>{a.createdAt ? new Date(a.createdAt).toLocaleTimeString() : ''}</span>
+                      </div>
+                      {a.content && <div style={{ fontFamily: T.mono, fontSize: '0.65rem', color: T.muted, maxHeight: 120, overflowY: 'auto', whiteSpace: 'pre-wrap', background: T.bg, borderRadius: 4, padding: '0.4rem 0.6rem', marginTop: '0.3rem' }}>{a.content.slice(0, 600)}{a.content.length > 600 ? '…' : ''}</div>}
+                    </div>
+                  );
+                  return <ArtifactCard key={a.name || i} file={a} />;
+                })}
               </div>
             )}
           </>
