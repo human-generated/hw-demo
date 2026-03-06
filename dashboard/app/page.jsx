@@ -292,8 +292,6 @@ function AppInner() {
           } else if (status === 'exhausted') {
             setAgentTree(prev => prev.map(n => n.id === agentId ? { ...n, status: 'error' } : n));
           }
-        } else if (ev.type === 'agent:message') {
-          setSupervisorMsgs(prev => [{ ...ev.data, at: ev.at }, ...prev].slice(0, 50));
         } else if (ev.type === 'agent:reply') {
           const { agentId, attempts } = ev.data || {};
           if (attempts && attempts > 1) {
@@ -322,8 +320,20 @@ function AppInner() {
               return next;
             });
           }
-        } else if (ev.type === 'agent:message' && (ev.data?.from === 'platform-monitor' || ev.data?.to === 'platform-monitor')) {
-          setMonitorMessages(prev => [{ ...ev.data, at: Date.now() }, ...prev].slice(0, 30));
+        } else if (ev.type === 'agent:message') {
+          const { from, to } = ev.data || {};
+          const allMsgs = { ...ev.data, at: Date.now() };
+          setSupervisorMsgs(prev => [allMsgs, ...prev].slice(0, 50));
+          if (from === 'platform-monitor' || to === 'platform-monitor') {
+            setMonitorMessages(prev => [allMsgs, ...prev].slice(0, 30));
+          }
+          // Ensure orchestrator node exists if orch-supervisor messages reference it
+          if (from && from.startsWith('orch-supervisor')) {
+            setAgentTree(prev => {
+              if (prev.some(n => n.id === from)) return prev;
+              return [{ id: from, name: 'SQL Guard', icon: '🔁', role: 'orch-supervisor', parentId: null, status: 'running', task: 'Fixes bad SQL · Retries on error' }, ...prev];
+            });
+          }
         }
       } catch {}
     };
@@ -757,6 +767,11 @@ function AppInner() {
     setInput('');
     addChat('user', msg);
     setLoading(true);
+    // Ensure orchestrator node in agent tree
+    setAgentTree(prev => {
+      if (prev.some(n => n.role === 'orchestrator')) return prev.map(n => n.role === 'orchestrator' ? { ...n, status: 'running', task: msg.slice(0, 60) } : n);
+      return [{ id: 'orchestrator-main', name: 'Orchestrator', icon: '🧠', role: 'orchestrator', parentId: null, status: 'running', task: msg.slice(0, 60) }, ...prev];
+    });
 
     try {
       const r = await fetch('/api/demo/orchestrate', {
@@ -1001,7 +1016,8 @@ function AppInner() {
                     <AgentFlowHover
                       treeNodes={agentTree}
                       agentRetries={agentRetries}
-                      onClear={() => { setAgentTree([]); setAgentRetries({}); setSupervisorMsgs([]); }}
+                      recentMsgs={[...supervisorMsgs, ...monitorMessages].sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 15)}
+                      onClear={() => { setAgentTree([]); setAgentRetries({}); setSupervisorMsgs([]); setMonitorMessages([]); }}
                       onAgentClick={(nodeId) => {
                         const node = agentTree.find(n => n.id === nodeId);
                         if (node) openZcAgent(node);
@@ -1411,98 +1427,156 @@ function AgentFlowNode({ data }) {
 
 const AGENT_NODE_TYPES = { agentNode: AgentFlowNode };
 
-function buildAgentFlow(treeNodes, onNodeClick, agentRetries) {
+function buildAgentFlow(treeNodes, onNodeClick, agentRetries, recentMsgs) {
   if (!treeNodes.length) return { nodes: [], edges: [] };
-  const NODE_W = 150, NODE_H = 74, V_GAP = 70, H_GAP = 16;
-  // BFS to assign depths (supervisor always at depth 0, others below)
-  const depth = {}, children = {};
-  treeNodes.forEach(n => { children[n.id] = treeNodes.filter(c => c.parentId === n.id); });
-  const roots = treeNodes.filter(n => !n.parentId);
-  roots.forEach(n => { depth[n.id] = 0; });
-  const queue = [...roots];
-  while (queue.length) {
-    const n = queue.shift();
-    (children[n.id] || []).forEach(c => { depth[c.id] = (depth[n.id] || 0) + 1; queue.push(c); });
-  }
-  const byDepth = {};
-  treeNodes.forEach(n => { const d = depth[n.id] || 0; (byDepth[d] = byDepth[d] || []).push(n); });
-  const nodes = treeNodes.map(n => {
-    const d = depth[n.id] || 0;
-    const siblings = byDepth[d] || [n];
-    const idx = siblings.indexOf(n);
-    const total = siblings.length;
-    const x = idx * (NODE_W + H_GAP) - (total * (NODE_W + H_GAP) - H_GAP) / 2 + 200;
-    return {
-      id: n.id, type: 'agentNode',
-      position: { x, y: d * (NODE_H + V_GAP) },
-      data: { icon: n.icon, name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick,
-        retryInfo: (agentRetries || {})[n.id] || null },
-    };
-  });
-  // Tree edges
-  const treeEdges = treeNodes.filter(n => n.parentId).map(n => ({
-    id: `e-${n.parentId}-${n.id}`, source: n.parentId, target: n.id,
-    style: { stroke: 'rgba(0,0,0,0.15)', strokeWidth: 1.5 },
-    markerEnd: { type: MarkerType.ArrowClosed, width: 8, height: 8, color: 'rgba(0,0,0,0.2)' },
-  }));
-  // Supervisor overlay edges: faint dashed to all non-supervisor agents; amber + animated when retrying
+  const NODE_W = 155, NODE_H = 78, V_GAP = 80, H_GAP = 20;
+  const CX = 300; // canvas center x
+
+  // Separate node groups
+  const orchNode = treeNodes.find(n => n.role === 'orchestrator');
   const supNode = treeNodes.find(n => n.role === 'supervisor');
-  const supEdges = supNode ? treeNodes.filter(n => n.role !== 'supervisor' && n.role !== 'platform-monitor' && n.role !== 'platform' && n.id !== supNode.id).map(n => {
-    const isRetrying = !!(agentRetries || {})[n.id];
-    return {
-      id: `sup-${supNode.id}-${n.id}`, source: supNode.id, target: n.id,
-      animated: isRetrying,
-      style: { stroke: isRetrying ? T.amber : 'rgba(139,92,246,0.2)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '5,4' },
-      label: isRetrying ? `↺ ${(agentRetries[n.id] || {}).attempt}/${(agentRetries[n.id] || {}).maxRetries}` : undefined,
-      labelStyle: { fill: T.amber, fontSize: '0.5rem', fontFamily: 'monospace' },
-      markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined,
-      zIndex: isRetrying ? 10 : 0,
-    };
-  }) : [];
-  // Monitor→platform edges: animated pulse when checking, red when down
+  const orchSupNode = treeNodes.find(n => n.role === 'orch-supervisor' || n.id && n.id.startsWith('orch-supervisor'));
   const monitorNode = treeNodes.find(n => n.role === 'platform-monitor');
-  const monitorEdges = monitorNode ? treeNodes.filter(n => n.role === 'platform').map(n => {
-    const isDown = n.status === 'error';
-    return {
-      id: `mon-${monitorNode.id}-${n.id}`, source: monitorNode.id, target: n.id,
-      animated: true,
-      style: { stroke: isDown ? T.red : '#34D39966', strokeWidth: isDown ? 2 : 1.5, strokeDasharray: isDown ? '4,3' : '6,4' },
-      label: isDown ? '↺ restart' : '♥ ping',
-      labelStyle: { fill: isDown ? T.red : '#34D399', fontSize: '0.48rem', fontFamily: 'monospace' },
-      markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: isDown ? T.red : '#34D399' },
-    };
-  }) : [];
-  return { nodes, edges: [...treeEdges, ...supEdges, ...monitorEdges] };
+  const platformNodes = treeNodes.filter(n => n.role === 'platform');
+  const agentNodes = treeNodes.filter(n => !['orchestrator','supervisor','platform-monitor','platform'].includes(n.role));
+
+  // Recent message pairs for animated edges
+  const msgEdgeSet = new Set();
+  (recentMsgs || []).slice(0, 5).forEach(m => { if (m.from && m.to) msgEdgeSet.add(m.from + '→' + m.to); });
+
+  const positions = {};
+  const nodes = [];
+
+  // Row 0: Orchestrator at center-top
+  if (orchNode) {
+    positions[orchNode.id] = { x: CX - NODE_W / 2, y: 0 };
+    nodes.push({ id: orchNode.id, type: 'agentNode', position: positions[orchNode.id], data: { icon: orchNode.icon || '🧠', name: orchNode.name, status: orchNode.status, task: orchNode.task, role: orchNode.role, nodeId: orchNode.id, onNodeClick, retryInfo: null } });
+  }
+
+  // Row 1: Supervisor (left), OrchestratorSupervisor (right of orch), Monitor (far right)
+  const row1Y = V_GAP + NODE_H;
+  let row1Nodes = [supNode, orchSupNode, monitorNode].filter(Boolean);
+  row1Nodes.forEach((n, i) => {
+    const total = row1Nodes.length;
+    const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
+    positions[n.id] = { x, y: row1Y };
+    nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: n.icon || (n.role === 'supervisor' ? '🛡️' : n.role === 'platform-monitor' ? '📡' : '🔁'), name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: (agentRetries || {})[n.id] || null } });
+  });
+
+  // Row 2: Worker agents (children of orchestrator or orphaned)
+  const workerAgents = agentNodes.filter(n => n.parentId === (orchNode && orchNode.id) || (!n.parentId && n.role !== 'skill-agent'));
+  const skillAgents = agentNodes.filter(n => n.role === 'skill-agent' || n.role === 'resource');
+  const otherAgents = agentNodes.filter(n => !workerAgents.includes(n) && !skillAgents.includes(n));
+  const allWorkers = [...workerAgents, ...otherAgents];
+  const row2Y = row1Y + V_GAP + NODE_H;
+  allWorkers.forEach((n, i) => {
+    const total = allWorkers.length;
+    const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
+    positions[n.id] = { x, y: row2Y };
+    nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: n.icon || '🤖', name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: (agentRetries || {})[n.id] || null } });
+  });
+
+  // Row 3: Skill agents below workers
+  const row3Y = row2Y + V_GAP + NODE_H;
+  skillAgents.forEach((n, i) => {
+    const total = skillAgents.length;
+    const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
+    positions[n.id] = { x, y: row3Y };
+    nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: n.icon || '🎯', name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: null } });
+  });
+
+  // Row bottom: Platform nodes
+  const rowPY = (skillAgents.length ? row3Y : row2Y) + V_GAP + NODE_H;
+  platformNodes.forEach((n, i) => {
+    const total = platformNodes.length;
+    const x = CX + (i - (total - 1) / 2) * (NODE_W + H_GAP) - NODE_W / 2;
+    positions[n.id] = { x, y: rowPY };
+    nodes.push({ id: n.id, type: 'agentNode', position: positions[n.id], data: { icon: n.icon || '🖥️', name: n.name, status: n.status, task: n.task, role: n.role, nodeId: n.id, onNodeClick, retryInfo: null } });
+  });
+
+  // ── Edges ──
+  const edges = [];
+  const edgeColor = (role) => role === 'supervisor' ? '#8B5CF6' : role === 'platform-monitor' ? '#34D399' : role === 'orchestrator' ? '#60A5FA' : '#64748b';
+
+  // Orchestrator → row1 (supervisor, orch-supervisor, monitor)
+  if (orchNode) {
+    row1Nodes.forEach(n => {
+      const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id) || msgEdgeSet.has(n.id + '→' + orchNode.id);
+      edges.push({ id: `e-orch-${n.id}`, source: orchNode.id, target: n.id, animated: hasMsg, style: { stroke: edgeColor(n.role), strokeWidth: hasMsg ? 2 : 1.2, strokeDasharray: '5,4', opacity: 0.7 }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: edgeColor(n.role) }, label: n.role === 'supervisor' ? 'supervises' : n.role === 'platform-monitor' ? 'monitors' : 'sql retry', labelStyle: { fill: edgeColor(n.role), fontSize: '0.45rem', fontFamily: 'monospace' } });
+    });
+  }
+
+  // Supervisor → worker agents (dashed, amber when retrying)
+  if (supNode) {
+    allWorkers.forEach(n => {
+      const isRetrying = !!(agentRetries || {})[n.id];
+      edges.push({ id: `sup-${n.id}`, source: supNode.id, target: n.id, animated: isRetrying, style: { stroke: isRetrying ? T.amber : 'rgba(139,92,246,0.25)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ ${(agentRetries[n.id] || {}).attempt}/${(agentRetries[n.id] || {}).maxRetries}` : 'watches', labelStyle: { fill: isRetrying ? T.amber : '#8B5CF666', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined, zIndex: isRetrying ? 10 : 0 });
+    });
+  }
+
+  // OrchestratorSupervisor → orchestrator retry edge
+  if (orchSupNode && orchNode) {
+    const isRetrying = !!(agentRetries || {})[orchSupNode.id];
+    edges.push({ id: `orchsup-orch`, source: orchSupNode.id, target: orchNode.id, animated: isRetrying, style: { stroke: isRetrying ? T.amber : 'rgba(251,191,36,0.3)', strokeWidth: isRetrying ? 2 : 1, strokeDasharray: '4,4' }, label: isRetrying ? `↺ fixing SQL` : 'sql guard', labelStyle: { fill: isRetrying ? T.amber : '#F59E0B66', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: isRetrying ? { type: MarkerType.ArrowClosed, width: 7, height: 7, color: T.amber } : undefined });
+  }
+
+  // Orchestrator → worker agents (delegation)
+  if (orchNode) {
+    allWorkers.forEach(n => {
+      const hasMsg = msgEdgeSet.has(orchNode.id + '→' + n.id);
+      if (!hasMsg) return;
+      edges.push({ id: `orch-del-${n.id}`, source: orchNode.id, target: n.id, animated: true, style: { stroke: '#60A5FA', strokeWidth: 2 }, label: 'delegate', labelStyle: { fill: '#60A5FA', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#60A5FA' } });
+    });
+  }
+
+  // Monitor → platforms
+  if (monitorNode) {
+    platformNodes.forEach(n => {
+      const isDown = n.status === 'error';
+      edges.push({ id: `mon-${n.id}`, source: monitorNode.id, target: n.id, animated: true, style: { stroke: isDown ? T.red : '#34D39977', strokeWidth: isDown ? 2 : 1.5, strokeDasharray: isDown ? '3,3' : '6,4' }, label: isDown ? '↺ restart' : '♥ ping', labelStyle: { fill: isDown ? T.red : '#34D399', fontSize: '0.44rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: isDown ? T.red : '#34D399' } });
+    });
+  }
+
+  // Skill agent → resource child
+  skillAgents.filter(n => n.parentId).forEach(n => {
+    if (positions[n.parentId]) {
+      edges.push({ id: `skill-${n.id}`, source: n.parentId, target: n.id, style: { stroke: '#A78BFA', strokeWidth: 1.5 }, markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: '#A78BFA' } });
+    }
+  });
+
+  // Recent message edges (live pulse)
+  (recentMsgs || []).slice(0, 3).forEach((m, i) => {
+    const srcPos = positions[m.from];
+    const tgtPos = positions[m.to];
+    if (!srcPos || !tgtPos || m.from === m.to) return;
+    const edgeId = `msg-${m.from}-${m.to}-${i}`;
+    if (edges.find(e => e.id === edgeId)) return;
+    edges.push({ id: edgeId, source: m.from, target: m.to, animated: true, style: { stroke: '#06B6D4', strokeWidth: 1.5 }, label: (m.type || '').replace(/_/g, ' ').slice(0, 14), labelStyle: { fill: '#06B6D4', fontSize: '0.42rem', fontFamily: 'monospace' }, markerEnd: { type: MarkerType.ArrowClosed, width: 6, height: 6, color: '#06B6D4' }, zIndex: 5 });
+  });
+
+  return { nodes, edges };
 }
 
-function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick }) {
+function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick, recentMsgs }) {
   const [show, setShow] = useState(false);
-  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick, agentRetries);
+  const { nodes: rfNodes, edges: rfEdges } = buildAgentFlow(treeNodes, onAgentClick, agentRetries, recentMsgs);
   const [nodes, , onNodesChange] = useNodesState(rfNodes);
   const [edges, , onEdgesChange] = useEdgesState(rfEdges);
 
   // Sync RF state when treeNodes or retries change
   useEffect(() => {
-    const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick, agentRetries);
+    const { nodes: n, edges: e } = buildAgentFlow(treeNodes, onAgentClick, agentRetries, recentMsgs);
     onNodesChange(n.map(nd => ({ type: 'reset', item: nd })));
     onEdgesChange(e.map(ed => ({ type: 'reset', item: ed })));
-  }, [treeNodes, onAgentClick, agentRetries]);
+  }, [treeNodes, onAgentClick, agentRetries, recentMsgs]);
 
   const running = treeNodes.filter(n => n.status === 'running').length;
   const total = treeNodes.length;
   if (!total) return null;
 
-  // Estimate popup height based on max depth
-  const depths = treeNodes.map(n => {
-    let d = 0, cur = n;
-    while (cur.parentId) { cur = treeNodes.find(x => x.id === cur.parentId) || {}; d++; }
-    return d;
-  });
-  const maxDepth = Math.max(...depths, 0);
-  const popH = Math.min(420, (maxDepth + 1) * 134 + 40);
-  const popW = Math.min(520, Math.max(...Object.values(
-    treeNodes.reduce((acc, n) => { const d = (acc[n.id] || 0); return acc; }, {})
-  ), 1) * 170 + 40, 520);
+  const MSG_H = (recentMsgs && recentMsgs.length) ? 110 : 0;
+  const GRAPH_H = 340;
+  const popH = GRAPH_H + MSG_H + 8;
 
   return (
     <div style={{ position: 'relative' }}
@@ -1512,24 +1586,43 @@ function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick }) {
       {show && (
         <div style={{
           position: 'absolute', bottom: '100%', left: 0, marginBottom: 8,
-          width: 480, height: popH,
+          width: 580, height: popH,
           background: T.card, border: T.border, borderRadius: 8,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)', overflow: 'hidden', zIndex: 200,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)', overflow: 'hidden', zIndex: 200,
+          display: 'flex', flexDirection: 'column',
         }}>
           <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 6 }}>
+            <span style={{ fontFamily: T.mono, fontSize: '0.52rem', color: T.muted, padding: '2px 6px', background: T.bg, borderRadius: 4 }}>Agent Network</span>
             <button onClick={onClear} style={{ background: T.faint, border: T.border, borderRadius: 4, padding: '2px 8px', fontFamily: T.mono, fontSize: '0.58rem', cursor: 'pointer', color: T.muted }}>clear</button>
           </div>
-          <ReactFlow
-            nodes={nodes} edges={edges}
-            nodeTypes={AGENT_NODE_TYPES}
-            fitView fitViewOptions={{ padding: 0.3 }}
-            nodesDraggable={false} nodesConnectable={false}
-            elementsSelectable={false} zoomOnScroll={false}
-            panOnDrag={false} preventScrolling={false}
-            style={{ background: '#FAFAFA' }}
-          >
-            <Background gap={20} size={0.5} color="rgba(0,0,0,0.04)" />
-          </ReactFlow>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ReactFlow
+              nodes={nodes} edges={edges}
+              nodeTypes={AGENT_NODE_TYPES}
+              fitView fitViewOptions={{ padding: 0.25 }}
+              nodesDraggable={false} nodesConnectable={false}
+              elementsSelectable={false} zoomOnScroll={false}
+              panOnDrag={false} preventScrolling={false}
+              style={{ background: T.bg }}
+            >
+              <Background gap={24} size={0.5} color="rgba(255,255,255,0.04)" />
+            </ReactFlow>
+          </div>
+          {recentMsgs && recentMsgs.length > 0 && (
+            <div style={{ height: MSG_H, background: '#0a0f1a', borderTop: T.border, overflowY: 'auto', padding: '4px 8px' }}>
+              <div style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#06B6D4', marginBottom: 3, letterSpacing: '0.05em' }}>MESSAGE PASSING</div>
+              {recentMsgs.slice(0, 6).map((m, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: '#64748b', flexShrink: 0 }}>{new Date(m.at).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#60A5FA', flexShrink: 0 }}>{(m.from || '?').slice(0, 18)}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#334155' }}>→</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.48rem', color: '#A78BFA', flexShrink: 0 }}>{(m.to || '?').slice(0, 18)}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: '0.46rem', color: T.muted, background: '#1e293b', borderRadius: 3, padding: '0 4px', flexShrink: 0 }}>{(m.type || '').replace(/_/g, ' ')}</span>
+                  {m.message && <span style={{ fontFamily: T.mono, fontSize: '0.44rem', color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.message.slice(0, 50)}</span>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div style={{
