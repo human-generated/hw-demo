@@ -451,7 +451,7 @@ function AppInner() {
       setAgentTree(prev => {
         if (prev.some(n => n.role === 'supervisor')) return prev;
         const supId = 'supervisor-' + (sessionId || 'global');
-        return [{ id: supId, name: 'ZC Supervisor', icon: '🛡️', role: 'supervisor', parentId: null, status: 'running', task: 'Monitors agents · Auto-retries on errors' }, ...prev];
+        return [{ id: supId, name: 'Supervisor', icon: '🛡️', role: 'supervisor', parentId: null, status: 'running', task: 'Monitors agents · Auto-retries on errors' }, ...prev];
       });
     }
   }
