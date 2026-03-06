@@ -805,9 +805,9 @@ function AppInner() {
             ? { ...w, ...(phone !== undefined ? { phone } : {}), ...(threshold !== undefined ? { threshold } : {}), status: 'deployed' }
             : w
         ));
-      } else if (action.type === 'generate_image') {
-        // Image generation handled server-side; image shown via d.imageUrl in the message above
-        // Canvas artifacts tab will auto-switch via SSE artifact:created event
+      } else if (action.type === 'generate_image' || action.type === 'use_skill_agent') {
+        // Handled server-side via Skill Agent; result in d.message + d.imageUrl
+        // Canvas Artifacts tab auto-switches via SSE artifact:created
       } else if (action.type === 'modify_platforms') {
         const { add = [], remove = [] } = action.params || {};
         setPlatforms(prev => {
