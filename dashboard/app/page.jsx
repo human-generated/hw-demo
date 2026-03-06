@@ -226,6 +226,8 @@ function AppInner() {
   const [zcChatInput, setZcChatInput] = useState('');
   const [zcChatLoading, setZcChatLoading] = useState(false);
   const [zcHistoryLoading, setZcHistoryLoading] = useState(false);
+  const [platformHealth, setPlatformHealth] = useState({}); // platformId → 'up'|'down'|'unknown'
+  const [monitorMessages, setMonitorMessages] = useState([]); // recent monitor↔platform messages
 
   // Research
   const [company, setCompany] = useState(null);
@@ -305,6 +307,23 @@ function AppInner() {
             const resourceNode = { id: agentId + '-resource', name: selectedName || 'Resource', icon: selectedType === 'agent' ? '🤖' : selectedType === 'api_key' ? '🔑' : selectedType === 'service_account' ? '🏢' : '⚙️', role: 'resource', parentId: agentId, status: 'running', task: rationale || '' };
             return [...prev, { id: agentId, name: 'Skill Agent', icon: '🎯', role: 'skill-agent', parentId: null, status: 'running', task: 'Selects best resource on the fly' }, resourceNode];
           });
+        } else if (ev.type === 'platform:health') {
+          const { platformId, status, platformName } = ev.data || {};
+          if (platformId) {
+            setPlatformHealth(prev => ({ ...prev, [platformId]: status === 'down' ? 'down' : 'up' }));
+            // Ensure monitor node exists in agent tree
+            setAgentTree(prev => {
+              const hasMonitor = prev.some(n => n.role === 'platform-monitor');
+              const hasPlatform = prev.some(n => n.id === 'platform-' + platformId);
+              let next = prev;
+              if (!hasMonitor) next = [{ id: 'platform-monitor', name: 'Monitor', icon: '📡', role: 'platform-monitor', parentId: null, status: 'running', task: 'Health checks every 30s · Auto-restarts dead platforms' }, ...next];
+              if (!hasPlatform) next = [...next, { id: 'platform-' + platformId, name: platformName || platformId, icon: '🖥️', role: 'platform', parentId: 'platform-monitor', status: status === 'down' ? 'error' : 'running', task: status === 'down' ? 'Unreachable — restarting' : 'Healthy' }];
+              else next = next.map(n => n.id === 'platform-' + platformId ? { ...n, status: status === 'down' ? 'error' : 'running', task: status === 'down' ? 'Unreachable — restarting' : 'Healthy' } : n);
+              return next;
+            });
+          }
+        } else if (ev.type === 'agent:message' && (ev.data?.from === 'platform-monitor' || ev.data?.to === 'platform-monitor')) {
+          setMonitorMessages(prev => [{ ...ev.data, at: Date.now() }, ...prev].slice(0, 30));
         }
       } catch {}
     };
@@ -389,6 +408,22 @@ function AppInner() {
       if (deployed.length > 0) setDeployedPlatforms(deployed);
     }
     if (d.workers && d.workers.length > 0) setWorkers(d.workers);
+    // Seed agent tree with monitor + platform nodes for deployed platforms
+    const deployedPs = (d.platforms || []).filter(p => p.status === 'deployed');
+    if (deployedPs.length > 0) {
+      const monNode = { id: 'platform-monitor', name: 'Monitor', icon: '📡', role: 'platform-monitor', parentId: null, status: 'running', task: 'Health checks every 30s · Auto-restarts dead platforms' };
+      const platNodes = deployedPs.map(p => ({ id: 'platform-' + p.id, name: p.name, icon: '🖥️', role: 'platform', parentId: 'platform-monitor', status: 'running', task: p.url || '' }));
+      setAgentTree(prev => {
+        const hasMonitor = prev.some(n => n.role === 'platform-monitor');
+        if (hasMonitor) return prev;
+        return [monNode, ...platNodes, ...prev];
+      });
+      // Fetch actual health
+      fetch(`/api/demo/platform-health/${d.id || ''}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(hd => { if (!hd) return; hd.platforms.forEach(p => { setPlatformHealth(prev => ({ ...prev, [p.id]: p.status })); setAgentTree(prev2 => prev2.map(n => n.id === 'platform-' + p.id ? { ...n, status: p.status === 'down' ? 'error' : 'running', task: p.status === 'down' ? 'Unreachable' : p.url || 'Healthy' } : n)); }); })
+        .catch(() => {});
+    }
     const nP = (d.platforms || []).filter(p => p.status === 'deployed').length;
     const nW = (d.workers || []).length;
     // Restore chat history if available, otherwise show restore summary
@@ -1179,6 +1214,7 @@ const EV_COLORS = {
   'worker:twilio_call': '#F5C842',
   'worker:error':       '#EF4444',
   'worker:trigger_manual': '#EF9B6C',
+  'platform:health':    '#34D399',
 };
 const EV_ICONS = {
   'agent:spawn':        '🤖',
@@ -1191,6 +1227,7 @@ const EV_ICONS = {
   'worker:trigger':     '⚡',
   'worker:twilio_call': '📞',
   'worker:error':       '✗',
+  'platform:health':    '📡',
 };
 
 function ObservabilityPanel() {
@@ -1329,38 +1366,44 @@ const STATUS_COLOR = { running: T.blue, done: T.mint, pending: T.muted, delegati
 function AgentFlowNode({ data }) {
   const isRetrying = !!data.retryInfo;
   const isSupervisor = data.role === 'supervisor';
-  const sc = isRetrying ? T.amber : (STATUS_COLOR[data.status] || T.muted);
+  const isMonitor = data.role === 'platform-monitor';
+  const isPlatform = data.role === 'platform';
+  const isDown = isPlatform && data.status === 'error';
+  const sc = isRetrying ? T.amber : isDown ? T.red : (STATUS_COLOR[data.status] || T.muted);
+  const bg = isSupervisor ? '#1a1040' : isMonitor ? '#0f2010' : isPlatform ? (isDown ? '#200808' : '#0a1a0f') : T.card;
+  const nameColor = isSupervisor ? '#c4b5fd' : isMonitor ? '#6ee7b7' : isPlatform ? (isDown ? '#fca5a5' : '#6ee7b7') : T.text;
   return (
     <div
       onClick={() => data.onNodeClick && data.onNodeClick(data.nodeId)}
       style={{
-        background: isSupervisor ? '#1a1040' : T.card,
-        border: `${isSupervisor ? 2 : 1.5}px solid ${sc}`,
+        background: bg,
+        border: `${isSupervisor || isMonitor ? 2 : 1.5}px solid ${sc}`,
         borderRadius: 6,
-        padding: '5px 10px', minWidth: 120, maxWidth: 160,
+        padding: '5px 10px', minWidth: 120, maxWidth: 165,
         fontFamily: T.mono, fontSize: '0.62rem',
-        boxShadow: isSupervisor ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: (isSupervisor || isMonitor) ? `0 0 12px ${sc}44, 0 2px 8px rgba(0,0,0,0.12)` : isDown ? `0 0 8px ${T.red}66` : '0 2px 8px rgba(0,0,0,0.08)',
         cursor: 'pointer',
       }}
     >
       <Handle type="target" position={Position.Top} style={{ opacity: 0, width: 0, height: 0 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <span style={{ fontSize: '0.8rem', lineHeight: 1, flexShrink: 0 }}>{data.icon}</span>
-        <span style={{ fontWeight: 700, color: isSupervisor ? '#c4b5fd' : T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
+        <span style={{ fontWeight: 700, color: nameColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.name}</span>
+        {isDown && <span style={{ fontSize: '0.5rem', color: T.red, marginLeft: 'auto' }}>DOWN</span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc, flexShrink: 0,
-          boxShadow: (data.status === 'running' || isRetrying) ? `0 0 4px ${sc}` : 'none' }} />
+          boxShadow: (data.status === 'running' || isRetrying || isMonitor) ? `0 0 4px ${sc}` : 'none' }} />
         <span style={{ color: sc, textTransform: 'uppercase', fontSize: '0.55rem' }}>{isRetrying ? 'retrying' : data.status}</span>
         {isRetrying && <span style={{ color: T.amber, fontSize: '0.52rem', marginLeft: 2 }}>{data.retryInfo.attempt}/{data.retryInfo.maxRetries}</span>}
       </div>
-      {data.task && <div style={{ color: isSupervisor ? '#9f87d4' : T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
+      {data.task && <div style={{ color: isMonitor ? '#6ee7b7aa' : isSupervisor ? '#9f87d4' : isPlatform ? nameColor + 'aa' : T.muted, fontSize: '0.56rem', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.task}</div>}
       {isRetrying && data.retryInfo.reason && (
         <div style={{ background: T.amber + '22', borderRadius: 3, padding: '1px 5px', fontSize: '0.5rem', color: T.amber, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {data.retryInfo.reason}
         </div>
       )}
-      {!isSupervisor && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
+      {!isSupervisor && !isMonitor && !isPlatform && <div style={{ color: T.blue, fontSize: '0.52rem', marginTop: 3, opacity: 0.7, letterSpacing: '0.04em' }}>click to chat</div>}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, width: 0, height: 0 }} />
     </div>
   );
@@ -1404,7 +1447,7 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries) {
   }));
   // Supervisor overlay edges: faint dashed to all non-supervisor agents; amber + animated when retrying
   const supNode = treeNodes.find(n => n.role === 'supervisor');
-  const supEdges = supNode ? treeNodes.filter(n => n.role !== 'supervisor' && !n.parentId === false || (n.role !== 'supervisor')).filter(n => n.id !== supNode.id).map(n => {
+  const supEdges = supNode ? treeNodes.filter(n => n.role !== 'supervisor' && n.role !== 'platform-monitor' && n.role !== 'platform' && n.id !== supNode.id).map(n => {
     const isRetrying = !!(agentRetries || {})[n.id];
     return {
       id: `sup-${supNode.id}-${n.id}`, source: supNode.id, target: n.id,
@@ -1416,7 +1459,20 @@ function buildAgentFlow(treeNodes, onNodeClick, agentRetries) {
       zIndex: isRetrying ? 10 : 0,
     };
   }) : [];
-  return { nodes, edges: [...treeEdges, ...supEdges] };
+  // Monitor→platform edges: animated pulse when checking, red when down
+  const monitorNode = treeNodes.find(n => n.role === 'platform-monitor');
+  const monitorEdges = monitorNode ? treeNodes.filter(n => n.role === 'platform').map(n => {
+    const isDown = n.status === 'error';
+    return {
+      id: `mon-${monitorNode.id}-${n.id}`, source: monitorNode.id, target: n.id,
+      animated: true,
+      style: { stroke: isDown ? T.red : '#34D39966', strokeWidth: isDown ? 2 : 1.5, strokeDasharray: isDown ? '4,3' : '6,4' },
+      label: isDown ? '↺ restart' : '♥ ping',
+      labelStyle: { fill: isDown ? T.red : '#34D399', fontSize: '0.48rem', fontFamily: 'monospace' },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 7, height: 7, color: isDown ? T.red : '#34D399' },
+    };
+  }) : [];
+  return { nodes, edges: [...treeEdges, ...supEdges, ...monitorEdges] };
 }
 
 function AgentFlowHover({ treeNodes, agentRetries, onClear, onAgentClick }) {
