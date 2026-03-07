@@ -1,8 +1,7 @@
 'use client';
 import { MeshGradient } from '@paper-design/shaders-react';
 import { DockIcons } from './DockIcons';
-
-const PHOTO_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
+import { WORKER_PHOTOS } from './WorkerConfig';
 
 const WORKERS = [
   { name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', tilt: -12, code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 },
@@ -76,7 +75,7 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
               <div key={i} className="aw-worker" style={{ '--tilt': `${w.tilt}deg` }}>
                 <div className="aw-photo-wrap">
                   <div className="aw-photo" style={{
-                    backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${PHOTO_URL})`,
+                    backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${WORKER_PHOTOS[w.code]})`,
                     backgroundSize: 'auto, 130%', backgroundPosition: '0% 0%, center 15%',
                     filter: 'contrast(1.06)', transform: `rotate(calc(-1 * var(--tilt)))`,
                   }} />
@@ -86,7 +85,7 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
                     <div className="aw-badge-green" />
                     <div className="aw-badge-status"><StatusDot status={w.status} /><span>{w.status}</span></div>
                     <div className="aw-badge-photo" style={{
-                      backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${PHOTO_URL})`,
+                      backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${WORKER_PHOTOS[w.code]})`,
                       backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
                     }} />
                     <div className="aw-badge-info">
