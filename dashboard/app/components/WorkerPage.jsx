@@ -4,10 +4,10 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
-import { WORKER_CONFIG, DEFAULT_WORKER } from './WorkerConfig';
+import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER } from './WorkerConfig';
 
 const ANAM_API_KEY = 'YmZiZTc0OTEtNjg5ZS00M2NhLThlNTgtYTlkNTQ2MDMzZWYyOjY3cVJwUm9hek9OcmZLcmVWQ0VxdmJBSWFPVFRQSUNQZEdlQlpyTGNLSUk9';
-const PHOTO_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
+const DEFAULT_PHOTO = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
 
 const WKP_TABS = ['Dashboard', 'Overview', 'Live Activity', 'Skills', 'Workflows', 'Outputs', 'Integrations', 'Human Team', 'Technical', 'Business Impact'];
 
@@ -573,9 +573,10 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
 export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId }) {
-  const worker = workerProp || DEFAULT_WORKER;
+  const worker = (workerProp && workerProp.code) ? workerProp : DEFAULT_WORKER;
   const workerCode = worker.code || 'HRMANAGER';
   const cfg = WORKER_CONFIG[workerCode] || WORKER_CONFIG.HRMANAGER;
+  const photoUrl = WORKER_PHOTOS[workerCode] || DEFAULT_PHOTO;
   const firstName = worker.name.split('\n')[0];
   const authorName = firstName.toUpperCase();
 
@@ -749,7 +750,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
             <div className="wkp-badge-green-bg" />
             <div className="wkp-badge-photo-wrap">
               <div className="wkp-badge-photo" style={{
-                backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${PHOTO_URL})`,
+                backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${photoUrl})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
               <video id="wkp-avatar-video" autoPlay playsInline className="wkp-badge-video" style={{ display: isConnected ? 'block' : 'none' }} />

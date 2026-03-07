@@ -1009,7 +1009,7 @@ function AppInner() {
               cameraStream={hubCameraStream}
               avatarStream={hubAvatarStream}
               sessionId={sessionId}
-              onOpenWorkerProfile={(w) => { if (w) setSelectedWorker(w); setAiView('worker-page'); }}
+              onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
               onGoCall={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}

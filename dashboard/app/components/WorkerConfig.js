@@ -10,6 +10,18 @@ export const WORKER_PERSONA_IDS = {
   DESIGNER0: 'e63030df-8f7d-4b56-910e-f7e051347e56',
 };
 
+// ─── Anam persona thumbnail photos (Anne, Gabriel, Julia, Kevin, Mia, Sophie, Finn, Liv)
+export const WORKER_PHOTOS = {
+  HRMANAGER: 'https://lab.anam.ai/persona_thumbnails/anne_home.png',
+  SALESREP0: 'https://lab.anam.ai/persona_thumbnails/gabriel_table.png',
+  LEGALADV0: 'https://lab.anam.ai/persona_thumbnails/julia_sofa.png',
+  FINANALYS: 'https://lab.anam.ai/persona_thumbnails/kevin_table.png',
+  RESEARCHER: 'https://lab.anam.ai/persona_thumbnails/mia_studio.png',
+  ENGINEER0: 'https://lab.anam.ai/persona_thumbnails/sophie_sofa.png',
+  MARKETING: 'https://lab.anam.ai/persona_thumbnails/finn_lean.png',
+  DESIGNER0: 'https://lab.anam.ai/persona_thumbnails/liv_home.png',
+};
+
 // ─── Full Worker Config ───────────────────────────────────────────────────────
 export const WORKER_CONFIG = {
   HRMANAGER: {
