@@ -72,6 +72,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
 
   const anamClientRef = useRef(null);
   const cameraStreamRef = useRef(null);
+  const handedOffRef = useRef(false);
   const subtitleTimerRef = useRef(null);
   const wordSeqRef = useRef(0);
   const lineSeqRef = useRef(0);
@@ -84,8 +85,18 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
   useCursorTracking(badgeGroupRef);
 
   useEffect(() => {
-    // Skip intro video, show main page immediately
     setReady(true);
+    return () => {
+      // On unmount: stop Anam only if not handed off to Workspace
+      if (!handedOffRef.current && anamClientRef.current) {
+        anamClientRef.current.stopStreaming();
+        anamClientRef.current = null;
+      }
+      if (!handedOffRef.current && cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(t => t.stop());
+        cameraStreamRef.current = null;
+      }
+    };
   }, []);
 
   // Energy animation
@@ -200,6 +211,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
       anamClientRef.current.sendUserMessage(text);
       setCompanyName('');
     } else {
+      handedOffRef.current = true;
       onSubmit?.(text, anamClientRef.current, cameraStreamRef.current);
     }
   }
@@ -345,7 +357,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
 
       {ready && avatarOpen && !avatarConnecting && (
         <button className="hp-continue-btn"
-          onClick={() => onSubmit?.(companyName.trim() || 'Meridian Corp.', anamClientRef.current, cameraStreamRef.current)}>
+          onClick={() => { handedOffRef.current = true; onSubmit?.(companyName.trim() || 'Meridian Corp.', anamClientRef.current, cameraStreamRef.current); }}>
           Continue
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

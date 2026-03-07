@@ -26,21 +26,43 @@ function BarcodeSvg() {
   );
 }
 
-export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoWorkers, sessionId }) {
+function parseCompanyMetrics(company) {
+  if (!company) return { revenue: '$--', employees: '--', marketCap: '$--', sectorRank: '--', sector: '--', domain: '', siteName: 'COMPANY' };
+  const size = company.size || '';
+  const empMatch = size.match(/~?([\d,]+(?:\.\d+)?[Kk]?)\s*(?:000\s*)?employees/i);
+  const revMatch = size.match(/~?([€$£]\s*[\d,]+(?:\.\d+)?[MBKmb]+)\b/i);
+  const employees = empMatch ? empMatch[1].replace(/,/g, '') : '--';
+  const revenue = revMatch ? revMatch[1].replace(/\s+/g, '') : '--';
+  const domainRaw = company.domain || '';
+  const domain = domainRaw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
+  const words = company.name ? company.name.split(/\s+/) : [];
+  const siteName = (words[0] || 'COMPANY').toUpperCase().slice(0, 10);
+  return {
+    revenue: revenue !== '--' ? revenue : '$--',
+    employees: employees !== '--' ? employees : '--',
+    marketCap: '$--',
+    sectorRank: '--',
+    sector: company.industry || '--',
+    domain,
+    siteName,
+  };
+}
+
+export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoWorkers, sessionId }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
     { id: 1, author: 'ALEXANDRA', text: "I'm your orchestrator. What company should I research?", time: 'Just now', isUser: false },
   ]);
-  const [isConnecting, setIsConnecting] = useState(!anamClient);
-  const [isConnected, setIsConnected] = useState(!!anamClient);
+  const [isConnecting, setIsConnecting] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(!!cameraStream);
-  const [callStartTime, setCallStartTime] = useState(anamClient ? Date.now() : null);
+  const [callStartTime, setCallStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
-  const [researchData, setResearchData] = useState({ company: companyName, revenue: '$--', employees: '--', marketCap: '$--', sectorRank: '--' });
+  const metrics = parseCompanyMetrics(company);
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -55,54 +77,59 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
 
   useEffect(() => {
     let cancelled = false;
+    function attachSubtitleListener(client) {
+      client.addListener('MESSAGE_STREAM_EVENT_RECEIVED', (evt) => {
+        if (evt.content && evt.role !== 'user') {
+          setSubtitleText(prev => {
+            const words = prev ? prev.split(' ') : [];
+            words.push(evt.content);
+            if (words.length > 8) words.shift();
+            return words.join(' ');
+          });
+          if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
+          subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
+        }
+      });
+    }
     async function init() {
       if (cameraStreamRef.current && cameraVideoRef.current) {
         cameraVideoRef.current.srcObject = cameraStreamRef.current;
       }
       if (anamClientRef.current) {
-        anamClientRef.current.addListener('MESSAGE_STREAM_EVENT_RECEIVED', (evt) => {
-          if (evt.content && evt.role !== 'user') {
-            setSubtitleText(prev => {
-              const words = prev ? prev.split(' ') : [];
-              words.push(evt.content);
-              if (words.length > 8) words.shift();
-              return words.join(' ');
-            });
-            if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
-            subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
-          }
+        // Re-attach existing client from Homepage to the Workspace video element
+        attachSubtitleListener(anamClientRef.current);
+        anamClientRef.current.addListener('VIDEO_PLAY_STARTED', () => {
+          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
         });
-        const videoEl = document.getElementById('ws-avatar-video');
-        if (videoEl && avatarStream) { videoEl.srcObject = avatarStream; videoEl.play().catch(() => {}); }
+        try {
+          await anamClientRef.current.streamToVideoElement('ws-avatar-video');
+        } catch (err) {
+          console.warn('Re-attach failed, creating new session:', err);
+          anamClientRef.current = null;
+          await createFreshSession();
+        }
         return;
       }
+      await createFreshSession();
+    }
+    async function createFreshSession() {
+      if (cancelled) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        cameraStreamRef.current = stream; setCameraOn(true);
-        if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
+        if (!cancelled) { cameraStreamRef.current = stream; setCameraOn(true); if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream; }
       } catch { console.warn('Camera denied'); }
+      if (cancelled) return;
       try {
         const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: ANAM_PERSONA_ID });
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
           if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
         });
-        newClient.addListener('MESSAGE_STREAM_EVENT_RECEIVED', (evt) => {
-          if (evt.content && evt.role !== 'user') {
-            setSubtitleText(prev => {
-              const words = prev ? prev.split(' ') : [];
-              words.push(evt.content);
-              if (words.length > 8) words.shift();
-              return words.join(' ');
-            });
-            if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
-            subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
-          }
-        });
+        attachSubtitleListener(newClient);
         await newClient.streamToVideoElement('ws-avatar-video');
       } catch (err) { console.error('Anam connection failed:', err); if (!cancelled) setIsConnecting(false); }
     }
-    const timer = setTimeout(init, 200);
+    const timer = setTimeout(init, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
@@ -323,10 +350,10 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
 
         <div className="ws-metrics">
           {[
-            { label: 'Q3 Revenue', value: '$847M', change: '+23% YoY', delay: 0.6 },
-            { label: 'Employees', value: '12,400', change: '+18% hiring', delay: 0.7 },
-            { label: 'Market Cap', value: '$24.1B', change: '+9.2% MTD', delay: 0.8 },
-            { label: 'Sector Rank', value: '#3 /142', change: 'Enterprise SaaS', delay: 0.9 },
+            { label: 'Annual Revenue', value: metrics.revenue, change: company?.industry || 'Enterprise', delay: 0.6 },
+            { label: 'Employees', value: metrics.employees, change: company?.size?.match(/([A-Za-z]+\s*enterprise|[A-Za-z]+\s*company)/i)?.[0] || 'Global operations', delay: 0.7 },
+            { label: 'Market Cap', value: metrics.marketCap, change: company?.country || '--', delay: 0.8 },
+            { label: 'Sector', value: (company?.industry || '--').split(/[,/]/)[0].trim(), change: company?.size?.split(',').slice(-1)[0]?.trim() || '--', delay: 0.9 },
           ].map(m => (
             <div key={m.label} className="ws-metric">
               <WordsStagger className="ws-metric-label" delay={m.delay} stagger={0.05} speed={0.35}>{m.label}</WordsStagger>
@@ -357,8 +384,8 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
               <path d="M0,85 C50,80 100,70 150,55 C200,40 250,35 300,25 C340,18 380,15 400,12" fill="none" stroke="#34c759" strokeWidth="2" />
             </svg>
             <div className="ws-chart-footer">
-              <WordsStagger className="ws-chart-value" delay={1.4} stagger={0.08} speed={0.4}>$847M</WordsStagger>
-              <WordsStagger className="ws-metric-change" delay={1.5} stagger={0.06} speed={0.35}>+23% YoY</WordsStagger>
+              <WordsStagger className="ws-chart-value" delay={1.4} stagger={0.08} speed={0.4}>{metrics.revenue}</WordsStagger>
+              <WordsStagger className="ws-metric-change" delay={1.5} stagger={0.06} speed={0.35}>{company?.industry || 'Revenue'}</WordsStagger>
             </div>
           </div>
 
@@ -366,15 +393,15 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
             <WordsStagger className="ws-chart-title" delay={1.3} stagger={0.06} speed={0.4}>Competitive Landscape</WordsStagger>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { name: 'Meridian Corp.', pct: 34, color: '#34c759' },
-                { name: 'Apex Industries', pct: 28, color: 'rgba(0,0,0,0.12)' },
-                { name: 'Solaris Tech', pct: 22, color: 'rgba(0,0,0,0.08)' },
+                { name: companyName, pct: 34, color: '#34c759' },
+                { name: 'Industry Leader', pct: 28, color: 'rgba(0,0,0,0.12)' },
+                { name: 'Peer Co.', pct: 22, color: 'rgba(0,0,0,0.08)' },
                 { name: 'Others', pct: 16, color: 'rgba(0,0,0,0.05)' },
               ].map(c => (
                 <div key={c.name}>
                   <div className="ws-competitor-row">
                     <span className="ws-competitor-name">{c.name}</span>
-                    <span className="ws-competitor-pct" style={{ color: c.name === companyName || c.name === 'Meridian Corp.' ? '#34c759' : 'rgba(0,0,0,0.35)' }}>{c.pct}%</span>
+                    <span className="ws-competitor-pct" style={{ color: c.name === companyName ? '#34c759' : 'rgba(0,0,0,0.35)' }}>{c.pct}%</span>
                   </div>
                   <div className="ws-competitor-bar" style={{ width: `${c.pct * 2.5}%`, background: c.color }} />
                 </div>
@@ -387,7 +414,10 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
           <div className="ws-signals-card">
             <WordsStagger className="ws-signals-title" delay={1.5} stagger={0.06} speed={0.4}>Key Signals</WordsStagger>
             <div className="ws-signals-tags">
-              {['Q4 Earnings Beat', 'New Patent Filed', 'CEO Interview', 'Market Expansion', 'Regulatory Review'].map(s => (
+              {(researchFindings && researchFindings.length > 0
+                ? researchFindings.slice(0, 5).map(f => (typeof f === 'string' ? f : (f.title || f.text || '')).replace(/^[-•*]\s*/, '').slice(0, 35))
+                : ['Research Pending', 'AI Analysis', 'Data Collection', 'Market Scan', 'Report Ready']
+              ).map(s => (
                 <span key={s} className="ws-signal-tag">{s}</span>
               ))}
             </div>
@@ -419,29 +449,29 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </div>
-                <div className="ws-sandbox-url"><span>meridian-corp.com/investor-relations</span></div>
+                <div className="ws-sandbox-url"><span>{metrics.domain ? `${metrics.domain}/investor-relations` : 'investor-relations'}</span></div>
               </div>
               <div className="ws-sandbox-page">
                 <div className="ws-sandbox-app-nav">
-                  <span className="ws-sandbox-site-name">MERIDIAN</span>
+                  <span className="ws-sandbox-site-name">{metrics.siteName}</span>
                   <div className="ws-sandbox-app-links"><span>Products</span><span>Investors</span><span>About</span></div>
                 </div>
                 <div className="ws-sandbox-results-section">
-                  <span className="ws-sandbox-results-title">Q3 2025 Results</span>
-                  <span className="ws-sandbox-results-subtitle">Revenue up 23% YoY to $847M, driven by enterprise expansion.</span>
+                  <span className="ws-sandbox-results-title">{company?.industry || 'Company'} Overview</span>
+                  <span className="ws-sandbox-results-subtitle">{company?.description ? company.description.split('.')[0] + '.' : `${companyName} — AI back-office simulation.`}</span>
                 </div>
                 <div className="ws-sandbox-dash-metrics">
                   <div className="ws-sandbox-dash-metric ws-sandbox-dash-metric--highlight">
                     <span className="ws-sandbox-dash-metric-label">REVENUE</span>
-                    <span className="ws-sandbox-dash-metric-value">$847M</span>
+                    <span className="ws-sandbox-dash-metric-value">{metrics.revenue}</span>
                   </div>
                   <div className="ws-sandbox-dash-metric">
-                    <span className="ws-sandbox-dash-metric-label">EBITDA</span>
-                    <span className="ws-sandbox-dash-metric-value">$214M</span>
+                    <span className="ws-sandbox-dash-metric-label">EMPLOYEES</span>
+                    <span className="ws-sandbox-dash-metric-value">{metrics.employees}</span>
                   </div>
                   <div className="ws-sandbox-dash-metric">
-                    <span className="ws-sandbox-dash-metric-label">MARGIN</span>
-                    <span className="ws-sandbox-dash-metric-value ws-sandbox-dash-metric-value--green">25.3%</span>
+                    <span className="ws-sandbox-dash-metric-label">SECTOR</span>
+                    <span className="ws-sandbox-dash-metric-value ws-sandbox-dash-metric-value--green">{(company?.industry || '--').split(/[,/]/)[0].slice(0, 8)}</span>
                   </div>
                 </div>
               </div>
@@ -453,7 +483,7 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
                 <div className="ws-sandbox-phone-status">
                   <span className="ws-sandbox-phone-time">9:41</span>
                 </div>
-                <div className="ws-sandbox-stock-name">Meridian</div>
+                <div className="ws-sandbox-stock-name">{companyName.split(' ')[0]}</div>
                 <div className="ws-sandbox-stock-price-row">
                   <span className="ws-sandbox-stock-price">$68.42</span>
                   <span className="ws-sandbox-stock-change">+2.4%</span>
@@ -467,7 +497,7 @@ export function Workspace({ companyName = 'Meridian Corp.', anamClient = null, c
                   <div className="ws-sandbox-stock-btn ws-sandbox-stock-btn--sell">Sell</div>
                 </div>
                 <div className="ws-sandbox-stock-stats">
-                  {[{ l: 'Mkt Cap', v: '$24.1B' }, { l: 'P/E', v: '28.4x' }, { l: 'Vol', v: '3.2M' }].map(s => (
+                  {[{ l: 'Mkt Cap', v: metrics.marketCap }, { l: 'Country', v: company?.country?.slice(0, 5) || '--' }, { l: 'Staff', v: metrics.employees }].map(s => (
                     <div key={s.l} className="ws-sandbox-stock-stat">
                       <span className="ws-sandbox-stock-stat-label">{s.l}</span>
                       <span className="ws-sandbox-stock-stat-value">{s.v}</span>

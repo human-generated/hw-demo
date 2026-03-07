@@ -216,6 +216,8 @@ function AppInner() {
   // AI Workers Hub view: null | 'home' | 'workspace' | 'workers' | 'worker-page'
   const [aiView, setAiView] = useState(null);
   const [selectedWorker, setSelectedWorker] = useState(null);
+  const [hubAnamClient, setHubAnamClient] = useState(null);
+  const [hubCameraStream, setHubCameraStream] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -981,17 +983,30 @@ function AppInner() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
           {aiView === 'home' && (
             <Homepage
-              onSubmit={() => setAiView('workspace')}
-              onGoCall={() => setAiView('workspace')}
+              onSubmit={(text, client, camera) => {
+                if (client) setHubAnamClient(client);
+                if (camera) setHubCameraStream(camera);
+                setAiView('workspace');
+              }}
+              onGoCall={(client, camera) => {
+                if (client) setHubAnamClient(client);
+                if (camera) setHubCameraStream(camera);
+                setAiView('workspace');
+              }}
               onGoWorkers={() => setAiView('workers')}
             />
           )}
           {aiView === 'workspace' && (
             <Workspace
               companyName={company?.name || 'Humans.AI'}
+              company={company}
+              researchSummary={researchSummary}
+              researchFindings={researchFindings}
+              anamClient={hubAnamClient}
+              cameraStream={hubCameraStream}
               sessionId={sessionId}
               onOpenWorkerProfile={(w) => { if (w) setSelectedWorker(w); setAiView('worker-page'); }}
-              onGoHome={() => setAiView('home')}
+              onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
               onGoCall={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
             />
