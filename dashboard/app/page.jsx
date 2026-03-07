@@ -218,6 +218,7 @@ function AppInner() {
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [hubAnamClient, setHubAnamClient] = useState(null);
   const [hubCameraStream, setHubCameraStream] = useState(null);
+  const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -983,14 +984,16 @@ function AppInner() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
           {aiView === 'home' && (
             <Homepage
-              onSubmit={(text, client, camera) => {
+              onSubmit={(text, client, camera, avatarStream) => {
                 if (client) setHubAnamClient(client);
                 if (camera) setHubCameraStream(camera);
+                if (avatarStream) setHubAvatarStream(avatarStream);
                 setAiView('workspace');
               }}
-              onGoCall={(client, camera) => {
+              onGoCall={(client, camera, avatarStream) => {
                 if (client) setHubAnamClient(client);
                 if (camera) setHubCameraStream(camera);
+                if (avatarStream) setHubAvatarStream(avatarStream);
                 setAiView('workspace');
               }}
               onGoWorkers={() => setAiView('workers')}
@@ -1004,6 +1007,7 @@ function AppInner() {
               researchFindings={researchFindings}
               anamClient={hubAnamClient}
               cameraStream={hubCameraStream}
+              avatarStream={hubAvatarStream}
               sessionId={sessionId}
               onOpenWorkerProfile={(w) => { if (w) setSelectedWorker(w); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}

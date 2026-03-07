@@ -212,7 +212,9 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
       setCompanyName('');
     } else {
       handedOffRef.current = true;
-      onSubmit?.(text, anamClientRef.current, cameraStreamRef.current);
+      const avatarVideoEl = document.getElementById('hp-avatar-video');
+      const avatarStream = avatarVideoEl?.srcObject || null;
+      onSubmit?.(text, anamClientRef.current, cameraStreamRef.current, avatarStream);
     }
   }
 
@@ -357,7 +359,12 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
 
       {ready && avatarOpen && !avatarConnecting && (
         <button className="hp-continue-btn"
-          onClick={() => { handedOffRef.current = true; onSubmit?.(companyName.trim() || 'Meridian Corp.', anamClientRef.current, cameraStreamRef.current); }}>
+          onClick={() => {
+            handedOffRef.current = true;
+            const avatarVideoEl = document.getElementById('hp-avatar-video');
+            const avatarStream = avatarVideoEl?.srcObject || null;
+            onSubmit?.(companyName.trim() || 'Meridian Corp.', anamClientRef.current, cameraStreamRef.current, avatarStream);
+          }}>
           Continue
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

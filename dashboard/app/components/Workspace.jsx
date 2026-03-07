@@ -96,17 +96,19 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         cameraVideoRef.current.srcObject = cameraStreamRef.current;
       }
       if (anamClientRef.current) {
-        // Re-attach existing client from Homepage to the Workspace video element
+        // Existing client handed off from Homepage — already connected, just re-attach stream
         attachSubtitleListener(anamClientRef.current);
-        anamClientRef.current.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
-        });
-        try {
-          await anamClientRef.current.streamToVideoElement('ws-avatar-video');
-        } catch (err) {
-          console.warn('Re-attach failed, creating new session:', err);
-          anamClientRef.current = null;
-          await createFreshSession();
+        // VIDEO_PLAY_STARTED already fired; mark connected immediately
+        if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
+        // Attach the media stream directly to the Workspace video element
+        const videoEl = document.getElementById('ws-avatar-video');
+        if (videoEl && avatarStream) {
+          videoEl.srcObject = avatarStream;
+          videoEl.muted = false;
+          videoEl.play().catch(() => {});
+        } else if (videoEl) {
+          // No stream captured — try re-streaming (may not fire VIDEO_PLAY_STARTED again)
+          try { await anamClientRef.current.streamToVideoElement('ws-avatar-video'); } catch {}
         }
         return;
       }
