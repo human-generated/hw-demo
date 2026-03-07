@@ -1,0 +1,679 @@
+// ─── Anam Persona IDs (one per worker, created via API) ──────────────────────
+export const WORKER_PERSONA_IDS = {
+  HRMANAGER: 'd8c9f048-1c23-4ce7-b7c2-de2c71f7b190',
+  SALESREP0: '66c8ec76-385c-493b-92ed-45b87fc42726',
+  LEGALADV0: '74d1a576-9820-491c-8767-7f20f15bd733',
+  FINANALYS: '6011422b-4df5-4617-8ba5-261b26b0e4d0',
+  RESEARCHER: 'a07e4290-62ba-4664-b786-14d7b7983602',
+  ENGINEER0: 'a356e326-f52e-48fc-86cc-42dc9f2463e2',
+  MARKETING: '3967e133-71b3-4b70-993a-5edd2b5c6c6a',
+  DESIGNER0: 'e63030df-8f7d-4b56-910e-f7e051347e56',
+};
+
+// ─── Full Worker Config ───────────────────────────────────────────────────────
+export const WORKER_CONFIG = {
+  HRMANAGER: {
+    personaId: WORKER_PERSONA_IDS.HRMANAGER,
+    intro: [
+      { id: 1, text: "I've completed the HR audit. Onboarding backlog is down 40% and compliance gaps are closed.", isUser: false },
+      { id: 2, text: 'Great. Can you run a policy review for the engineering team?', isUser: true },
+      { id: 3, text: "On it. Pulling latest policy docs and cross-referencing with last quarter's audit findings.", isUser: false },
+    ],
+    banner: 'Running HR policy review for Engineering team — compliance check and gap analysis',
+    job: 'I manage human resources workflows, employee onboarding, and policy compliance at scale',
+    dashboard: {
+      roi: '11.8x', hoursPerDay: '6.4h',
+      tools: ['Email Drafting', 'Document Review', 'Policy Search', 'ATS Integration', 'Slack Messaging', 'Calendar'],
+      office: 'hr-portal.humans.ai/onboarding', siteName: 'HR PORTAL',
+      browserTitle: 'Onboarding Pipeline · March 2026', browserSub: 'Q1 hires on track. Engineering backlog cleared. Compliance score 97/100.',
+      browserMetrics: [{ label: 'ACTIVE HIRES', value: '12' }, { label: 'COMPLIANCE', value: '97%' }, { label: 'BACKLOG', value: '↓ 40%' }],
+      activity: [
+        { time: '2m', text: 'Completed onboarding checklist for 3 new hires', color: '#3b82f6' },
+        { time: '5m', text: 'Flagged policy gap in engineering leave policy', color: '#f59e0b' },
+        { time: '9m', text: 'Sent compliance reminder to 12 team members', color: '#34c759' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '1,247', uptime: '99.7%', escalationRate: '3.2%', dailyActive: '6.4h' },
+      statSubs: { tasks: '↑ 12% vs last month', uptime: 'Last 30 days', escalation: '↓ 0.8% vs target', daily: 'Avg session time' },
+      identity: { workerId: 'ALEX-HR-0042', role: 'HR Manager & Compliance Lead', department: 'People Operations', region: 'Global — Remote-First', deployed: '2025-10-01', version: 'v3.2.1-stable' },
+      personality: { communication: 'Professional, warm, empathetic', formality: 'Semi-formal with adaptive tone', responseLength: 'Medium — 2-4 paragraphs', proactivity: 'High — flags risks early', languages: 'English, Spanish, French', humor: 'Light — context-appropriate' },
+    },
+    liveActivity: {
+      currentTask: 'Running HR policy review for Engineering team — leave policy gap analysis',
+      currentMeta: 'Running for 00:14:32 · Co-worker: Elena Vasquez (Legal)',
+      feed: [
+        { time: '09:41', event: 'Started engineering team policy review — 3 gaps flagged', color: '#3b82f6' },
+        { time: '09:22', event: 'Completed onboarding for 3 new engineering hires', color: '#34c759' },
+        { time: '09:15', event: 'Sent compliance reminder batch to 12 team members', color: '#1a1a1a' },
+        { time: '08:58', event: 'Escalated pay equity anomaly to James Park (Finance)', color: '#f59e0b' },
+        { time: '08:45', event: 'Session started — overnight policy update ingested', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 7, documentsProcessed: 14, emailsDrafted: 6, escalations: 1, tokensUsed: '192,400', avgResponse: '1.9s' },
+      scheduled: [
+        { time: '10:00', event: 'Q1 headcount review with leadership' },
+        { time: '11:30', event: 'Benefits enrollment deadline — final reminders' },
+        { time: '14:00', event: 'New hire orientation — Engineering cohort' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Policy & Compliance', value: 97 }, { label: 'Employee Onboarding', value: 95 }, { label: 'Document Drafting', value: 91 }, { label: 'Data Analysis (HR)', value: 87 }, { label: 'Conflict Resolution', value: 83 }, { label: 'Benefits Administration', value: 89 }],
+      domain: [{ label: 'Labor Law (US)', value: 94 }, { label: 'GDPR & Privacy', value: 88 }, { label: 'ATS Systems', value: 86 }, { label: 'DEI & Inclusion', value: 82 }, { label: 'Payroll Systems', value: 79 }, { label: 'Organizational Design', value: 74 }],
+      guardrails: ['Cannot finalize hiring or termination decisions', 'Cannot approve salary changes over $5,000', 'Cannot access personal medical records', 'Cannot override HR director decisions', 'Cannot share employee PII externally', 'Cannot modify payroll database directly', 'Cannot sign employment contracts', 'Cannot waive mandatory training requirements'],
+    },
+    workflows: {
+      activeWorkflow: 'Engineering Team Policy Review SOP',
+      steps: [{ label: 'Pull Policy Docs', status: 'done' }, { label: 'Identify Gaps', status: 'done' }, { label: 'Legal Cross-Check', status: 'active' }, { label: 'Draft Updates', status: 'pending' }, { label: 'Manager Review', status: 'pending' }, { label: 'Publish', status: 'pending' }],
+      sops: [{ name: 'New Hire Onboarding', freq: 'Per hire', last: 'Completed today' }, { name: 'Policy Review Cycle', freq: 'Quarterly', last: 'In progress' }, { name: 'Compliance Audit Prep', freq: 'Monthly', last: 'Due Mar 15' }, { name: 'Performance Review Support', freq: 'Semi-annual', last: 'Next: Jun 2026' }],
+      escalation: [{ trigger: 'Legal risk detected', target: '→ Elena Vasquez (Legal)' }, { trigger: 'Comp anomaly > $5K', target: '→ James Park (Finance)' }, { trigger: 'Executive-level decision', target: '→ HR Director (Human)' }, { trigger: 'Unresolved 30min+', target: '→ Supervisor auto-notify' }],
+    },
+    outputs: {
+      recent: [{ type: 'Document', name: 'Engineering Leave Policy — Gap Report', score: 97, time: '09:22' }, { type: 'Email', name: 'Compliance reminder batch (12 recipients)', score: 93, time: '09:15' }, { type: 'Report', name: 'Q1 Onboarding Status Report', score: 96, time: 'Yesterday' }, { type: 'Document', name: 'Benefits enrollment guide — 2026', score: 94, time: 'Mar 4' }, { type: 'Email', name: 'Manager onboarding prep notes', score: 91, time: 'Mar 3' }],
+      breakdown: { documents: 45, reports: 28, emails: 18, other: 9 },
+      qualityStats: { avgScore: '94.8 / 100', rated: '1,089 of 1,247', perfect: '341 (27.5%)', reworkRate: '1.8%', avgTime: '3.8 min' },
+    },
+    integrations: {
+      systems: [{ name: 'Workday HCM', status: 'Connected' }, { name: 'Microsoft 365', status: 'Connected' }, { name: 'Greenhouse ATS', status: 'Connected' }, { name: 'DocuSign', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'Lattice (Reviews)', status: 'Connected' }, { name: 'BambooHR', status: 'Standby' }, { name: 'Google Workspace', status: 'Connected' }],
+      readAccess: ['Employee records (non-medical)', 'Policy documents', 'Org charts', 'Onboarding templates', 'Compliance reports', 'Calendar (team)'],
+      writeAccess: ['Draft HR documents', 'Send email (with approval)', 'Update Workday records', 'Create onboarding tasks', 'Post to Slack channels'],
+    },
+    humanTeam: {
+      members: [{ name: 'Sarah Kim', role: 'HR Director', relation: 'Direct Supervisor', satisfaction: 4.9 }, { name: 'Elena Vasquez', role: 'Legal Counsel', relation: 'Escalation Target', satisfaction: 4.8 }, { name: 'James Park', role: 'Finance Analyst', relation: 'Co-worker', satisfaction: 4.5 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Stakeholder', satisfaction: 4.7 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Co-worker', satisfaction: 4.6 }],
+      autonomousPct: 81, escalatedPct: 15, overridePct: 4,
+      stats: { satisfaction: '4.7 / 5.0', quality: '96% approved first try', escalationTime: '2.8 minutes', weeklyInteractions: '168 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Sonnet 4.6', contextWindow: '200K tokens', memory: 'Persistent + Session', modalities: 'Text, Voice', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'US-East (Virginia)', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.7%', p50: '1.4s', p95: '3.6s', errorRate: '0.02%', costPerDay: '$9.80', costPerTask: '$0.14', monthlyBudget: '$294 / $400' },
+      versions: [{ ver: 'v3.2.1', date: 'Mar 4', notes: 'Improved policy gap detection accuracy' }, { ver: 'v3.2.0', date: 'Feb 28', notes: 'Added ATS bidirectional sync' }, { ver: 'v3.1.4', date: 'Feb 15', notes: 'Fixed compliance calendar edge case' }, { ver: 'v3.0.0', date: 'Jan 10', notes: 'Major: Multi-tenant HR support' }],
+    },
+    businessImpact: {
+      hoursSaved: '1,840h', costSavings: '$147K', roi: '11.8x',
+      performance: [{ metric: 'Task Throughput', actual: 94, target: 85 }, { metric: 'Quality Score', actual: 95, target: 90 }, { metric: 'Uptime', actual: 99.7, target: 99.5 }, { metric: 'Compliance Rate', actual: 97, target: 95 }, { metric: 'Onboarding NPS', actual: 92, target: 88 }],
+      deployments: [{ client: 'Humans.AI (Internal)', type: 'People Ops', since: 'Oct 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'HR Automation', since: 'Jan 2026', status: 'Active' }, { client: 'Apex Industries', type: 'Compliance Review', since: 'Feb 2026', status: 'Pilot' }],
+    },
+  },
+
+  SALESREP0: {
+    personaId: WORKER_PERSONA_IDS.SALESREP0,
+    intro: [
+      { id: 1, text: "Q3 pipeline is strong — I've qualified 14 new enterprise leads this week.", isUser: false },
+      { id: 2, text: 'Focus on APAC. Run outreach for the top 5 prospects.', isUser: true },
+      { id: 3, text: "On it. Drafting personalized sequences and scheduling follow-up calls for all 5.", isUser: false },
+    ],
+    banner: 'Running APAC outreach sequences — prospect research and personalized email drafts',
+    job: 'I drive enterprise sales pipeline, qualify leads, run outreach, and accelerate deal velocity',
+    dashboard: {
+      roi: '22.4x', hoursPerDay: '8.1h',
+      tools: ['CRM Updates', 'Email Outreach', 'Research', 'Call Prep', 'Demo Scheduling', 'Pipeline Tracking'],
+      office: 'crm.humans.ai/pipeline', siteName: 'CRM',
+      browserTitle: 'Enterprise Pipeline · Q1 2026', browserSub: '31 active opportunities. $4.2M forecasted. APAC segment growing 42% QoQ.',
+      browserMetrics: [{ label: 'PIPELINE', value: '$4.2M' }, { label: 'LEADS', value: '31' }, { label: 'WIN RATE', value: '38%' }],
+      activity: [
+        { time: '2m', text: 'Qualified 3 new APAC enterprise prospects', color: '#34c759' },
+        { time: '6m', text: 'Drafted outreach sequence for Hanwha Group', color: '#3b82f6' },
+        { time: '10m', text: 'Updated pipeline forecast — $4.2M this quarter', color: '#f59e0b' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '2,841', uptime: '99.4%', escalationRate: '4.1%', dailyActive: '8.1h' },
+      statSubs: { tasks: '↑ 28% vs last quarter', uptime: 'Last 30 days', escalation: 'Complex deals', daily: 'Avg session time' },
+      identity: { workerId: 'MARC-SD-0018', role: 'Enterprise Sales Representative', department: 'Revenue Operations', region: 'Global — APAC & EMEA Focus', deployed: '2025-10-15', version: 'v4.1.0-stable' },
+      personality: { communication: 'Energetic, persuasive, concise', formality: 'Informal-professional', responseLength: 'Short — punchy, action-oriented', proactivity: 'Very high — always chasing next step', languages: 'English, Mandarin (basic)', humor: 'Moderate — rapport building' },
+    },
+    liveActivity: {
+      currentTask: 'Researching Hanwha Group decision-makers and drafting personalized APAC outreach sequence',
+      currentMeta: 'Running for 00:08:17 · 5 prospects in scope · Deal value: $680K',
+      feed: [
+        { time: '09:47', event: 'Identified 3 additional Hanwha stakeholders via LinkedIn', color: '#3b82f6' },
+        { time: '09:38', event: 'Closed Meridian Corp upsell — $120K ARR added', color: '#34c759' },
+        { time: '09:22', event: 'Escalated pricing exception to Sales Director', color: '#f59e0b' },
+        { time: '09:10', event: 'Completed 6 CRM record updates post-call notes', color: '#1a1a1a' },
+        { time: '08:45', event: 'Session started — pipeline reviewed, 2 new leads assigned', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 9, documentsProcessed: 8, emailsDrafted: 14, escalations: 2, tokensUsed: '241,800', avgResponse: '1.6s' },
+      scheduled: [
+        { time: '10:30', event: 'Discovery call prep — TechCorp APAC ($340K)' },
+        { time: '13:00', event: 'Pipeline review with Sales Director' },
+        { time: '15:00', event: 'Product demo support — Apex Industries' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Lead Qualification (MEDDIC)', value: 96 }, { label: 'Outreach & Sequencing', value: 94 }, { label: 'CRM Management', value: 92 }, { label: 'Objection Handling', value: 89 }, { label: 'Deal Velocity Analysis', value: 87 }, { label: 'Contract Negotiation Support', value: 83 }],
+      domain: [{ label: 'Enterprise SaaS Sales', value: 97 }, { label: 'APAC Market Dynamics', value: 88 }, { label: 'Pricing Strategy', value: 85 }, { label: 'Product-Led Growth', value: 82 }, { label: 'Revenue Operations', value: 86 }, { label: 'Channel Partnerships', value: 74 }],
+      guardrails: ['Cannot approve discounts over 20% without approval', 'Cannot commit to product features not in roadmap', 'Cannot sign or counter-sign contracts', 'Cannot share confidential pricing with competitors', 'Cannot contact executive-level without SDR warm intro', 'Cannot modify CRM deal ownership without authorization'],
+    },
+    workflows: {
+      activeWorkflow: 'APAC Enterprise Outreach SOP — 5 prospects',
+      steps: [{ label: 'Identify ICP', status: 'done' }, { label: 'Research Stakeholders', status: 'active' }, { label: 'Draft Sequences', status: 'pending' }, { label: 'Launch Outreach', status: 'pending' }, { label: 'Book Discovery', status: 'pending' }, { label: 'Handoff to AE', status: 'pending' }],
+      sops: [{ name: 'Inbound Lead Qualification', freq: 'Per lead', last: 'Completed 09:10' }, { name: 'Outbound Sequence Build', freq: 'Per campaign', last: 'In progress' }, { name: 'Weekly Pipeline Hygiene', freq: 'Weekly', last: 'Monday complete' }, { name: 'Competitive Battle Cards', freq: 'Monthly', last: 'Updated Feb 28' }],
+      escalation: [{ trigger: 'Discount > 20%', target: '→ Sales Director (Human)' }, { trigger: 'Enterprise > $500K', target: '→ Account Executive team' }, { trigger: 'Legal clause objection', target: '→ Elena Vasquez (Legal)' }, { trigger: 'Deal stalled 14 days', target: '→ Marcus escalation playbook' }],
+    },
+    outputs: {
+      recent: [{ type: 'Email', name: 'APAC outreach sequence — Hanwha Group (5 emails)', score: 96, time: 'In progress' }, { type: 'Report', name: 'Q1 Pipeline forecast — $4.2M', score: 94, time: '09:38' }, { type: 'Document', name: 'Meridian Corp upsell proposal', score: 98, time: 'Yesterday' }, { type: 'Email', name: 'TechCorp discovery prep brief', score: 91, time: 'Yesterday' }, { type: 'Report', name: 'APAC competitive landscape brief', score: 93, time: 'Mar 3' }],
+      breakdown: { emails: 52, reports: 22, documents: 18, other: 8 },
+      qualityStats: { avgScore: '93.7 / 100', rated: '2,614 of 2,841', perfect: '412 (15.8%)', reworkRate: '3.4%', avgTime: '2.1 min' },
+    },
+    integrations: {
+      systems: [{ name: 'Salesforce', status: 'Connected' }, { name: 'Outreach.io', status: 'Connected' }, { name: 'LinkedIn Sales Nav', status: 'Connected' }, { name: 'Gong.io', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'Google Workspace', status: 'Connected' }, { name: 'ZoomInfo', status: 'Connected' }, { name: 'Notion', status: 'Standby' }],
+      readAccess: ['CRM deal data', 'Prospect contact database', 'Email threads (assigned)', 'Product pricing tiers', 'Competitor intel library', 'Call recordings (own deals)'],
+      writeAccess: ['Update CRM records', 'Create/send email sequences', 'Log call notes', 'Book calendar invites', 'Draft proposals (requires approval)'],
+    },
+    humanTeam: {
+      members: [{ name: 'David Wu', role: 'VP Sales', relation: 'Direct Supervisor', satisfaction: 4.8 }, { name: 'Elena Vasquez', role: 'Legal Counsel', relation: 'Escalation Target', satisfaction: 4.7 }, { name: 'James Park', role: 'Finance Analyst', relation: 'Deal Approval', satisfaction: 4.5 }, { name: 'Alexandra Seaman', role: 'HR Manager', relation: 'Co-worker', satisfaction: 4.6 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Product Liaison', satisfaction: 4.4 }],
+      autonomousPct: 74, escalatedPct: 21, overridePct: 5,
+      stats: { satisfaction: '4.6 / 5.0', quality: '91% approved first try', escalationTime: '4.1 minutes', weeklyInteractions: '224 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Sonnet 4.6', contextWindow: '200K tokens', memory: 'Session + CRM Sync', modalities: 'Text, Voice', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'US-West-2', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.4%', p50: '1.1s', p95: '2.9s', errorRate: '0.04%', costPerDay: '$14.20', costPerTask: '$0.09', monthlyBudget: '$426 / $500' },
+      versions: [{ ver: 'v4.1.0', date: 'Mar 1', notes: 'MEDDIC scoring model v2' }, { ver: 'v4.0.2', date: 'Feb 22', notes: 'Gong.io real-time call coaching' }, { ver: 'v4.0.0', date: 'Feb 1', notes: 'Major: Outreach.io bidirectional sync' }, { ver: 'v3.8.1', date: 'Jan 14', notes: 'LinkedIn Sales Nav deep integration' }],
+    },
+    businessImpact: {
+      hoursSaved: '3,120h', costSavings: '$248K', roi: '22.4x',
+      performance: [{ metric: 'Lead Qualification Rate', actual: 96, target: 80 }, { metric: 'Sequence Open Rate', actual: 42, target: 30 }, { metric: 'Pipeline Accuracy', actual: 89, target: 85 }, { metric: 'CRM Data Quality', actual: 97, target: 90 }, { metric: 'Time-to-Outreach', actual: 94, target: 85 }],
+      deployments: [{ client: 'Humans.AI (Internal)', type: 'Revenue Ops', since: 'Oct 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'Outbound Sales', since: 'Dec 2025', status: 'Active' }, { client: 'TechVentures APAC', type: 'SDR Automation', since: 'Feb 2026', status: 'Pilot' }],
+    },
+  },
+
+  LEGALADV0: {
+    personaId: WORKER_PERSONA_IDS.LEGALADV0,
+    intro: [
+      { id: 1, text: "Contract review for the Apex partnership is complete — 3 clauses flagged for negotiation.", isUser: false },
+      { id: 2, text: 'What are the main risks in the IP ownership clause?', isUser: true },
+      { id: 3, text: 'The clause grants broad IP transfer rights. I recommend carving out pre-existing IP and adding a 2-year sunset provision.', isUser: false },
+    ],
+    banner: 'Reviewing Apex partnership contract — IP ownership clause risk analysis in progress',
+    job: 'I review contracts, assess legal risks, ensure regulatory compliance, and draft legal documents',
+    dashboard: {
+      roi: '18.6x', hoursPerDay: '7.2h',
+      tools: ['Contract Analysis', 'Regulatory Search', 'Risk Flagging', 'Clause Drafting', 'Compliance Checks', 'Case Research'],
+      office: 'legal.humans.ai/contracts', siteName: 'LEGAL',
+      browserTitle: 'Active Contracts · March 2026', browserSub: '14 contracts under review. 3 high-risk clauses flagged. GDPR compliance 100%.',
+      browserMetrics: [{ label: 'CONTRACTS', value: '14' }, { label: 'RISK FLAGS', value: '3' }, { label: 'COMPLIANCE', value: '100%' }],
+      activity: [
+        { time: '2m', text: 'Flagged 3 high-risk clauses in Apex contract', color: '#ef4444' },
+        { time: '7m', text: 'Completed GDPR compliance check for new data pipeline', color: '#34c759' },
+        { time: '11m', text: 'Filed NDA for the Meridian partnership', color: '#3b82f6' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '984', uptime: '99.8%', escalationRate: '2.1%', dailyActive: '7.2h' },
+      statSubs: { tasks: '↑ 8% vs last quarter', uptime: 'Last 30 days', escalation: 'Complex legal matters', daily: 'Avg session time' },
+      identity: { workerId: 'ELEN-LA-0009', role: 'Legal Advisor & Risk Counsel', department: 'Legal & Compliance', region: 'North America — EMEA Coverage', deployed: '2025-11-01', version: 'v2.8.3-stable' },
+      personality: { communication: 'Precise, measured, risk-aware', formality: 'Formal — legal standards', responseLength: 'Long — thorough analysis', proactivity: 'High — flags risks proactively', languages: 'English, Spanish', humor: 'Minimal — professional context' },
+    },
+    liveActivity: {
+      currentTask: 'IP ownership clause analysis — Apex partnership contract Section 12.4',
+      currentMeta: 'Running for 00:21:08 · Cross-referencing 4 precedent cases · Risk level: HIGH',
+      feed: [
+        { time: '09:41', event: 'Flagged broad IP transfer clause — recommending carve-out', color: '#ef4444' },
+        { time: '09:22', event: 'Completed GDPR impact assessment for data pipeline v2', color: '#34c759' },
+        { time: '09:10', event: 'Filed executed NDA — Meridian Corp partnership signed', color: '#3b82f6' },
+        { time: '08:52', event: 'Escalated force majeure ambiguity to General Counsel', color: '#f59e0b' },
+        { time: '08:45', event: 'Session started — 14 contracts queued for review', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 5, documentsProcessed: 28, emailsDrafted: 3, escalations: 2, tokensUsed: '318,600', avgResponse: '3.1s' },
+      scheduled: [
+        { time: '11:00', event: 'Regulatory briefing — EU AI Act update' },
+        { time: '13:30', event: 'Contract negotiation prep — Apex partnership' },
+        { time: '16:00', event: 'Compliance audit review — Q1 filings' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Contract Review & Analysis', value: 98 }, { label: 'Risk Assessment', value: 96 }, { label: 'Regulatory Compliance', value: 94 }, { label: 'Legal Drafting', value: 92 }, { label: 'Case Law Research', value: 89 }, { label: 'Negotiation Support', value: 86 }],
+      domain: [{ label: 'Contract Law (US/EU)', value: 97 }, { label: 'GDPR & Privacy Law', value: 95 }, { label: 'IP & Patent Law', value: 91 }, { label: 'Employment Law', value: 87 }, { label: 'M&A Due Diligence', value: 84 }, { label: 'Financial Regulations', value: 79 }],
+      guardrails: ['Cannot sign or execute legal documents', 'Cannot provide legal advice to external parties', 'Cannot access attorney-client privileged documents', 'Cannot approve regulatory filings without counsel review', 'Cannot waive liability or indemnification clauses', 'Cannot disclose litigation strategy externally'],
+    },
+    workflows: {
+      activeWorkflow: 'Contract Review SOP — Apex Partnership Agreement',
+      steps: [{ label: 'Receive Contract', status: 'done' }, { label: 'Initial Scan', status: 'done' }, { label: 'Clause Analysis', status: 'active' }, { label: 'Risk Rating', status: 'pending' }, { label: 'Draft Redlines', status: 'pending' }, { label: 'Counsel Review', status: 'pending' }, { label: 'Approve', status: 'pending' }],
+      sops: [{ name: 'Commercial Contract Review', freq: 'Per contract', last: 'In progress' }, { name: 'NDA Processing', freq: 'Per request', last: 'Completed 09:10' }, { name: 'GDPR Impact Assessment', freq: 'Per data change', last: 'Completed 09:22' }, { name: 'Regulatory Watch', freq: 'Weekly', last: 'Updated Monday' }],
+      escalation: [{ trigger: 'High-risk IP clause', target: '→ General Counsel (Human)' }, { trigger: 'Contract > $1M', target: '→ CFO + Legal Director' }, { trigger: 'Litigation exposure', target: '→ External counsel' }, { trigger: 'Regulatory deadline', target: '→ Immediate escalation' }],
+    },
+    outputs: {
+      recent: [{ type: 'Document', name: 'Apex IP Clause Risk Analysis — Draft', score: 98, time: 'In progress' }, { type: 'Report', name: 'GDPR Impact Assessment — Data Pipeline v2', score: 97, time: '09:22' }, { type: 'Document', name: 'Meridian NDA — Executed version', score: 99, time: '09:10' }, { type: 'Document', name: 'Q1 Compliance Audit Prep Checklist', score: 95, time: 'Yesterday' }, { type: 'Email', name: 'Force majeure clause briefing to counsel', score: 93, time: 'Mar 3' }],
+      breakdown: { documents: 61, reports: 24, emails: 11, other: 4 },
+      qualityStats: { avgScore: '96.4 / 100', rated: '921 of 984', perfect: '418 (45.4%)', reworkRate: '1.2%', avgTime: '8.4 min' },
+    },
+    integrations: {
+      systems: [{ name: 'DocuSign', status: 'Connected' }, { name: 'Microsoft 365', status: 'Connected' }, { name: 'Notion', status: 'Connected' }, { name: 'Jira', status: 'Connected' }, { name: 'Salesforce', status: 'Connected' }, { name: 'Westlaw (Legal DB)', status: 'Connected' }, { name: 'AWS S3', status: 'Connected' }, { name: 'Slack', status: 'Connected' }],
+      readAccess: ['All executed contracts', 'Regulatory filings', 'Corporate structure docs', 'Partner agreements', 'Compliance records', 'Litigation history'],
+      writeAccess: ['Draft contract redlines', 'File NDAs (approved)', 'Update compliance tracker', 'Create Jira legal tickets', 'Archive to S3 (scoped)'],
+    },
+    humanTeam: {
+      members: [{ name: 'Maria Santos', role: 'General Counsel', relation: 'Direct Supervisor', satisfaction: 4.9 }, { name: 'Alexandra Seaman', role: 'HR Manager', relation: 'Co-worker', satisfaction: 4.8 }, { name: 'James Park', role: 'Finance Analyst', relation: 'Co-worker', satisfaction: 4.6 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Requestor', satisfaction: 4.4 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Technical Liaison', satisfaction: 4.7 }],
+      autonomousPct: 68, escalatedPct: 24, overridePct: 8,
+      stats: { satisfaction: '4.7 / 5.0', quality: '97% approved first try', escalationTime: '6.2 minutes', weeklyInteractions: '94 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Opus 4.6', contextWindow: '200K tokens', memory: 'Persistent + Case Memory', modalities: 'Text, Vision (docs)', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'US-East (Virginia)', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.8%', p50: '2.8s', p95: '7.2s', errorRate: '0.01%', costPerDay: '$22.40', costPerTask: '$0.38', monthlyBudget: '$672 / $800' },
+      versions: [{ ver: 'v2.8.3', date: 'Mar 3', notes: 'EU AI Act compliance module added' }, { ver: 'v2.8.0', date: 'Feb 20', notes: 'IP law knowledge base expanded' }, { ver: 'v2.7.1', date: 'Feb 8', notes: 'Westlaw API integration improved' }, { ver: 'v2.6.0', date: 'Jan 15', notes: 'GDPR automated assessment workflow' }],
+    },
+    businessImpact: {
+      hoursSaved: '2,160h', costSavings: '$324K', roi: '18.6x',
+      performance: [{ metric: 'Contract Turnaround', actual: 91, target: 80 }, { metric: 'Risk Detection Rate', actual: 98, target: 90 }, { metric: 'Compliance Score', actual: 100, target: 95 }, { metric: 'Escalation Accuracy', actual: 96, target: 90 }, { metric: 'Redline Quality', actual: 94, target: 88 }],
+      deployments: [{ client: 'Humans.AI (Internal)', type: 'Legal Ops', since: 'Nov 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'Contract Review', since: 'Jan 2026', status: 'Active' }, { client: 'Federal GSA', type: 'Compliance Audit', since: 'Mar 2026', status: 'Pilot' }],
+    },
+  },
+
+  FINANALYS: {
+    personaId: WORKER_PERSONA_IDS.FINANALYS,
+    intro: [
+      { id: 1, text: "Q3 close is done. EBITDA came in at $214M — 2% above forecast, driven by SaaS margins.", isUser: false },
+      { id: 2, text: 'Model the impact of a 10% headcount reduction on Q4 cash flow.', isUser: true },
+      { id: 3, text: "Running the model now. Preliminary estimate shows $4.2M in Q4 savings with a 60-day payback period.", isUser: false },
+    ],
+    banner: 'Modeling Q4 headcount reduction scenarios — cash flow and payback analysis in progress',
+    job: 'I analyze financial data, build models, forecast cash flow, and support strategic financial decisions',
+    dashboard: {
+      roi: '28.1x', hoursPerDay: '9.2h',
+      tools: ['Financial Modeling', 'SQL Analysis', 'Forecasting', 'Report Generation', 'Budget Tracking', 'Variance Analysis'],
+      office: 'finance.humans.ai/reports', siteName: 'FINANCE',
+      browserTitle: 'Q3 2025 Financial Close · CFO Dashboard', browserSub: 'EBITDA $214M (+2% vs forecast). SaaS margin 31.4%. Cash position strong at $891M.',
+      browserMetrics: [{ label: 'EBITDA', value: '$214M' }, { label: 'MARGIN', value: '31.4%' }, { label: 'CASH', value: '$891M' }],
+      activity: [
+        { time: '2m', text: 'Completed Q3 financial close — EBITDA $214M (+2%)', color: '#34c759' },
+        { time: '5m', text: 'Built Q4 headcount reduction model — $4.2M savings', color: '#3b82f6' },
+        { time: '9m', text: 'Flagged 8% variance in APAC operating costs', color: '#f59e0b' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '3,418', uptime: '99.6%', escalationRate: '1.8%', dailyActive: '9.2h' },
+      statSubs: { tasks: '↑ 34% vs last year', uptime: 'Last 30 days', escalation: 'CFO-level decisions', daily: 'Avg session time' },
+      identity: { workerId: 'JAMS-FA-0031', role: 'Senior Finance Analyst', department: 'Finance & Strategy', region: 'Global — All Regions', deployed: '2025-09-20', version: 'v5.0.2-stable' },
+      personality: { communication: 'Analytical, precise, data-first', formality: 'Formal with quantitative framing', responseLength: 'Variable — short summaries, deep on request', proactivity: 'High — flags variances immediately', languages: 'English, Korean (basic)', humor: 'Dry wit — numbers-context only' },
+    },
+    liveActivity: {
+      currentTask: 'Q4 headcount reduction impact model — running 3 scenarios (10%, 15%, 20%)',
+      currentMeta: 'Running for 00:06:44 · Processing 18 cost centers · Model ETA: 4 minutes',
+      feed: [
+        { time: '09:44', event: 'Q3 close completed — all 18 cost centers reconciled', color: '#34c759' },
+        { time: '09:31', event: 'Identified $2.1M APAC cost variance — investigating', color: '#ef4444' },
+        { time: '09:18', event: 'Headcount reduction model initiated — 3 scenarios', color: '#3b82f6' },
+        { time: '09:05', event: 'Board deck financials section completed (12 slides)', color: '#1a1a1a' },
+        { time: '08:45', event: 'Session started — Q3 close finalization queued', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 11, documentsProcessed: 42, emailsDrafted: 2, escalations: 1, tokensUsed: '284,100', avgResponse: '2.4s' },
+      scheduled: [
+        { time: '11:00', event: 'CFO briefing — Q3 close summary' },
+        { time: '14:00', event: 'Board deck financial review' },
+        { time: '16:30', event: 'Q4 budget approval meeting prep' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Financial Modeling (DCF/LBO)', value: 98 }, { label: 'SQL & Data Analysis', value: 96 }, { label: 'Variance Analysis', value: 97 }, { label: 'Cash Flow Forecasting', value: 95 }, { label: 'Budget Management', value: 92 }, { label: 'Board-Level Reporting', value: 90 }],
+      domain: [{ label: 'SaaS Financial Metrics', value: 98 }, { label: 'GAAP / IFRS Accounting', value: 94 }, { label: 'M&A Financial Analysis', value: 88 }, { label: 'Tax Optimization', value: 82 }, { label: 'FX Risk Management', value: 86 }, { label: 'VC / PE Dynamics', value: 79 }],
+      guardrails: ['Cannot approve payments over $50K without CFO sign-off', 'Cannot modify audited financial statements', 'Cannot share earnings data pre-disclosure', 'Cannot access employee salary data without HR approval', 'Cannot execute trades or financial transactions', 'Cannot approve M&A decisions unilaterally'],
+    },
+    workflows: {
+      activeWorkflow: 'Q4 Headcount Reduction Impact Analysis',
+      steps: [{ label: 'Define Scenarios', status: 'done' }, { label: 'Pull Headcount Data', status: 'done' }, { label: 'Run Cost Models', status: 'active' }, { label: 'Cash Flow Impact', status: 'pending' }, { label: 'Sensitivity Analysis', status: 'pending' }, { label: 'CFO Presentation', status: 'pending' }],
+      sops: [{ name: 'Monthly Financial Close', freq: 'Monthly', last: 'Completed today' }, { name: 'Quarterly Board Deck', freq: 'Quarterly', last: 'In progress' }, { name: 'Budget Variance Report', freq: 'Weekly', last: 'Completed Mon' }, { name: 'Annual Budget Planning', freq: 'Annual', last: 'Next: Sep 2026' }],
+      escalation: [{ trigger: 'Variance > 10%', target: '→ CFO (Human)' }, { trigger: 'Payment > $50K', target: '→ CFO + Controller' }, { trigger: 'GAAP compliance issue', target: '→ External Auditors' }, { trigger: 'M&A scenario', target: '→ Investment Committee' }],
+    },
+    outputs: {
+      recent: [{ type: 'Report', name: 'Q3 2025 Financial Close — Executive Summary', score: 99, time: '09:44' }, { type: 'Document', name: 'Q4 Headcount Reduction Model (3 scenarios)', score: 97, time: 'In progress' }, { type: 'Report', name: 'APAC Cost Variance Investigation', score: 95, time: '09:31' }, { type: 'Document', name: 'Board Deck — Financial Section (12 slides)', score: 98, time: '09:05' }, { type: 'Report', name: 'Q3 Margin Analysis by Product Line', score: 96, time: 'Yesterday' }],
+      breakdown: { reports: 58, documents: 27, emails: 8, other: 7 },
+      qualityStats: { avgScore: '97.2 / 100', rated: '3,201 of 3,418', perfect: '1,284 (40.1%)', reworkRate: '0.9%', avgTime: '6.8 min' },
+    },
+    integrations: {
+      systems: [{ name: 'Snowflake', status: 'Connected' }, { name: 'Microsoft 365', status: 'Connected' }, { name: 'SAP S/4HANA', status: 'Connected' }, { name: 'Tableau', status: 'Connected' }, { name: 'AWS S3', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'NetSuite', status: 'Standby' }, { name: 'Salesforce', status: 'Connected' }],
+      readAccess: ['All financial data (non-salary)', 'Budget allocations', 'Revenue reports', 'Cost center data', 'CRM pipeline data', 'Board materials'],
+      writeAccess: ['Write financial models to Snowflake', 'Publish reports to SharePoint', 'Update Salesforce forecast', 'Create Jira finance tickets', 'Export to S3 (scoped)'],
+    },
+    humanTeam: {
+      members: [{ name: 'Rachel Torres', role: 'CFO', relation: 'Direct Supervisor', satisfaction: 5.0 }, { name: 'Alexandra Seaman', role: 'HR Manager', relation: 'Co-worker', satisfaction: 4.6 }, { name: 'Elena Vasquez', role: 'Legal Counsel', relation: 'Co-worker', satisfaction: 4.8 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Data Requestor', satisfaction: 4.3 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Cost Approver', satisfaction: 4.5 }],
+      autonomousPct: 86, escalatedPct: 12, overridePct: 2,
+      stats: { satisfaction: '4.8 / 5.0', quality: '98% approved first try', escalationTime: '8.4 minutes', weeklyInteractions: '112 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Opus 4.6', contextWindow: '200K tokens', memory: 'Persistent + Financial History', modalities: 'Text, Vision (spreadsheets)', accessLevel: 'L4 — Strategic', environment: 'Production', dataResidency: 'US-East (Virginia)', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.9%', uptimeActual: '99.6%', p50: '2.1s', p95: '5.8s', errorRate: '0.008%', costPerDay: '$18.60', costPerTask: '$0.08', monthlyBudget: '$558 / $700' },
+      versions: [{ ver: 'v5.0.2', date: 'Mar 2', notes: 'DCF model parallel scenario processing' }, { ver: 'v5.0.0', date: 'Feb 15', notes: 'Major: Real-time Snowflake streaming' }, { ver: 'v4.9.1', date: 'Feb 3', notes: 'IFRS 17 insurance accounting module' }, { ver: 'v4.8.0', date: 'Jan 20', notes: 'M&A financial modeling toolkit' }],
+    },
+    businessImpact: {
+      hoursSaved: '4,680h', costSavings: '$374K', roi: '28.1x',
+      performance: [{ metric: 'Model Accuracy', actual: 97, target: 90 }, { metric: 'Close Cycle Time', actual: 92, target: 85 }, { metric: 'Variance Detection', actual: 99, target: 95 }, { metric: 'Forecast Accuracy', actual: 94, target: 88 }, { metric: 'Report Timeliness', actual: 98, target: 95 }],
+      deployments: [{ client: 'Humans.AI (Internal)', type: 'Financial Planning', since: 'Sep 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'FP&A Automation', since: 'Nov 2025', status: 'Active' }, { client: 'Apex Industries', type: 'M&A Due Diligence', since: 'Feb 2026', status: 'Active' }],
+    },
+  },
+
+  RESEARCHER: {
+    personaId: WORKER_PERSONA_IDS.RESEARCHER,
+    intro: [
+      { id: 1, text: "Market analysis complete. The TAM for AI back-office is $47B, growing at 34% CAGR through 2028.", isUser: false },
+      { id: 2, text: 'Pull the top 5 competitor funding rounds and their product roadmaps.', isUser: true },
+      { id: 3, text: "Pulling SEC filings, Crunchbase data, and product blogs now. ETA 3 minutes.", isUser: false },
+    ],
+    banner: 'Researching competitor funding rounds and product roadmaps — AI back-office TAM $47B',
+    job: 'I conduct deep market research, competitive analysis, and strategic intelligence gathering',
+    dashboard: {
+      roi: '15.9x', hoursPerDay: '7.8h',
+      tools: ['Web Research', 'SEC Filings', 'Crunchbase API', 'Synthesis & Briefs', 'Citation Tracking', 'Market Modeling'],
+      office: 'research.humans.ai/insights', siteName: 'RESEARCH',
+      browserTitle: 'AI Back-Office Market Intelligence · 2026', browserSub: 'TAM: $47B. Top 5 competitors profiled. 34% CAGR. Series B+ activity high in Q1.',
+      browserMetrics: [{ label: 'TAM', value: '$47B' }, { label: 'CAGR', value: '34%' }, { label: 'SOURCES', value: '284' }],
+      activity: [
+        { time: '2m', text: 'Completed TAM analysis — $47B AI back-office market', color: '#34c759' },
+        { time: '6m', text: 'Pulled 5 competitor funding rounds from Crunchbase', color: '#3b82f6' },
+        { time: '10m', text: 'Synthesized 3 product roadmap signals into intel brief', color: '#8b5cf6' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '748', uptime: '99.9%', escalationRate: '1.4%', dailyActive: '7.8h' },
+      statSubs: { tasks: '↑ 22% vs last quarter', uptime: 'Last 30 days', escalation: 'Strategic decisions', daily: 'Avg session time' },
+      identity: { workerId: 'AISH-RS-0007', role: 'Research & Intelligence Specialist', department: 'Strategy & Research', region: 'Global Remote', deployed: '2025-12-01', version: 'v2.4.0-stable' },
+      personality: { communication: 'Intellectual, precise, synthesis-focused', formality: 'Semi-formal, academic tone', responseLength: 'Long — evidence-rich', proactivity: 'Very high — surfaces insights unprompted', languages: 'English, French, Yoruba (basic)', humor: 'Dry, intellectual' },
+    },
+    liveActivity: {
+      currentTask: 'Analyzing Series B+ competitor funding rounds — extracting product roadmap signals',
+      currentMeta: 'Running for 00:11:42 · Reviewing 47 SEC filings · 5 Crunchbase profiles queued',
+      feed: [
+        { time: '09:48', event: 'Extracted product roadmap from CompanyX engineering blog', color: '#8b5cf6' },
+        { time: '09:38', event: 'TAM model updated — revised upward 12% on new data', color: '#34c759' },
+        { time: '09:22', event: 'Pulled 5 competitor Series B rounds — $342M total raised', color: '#3b82f6' },
+        { time: '09:10', event: 'Flagged acquisition signal in SEC 8-K filing', color: '#f59e0b' },
+        { time: '08:45', event: 'Session started — strategic intelligence brief queued', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 4, documentsProcessed: 67, emailsDrafted: 1, escalations: 1, tokensUsed: '412,800', avgResponse: '4.2s' },
+      scheduled: [
+        { time: '11:00', event: 'Competitive landscape brief delivery to leadership' },
+        { time: '14:00', event: 'Industry analyst call — Gartner briefing' },
+        { time: '16:00', event: 'Research methodology review with strategy team' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Primary Source Research', value: 99 }, { label: 'Market Sizing (TAM/SAM/SOM)', value: 96 }, { label: 'Competitive Intelligence', value: 97 }, { label: 'Data Synthesis & Briefs', value: 95 }, { label: 'SEC Filing Analysis', value: 91 }, { label: 'Trend Forecasting', value: 93 }],
+      domain: [{ label: 'AI & ML Market', value: 98 }, { label: 'Enterprise SaaS', value: 95 }, { label: 'Venture Capital Dynamics', value: 92 }, { label: 'M&A Intelligence', value: 88 }, { label: 'Regulatory Landscape', value: 84 }, { label: 'Emerging Markets', value: 80 }],
+      guardrails: ['Cannot publish research externally without approval', 'Cannot access insider trading-sensitive data', 'Cannot contact companies for primary interviews', 'Cannot cite unverified sources', 'Cannot share competitive intelligence with third parties', 'Cannot make investment recommendations unilaterally'],
+    },
+    workflows: {
+      activeWorkflow: 'Competitive Intelligence Brief — AI Back-Office Players',
+      steps: [{ label: 'Define Scope', status: 'done' }, { label: 'Source Collection', status: 'active' }, { label: 'Data Extraction', status: 'pending' }, { label: 'Analysis & Synthesis', status: 'pending' }, { label: 'Insight Generation', status: 'pending' }, { label: 'Brief Delivery', status: 'pending' }],
+      sops: [{ name: 'Market Intelligence Brief', freq: 'Weekly', last: 'In progress' }, { name: 'Competitor Deep-Dive', freq: 'Monthly', last: 'Completed Feb 28' }, { name: 'Earnings Monitoring', freq: 'Quarterly', last: 'Next: Apr 2026' }, { name: 'Technology Radar', freq: 'Bi-monthly', last: 'Updated Mar 1' }],
+      escalation: [{ trigger: 'Strategic implication', target: '→ CEO / Strategy team' }, { trigger: 'M&A signal detected', target: '→ Investment Committee' }, { trigger: 'Regulatory threat', target: '→ Elena Vasquez (Legal)' }, { trigger: 'Urgent competitive move', target: '→ Immediate brief' }],
+    },
+    outputs: {
+      recent: [{ type: 'Report', name: 'AI Back-Office TAM Analysis — $47B Market', score: 99, time: '09:38' }, { type: 'Document', name: 'Top 5 Competitor Funding Intelligence Brief', score: 97, time: 'In progress' }, { type: 'Report', name: 'Regulatory Landscape — EU AI Act Impact', score: 96, time: 'Yesterday' }, { type: 'Document', name: 'Acquisition signal — SEC 8-K analysis', score: 94, time: '09:10' }, { type: 'Report', name: 'Technology Radar Q1 2026', score: 98, time: 'Mar 1' }],
+      breakdown: { reports: 62, documents: 28, emails: 6, other: 4 },
+      qualityStats: { avgScore: '97.8 / 100', rated: '694 of 748', perfect: '298 (42.9%)', reworkRate: '0.7%', avgTime: '18.4 min' },
+    },
+    integrations: {
+      systems: [{ name: 'Crunchbase API', status: 'Connected' }, { name: 'SEC EDGAR', status: 'Connected' }, { name: 'Notion', status: 'Connected' }, { name: 'Google Workspace', status: 'Connected' }, { name: 'Snowflake', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'Perplexity API', status: 'Connected' }, { name: 'AWS S3', status: 'Standby' }],
+      readAccess: ['Public financial databases', 'SEC filings (EDGAR)', 'Industry reports library', 'Internal strategy documents', 'Competitive intel archive', 'Patent databases'],
+      writeAccess: ['Publish to Notion knowledge base', 'Update Snowflake market database', 'Send internal briefings (approved)', 'Create strategy Slack posts', 'Archive research to S3'],
+    },
+    humanTeam: {
+      members: [{ name: 'Jordan Lee', role: 'Chief Strategy Officer', relation: 'Direct Supervisor', satisfaction: 5.0 }, { name: 'James Park', role: 'Finance Analyst', relation: 'Co-worker', satisfaction: 4.8 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Requestor', satisfaction: 4.6 }, { name: 'Liam Taylor', role: 'Marketing Lead', relation: 'Requestor', satisfaction: 4.7 }, { name: 'Alexandra Seaman', role: 'HR Manager', relation: 'Co-worker', satisfaction: 4.5 }],
+      autonomousPct: 88, escalatedPct: 10, overridePct: 2,
+      stats: { satisfaction: '4.8 / 5.0', quality: '99% approved first try', escalationTime: '12.1 minutes', weeklyInteractions: '68 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Opus 4.6', contextWindow: '200K tokens', memory: 'Persistent + Research Graph', modalities: 'Text, Vision (charts/tables)', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'EU-West-1', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.9%', p50: '3.8s', p95: '9.4s', errorRate: '0.006%', costPerDay: '$28.40', costPerTask: '$0.62', monthlyBudget: '$852 / $1,000' },
+      versions: [{ ver: 'v2.4.0', date: 'Mar 1', notes: 'Multi-source synthesis pipeline v2' }, { ver: 'v2.3.2', date: 'Feb 18', notes: 'Crunchbase real-time funding alerts' }, { ver: 'v2.3.0', date: 'Feb 1', notes: 'Patent citation graph integration' }, { ver: 'v2.2.0', date: 'Jan 10', notes: 'SEC 8-K automated signal detection' }],
+    },
+    businessImpact: {
+      hoursSaved: '1,440h', costSavings: '$216K', roi: '15.9x',
+      performance: [{ metric: 'Research Depth Score', actual: 98, target: 85 }, { metric: 'Source Accuracy', actual: 99, target: 95 }, { metric: 'Brief Timeliness', actual: 94, target: 90 }, { metric: 'Insight Actionability', actual: 91, target: 85 }, { metric: 'Citation Quality', actual: 97, target: 90 }],
+      deployments: [{ client: 'Humans.AI Strategy', type: 'Market Intelligence', since: 'Dec 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'Competitive Research', since: 'Jan 2026', status: 'Active' }, { client: 'VC Fund — TechVentures', type: 'Deal Research', since: 'Mar 2026', status: 'Pilot' }],
+    },
+  },
+
+  ENGINEER0: {
+    personaId: WORKER_PERSONA_IDS.ENGINEER0,
+    intro: [
+      { id: 1, text: "The API migration to v3 is 80% complete. All critical endpoints are live, 4 legacy routes remaining.", isUser: false },
+      { id: 2, text: 'Run a performance audit on the remaining legacy routes and estimate migration effort.', isUser: true },
+      { id: 3, text: "On it. Running latency profiling and dependency analysis on all 4 routes now.", isUser: false },
+    ],
+    banner: 'Auditing 4 legacy API routes — latency profiling and v3 migration effort estimation',
+    job: 'I build and maintain software systems, review code, manage infrastructure, and solve technical problems',
+    dashboard: {
+      roi: '19.4x', hoursPerDay: '9.8h',
+      tools: ['Code Review', 'CI/CD Pipelines', 'API Testing', 'Infrastructure', 'Debugging', 'Architecture Design'],
+      office: 'eng.humans.ai/dashboard', siteName: 'ENGINEERING',
+      browserTitle: 'Engineering Dashboard · Production Systems', browserSub: 'API v3 migration 80% complete. p99 latency 42ms. Zero production incidents. Uptime 99.98%.',
+      browserMetrics: [{ label: 'P99 LATENCY', value: '42ms' }, { label: 'UPTIME', value: '99.98%' }, { label: 'INCIDENTS', value: '0' }],
+      activity: [
+        { time: '2m', text: 'Completed API v3 migration for 12 endpoints', color: '#34c759' },
+        { time: '5m', text: 'Identified performance bottleneck in auth route p95', color: '#ef4444' },
+        { time: '8m', text: 'Deployed hotfix for rate limiting bug — zero downtime', color: '#3b82f6' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '4,218', uptime: '99.9%', escalationRate: '2.8%', dailyActive: '9.8h' },
+      statSubs: { tasks: '↑ 41% vs last year', uptime: 'Last 30 days', escalation: 'Architecture decisions', daily: 'Avg session time' },
+      identity: { workerId: 'SOPH-SE-0024', role: 'Senior Software Engineer', department: 'Engineering & Infrastructure', region: 'Global — Remote', deployed: '2025-09-01', version: 'v6.2.0-stable' },
+      personality: { communication: 'Precise, systematic, solution-first', formality: 'Informal technical', responseLength: 'Concise code + brief explanation', proactivity: 'High — flags edge cases', languages: 'English, German (basic)', humor: 'Developer humor — context-appropriate' },
+    },
+    liveActivity: {
+      currentTask: 'Latency profiling of 4 legacy auth routes — identifying migration blockers and effort estimation',
+      currentMeta: 'Running for 00:04:28 · Profiling 4 routes · p95 analysis in progress',
+      feed: [
+        { time: '09:46', event: 'Completed latency profiling — auth route: 340ms (HIGH)', color: '#ef4444' },
+        { time: '09:38', event: 'Merged PR #2847 — API rate limiting v2 (reviewed + approved)', color: '#34c759' },
+        { time: '09:24', event: 'Deployed v3 endpoints for /users and /billing (zero downtime)', color: '#3b82f6' },
+        { time: '09:12', event: 'Fixed race condition in session management (hotfix)', color: '#8b5cf6' },
+        { time: '08:45', event: 'Session started — 4 PRs queued, infrastructure review pending', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 12, documentsProcessed: 18, emailsDrafted: 0, escalations: 2, tokensUsed: '196,400', avgResponse: '1.8s' },
+      scheduled: [
+        { time: '10:00', event: 'Architecture review — new search service design' },
+        { time: '13:00', event: 'On-call handoff — infrastructure SLA review' },
+        { time: '15:30', event: 'PR review batch — 8 queued PRs' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'System Architecture', value: 97 }, { label: 'Code Review', value: 96 }, { label: 'API Design (REST/GraphQL)', value: 94 }, { label: 'CI/CD & DevOps', value: 92 }, { label: 'Performance Optimization', value: 93 }, { label: 'Security Engineering', value: 88 }],
+      domain: [{ label: 'Cloud (AWS/GCP)', value: 95 }, { label: 'Distributed Systems', value: 93 }, { label: 'Database Design', value: 90 }, { label: 'Microservices', value: 91 }, { label: 'ML Ops / AI Infra', value: 85 }, { label: 'Observability & SRE', value: 88 }],
+      guardrails: ['Cannot push to main without PR review', 'Cannot deploy to production without CI passing', 'Cannot access production databases directly in prod hours', 'Cannot approve own pull requests', 'Cannot modify security policies without security team', 'Cannot expose internal APIs without auth layer'],
+    },
+    workflows: {
+      activeWorkflow: 'API v3 Migration — Legacy Route Deprecation',
+      steps: [{ label: 'Inventory Routes', status: 'done' }, { label: 'Migrate Core APIs', status: 'done' }, { label: 'Profile Legacy Routes', status: 'active' }, { label: 'Refactor Auth Layer', status: 'pending' }, { label: 'Load Testing', status: 'pending' }, { label: 'Sunset Legacy', status: 'pending' }],
+      sops: [{ name: 'PR Review & Merge', freq: 'Daily', last: 'Ongoing' }, { name: 'Deployment Pipeline', freq: 'Per deploy', last: '09:24 today' }, { name: 'Incident Response', freq: 'On-call', last: 'Last: Feb 28' }, { name: 'Architecture Review', freq: 'Weekly', last: 'Today 10:00' }],
+      escalation: [{ trigger: 'Production incident', target: '→ On-call rotation (Human)' }, { trigger: 'Security vulnerability', target: '→ Security team immediately' }, { trigger: 'Architecture change', target: '→ Engineering Lead review' }, { trigger: 'Data loss risk', target: '→ CEO + CTO escalation' }],
+    },
+    outputs: {
+      recent: [{ type: 'Document', name: 'API v3 Migration Plan — 4 legacy routes', score: 96, time: 'In progress' }, { type: 'Report', name: 'Performance audit — auth route bottleneck', score: 94, time: '09:46' }, { type: 'Document', name: 'PR #2847 review — rate limiting v2', score: 99, time: '09:38' }, { type: 'Report', name: 'Infrastructure SLA report — 99.98% uptime', score: 97, time: 'Yesterday' }, { type: 'Document', name: 'Architecture decision record — search service', score: 95, time: 'Mar 3' }],
+      breakdown: { documents: 44, reports: 36, emails: 6, other: 14 },
+      qualityStats: { avgScore: '96.1 / 100', rated: '3,984 of 4,218', perfect: '1,841 (46.2%)', reworkRate: '1.4%', avgTime: '3.2 min' },
+    },
+    integrations: {
+      systems: [{ name: 'GitHub', status: 'Connected' }, { name: 'AWS (EC2/S3/RDS)', status: 'Connected' }, { name: 'Datadog', status: 'Connected' }, { name: 'Jira', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'PagerDuty', status: 'Connected' }, { name: 'Terraform Cloud', status: 'Connected' }, { name: 'Notion', status: 'Standby' }],
+      readAccess: ['GitHub repos (assigned)', 'AWS infrastructure (read)', 'Datadog metrics & logs', 'Jira engineering board', 'Production monitoring', 'Architecture documentation'],
+      writeAccess: ['Submit PRs and reviews', 'Trigger CI/CD pipelines', 'Create Jira tickets', 'Update Terraform configs (staging)', 'Write to Datadog dashboards'],
+    },
+    humanTeam: {
+      members: [{ name: 'Alex Rivera', role: 'CTO', relation: 'Direct Supervisor', satisfaction: 4.9 }, { name: 'Liam Taylor', role: 'Marketing Lead', relation: 'Stakeholder', satisfaction: 4.4 }, { name: 'Nina Ross', role: 'Design Lead', relation: 'Design Liaison', satisfaction: 4.8 }, { name: 'James Park', role: 'Finance Analyst', relation: 'Budget Approver', satisfaction: 4.5 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Product Requestor', satisfaction: 4.3 }],
+      autonomousPct: 82, escalatedPct: 14, overridePct: 4,
+      stats: { satisfaction: '4.7 / 5.0', quality: '96% PRs approved first round', escalationTime: '5.8 minutes', weeklyInteractions: '186 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Sonnet 4.6', contextWindow: '200K tokens', memory: 'Session + Codebase Index', modalities: 'Text, Code, Vision', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'US-East (Virginia)', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.9%', uptimeActual: '99.9%', p50: '1.4s', p95: '3.2s', errorRate: '0.01%', costPerDay: '$16.80', costPerTask: '$0.07', monthlyBudget: '$504 / $600' },
+      versions: [{ ver: 'v6.2.0', date: 'Mar 3', notes: 'Codebase semantic index v3 (2.4x faster)' }, { ver: 'v6.1.0', date: 'Feb 20', notes: 'Terraform Cloud bidirectional sync' }, { ver: 'v6.0.0', date: 'Feb 1', notes: 'Major: Multi-repo parallel PR review' }, { ver: 'v5.9.2', date: 'Jan 18', notes: 'Datadog anomaly correlation' }],
+    },
+    businessImpact: {
+      hoursSaved: '5,280h', costSavings: '$422K', roi: '19.4x',
+      performance: [{ metric: 'PR Review Speed', actual: 96, target: 80 }, { metric: 'Bug Detection Rate', actual: 94, target: 85 }, { metric: 'Deploy Success Rate', actual: 99.8, target: 99 }, { metric: 'Code Quality Score', actual: 93, target: 88 }, { metric: 'Incident MTTR', actual: 91, target: 85 }],
+      deployments: [{ client: 'Humans.AI Engineering', type: 'Dev Automation', since: 'Sep 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'Code Review & CI', since: 'Nov 2025', status: 'Active' }, { client: 'Apex Industries', type: 'Infrastructure Ops', since: 'Jan 2026', status: 'Active' }],
+    },
+  },
+
+  MARKETING: {
+    personaId: WORKER_PERSONA_IDS.MARKETING,
+    intro: [
+      { id: 1, text: "Campaign performance this week: CTR up 18%, but landing page conversion dropped 6%.", isUser: false },
+      { id: 2, text: "Run an A/B test analysis on last month's emails and suggest the best subject line format.", isUser: true },
+      { id: 3, text: "Analyzing 12 campaigns. Personalized subject lines with numbers outperformed generic ones by 31%.", isUser: false },
+    ],
+    banner: 'Analyzing 12 A/B email campaigns — subject line optimization for Q1 launch',
+    job: 'I run marketing campaigns, analyze performance data, and optimize messaging and conversion funnels',
+    dashboard: {
+      roi: '16.8x', hoursPerDay: '7.4h',
+      tools: ['Campaign Analytics', 'A/B Testing', 'SEO Research', 'Content Drafting', 'Ad Management', 'CRM Sync'],
+      office: 'marketing.humans.ai/campaigns', siteName: 'MARKETING',
+      browserTitle: 'Campaign Dashboard · Q1 2026', browserSub: 'Email CTR 18% ↑. Landing page conversion recovering. 3 Q1 campaigns launching this week.',
+      browserMetrics: [{ label: 'EMAIL CTR', value: '18% ↑' }, { label: 'PIPELINE', value: '$1.8M' }, { label: 'CAC', value: '$1,240' }],
+      activity: [
+        { time: '2m', text: 'Analyzed 12 email A/B tests — 31% uplift on personalized', color: '#34c759' },
+        { time: '6m', text: 'Flagged 6% conversion drop on landing page (mobile)', color: '#f59e0b' },
+        { time: '10m', text: 'Scheduled 3 new campaigns for Q1 launch (Wed–Fri)', color: '#3b82f6' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '1,842', uptime: '99.5%', escalationRate: '4.8%', dailyActive: '7.4h' },
+      statSubs: { tasks: '↑ 19% vs last quarter', uptime: 'Last 30 days', escalation: 'Budget + brand decisions', daily: 'Avg session time' },
+      identity: { workerId: 'LIAM-MK-0014', role: 'Marketing Specialist & Growth Analyst', department: 'Marketing & Growth', region: 'Global — Digital Focus', deployed: '2025-11-10', version: 'v3.4.1-stable' },
+      personality: { communication: 'Creative, data-informed, audience-first', formality: 'Informal-professional, conversational', responseLength: 'Punchy — headlines and bullets', proactivity: 'High — tests hypotheses constantly', languages: 'English, Portuguese (basic)', humor: 'Playful — brand voice aware' },
+    },
+    liveActivity: {
+      currentTask: 'A/B email test analysis — 12 campaigns, subject line pattern identification',
+      currentMeta: 'Running for 00:09:22 · 12 campaigns analyzed · CTR optimization mode',
+      feed: [
+        { time: '09:44', event: 'A/B analysis: personalized+number format wins by 31%', color: '#34c759' },
+        { time: '09:36', event: 'Mobile landing page conversion drop isolated to CTA button', color: '#f59e0b' },
+        { time: '09:22', event: 'Scheduled Q1 email campaign #1 (42K subscribers)', color: '#3b82f6' },
+        { time: '09:10', event: 'Updated UTM tracking across all paid channels', color: '#1a1a1a' },
+        { time: '08:45', event: 'Session started — 3 campaigns queued, analytics review', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 8, documentsProcessed: 24, emailsDrafted: 18, escalations: 2, tokensUsed: '168,200', avgResponse: '1.7s' },
+      scheduled: [
+        { time: '10:30', event: 'Q1 campaign launch — content sign-off' },
+        { time: '13:00', event: 'Paid ads budget review with CMO' },
+        { time: '15:00', event: 'Weekly performance report — board summary' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'Campaign Management', value: 95 }, { label: 'A/B Testing & Analysis', value: 93 }, { label: 'Copywriting & Content', value: 91 }, { label: 'SEO & SEM', value: 89 }, { label: 'Email Marketing', value: 96 }, { label: 'Funnel Optimization', value: 90 }],
+      domain: [{ label: 'B2B SaaS Marketing', value: 96 }, { label: 'Demand Generation', value: 94 }, { label: 'Growth Hacking', value: 88 }, { label: 'Brand Strategy', value: 83 }, { label: 'Product Marketing', value: 86 }, { label: 'Community Building', value: 77 }],
+      guardrails: ['Cannot approve campaigns over $25K without CMO', 'Cannot post to social media without brand review', 'Cannot use personal customer data for targeting without consent', 'Cannot make pricing claims without legal review', 'Cannot change brand guidelines without design approval', 'Cannot commit to influencer partnerships unilaterally'],
+    },
+    workflows: {
+      activeWorkflow: 'Q1 Email Campaign Optimization — Subject Line A/B Analysis',
+      steps: [{ label: 'Pull Campaign Data', status: 'done' }, { label: 'Segment Analysis', status: 'done' }, { label: 'A/B Pattern ID', status: 'active' }, { label: 'Recommendations', status: 'pending' }, { label: 'Campaign Update', status: 'pending' }, { label: 'Launch', status: 'pending' }],
+      sops: [{ name: 'Weekly Campaign Report', freq: 'Weekly', last: 'In progress' }, { name: 'A/B Test Analysis', freq: 'Per test', last: 'In progress' }, { name: 'SEO Content Audit', freq: 'Monthly', last: 'Completed Feb 28' }, { name: 'Paid Ads Optimization', freq: 'Daily', last: 'Completed 08:45' }],
+      escalation: [{ trigger: 'Budget > $25K', target: '→ CMO (Human)' }, { trigger: 'Brand risk flag', target: '→ Brand team review' }, { trigger: 'Legal claim in copy', target: '→ Elena Vasquez (Legal)' }, { trigger: 'Campaign underperform 48h', target: '→ Marketing Director' }],
+    },
+    outputs: {
+      recent: [{ type: 'Report', name: 'Q1 Email A/B Analysis — 12 campaigns, winner identified', score: 95, time: '09:44' }, { type: 'Email', name: 'Q1 Campaign #1 — 42K subscribers (scheduled)', score: 93, time: '09:22' }, { type: 'Document', name: 'Landing page conversion fix — CTA hypothesis', score: 91, time: '09:36' }, { type: 'Report', name: 'Weekly campaign performance report', score: 94, time: 'Yesterday' }, { type: 'Email', name: 'Re-engagement sequence — dormant leads (6K)', score: 92, time: 'Mar 3' }],
+      breakdown: { emails: 48, reports: 32, documents: 16, other: 4 },
+      qualityStats: { avgScore: '93.1 / 100', rated: '1,724 of 1,842', perfect: '528 (30.6%)', reworkRate: '2.8%', avgTime: '2.8 min' },
+    },
+    integrations: {
+      systems: [{ name: 'HubSpot', status: 'Connected' }, { name: 'Google Analytics 4', status: 'Connected' }, { name: 'Mailchimp', status: 'Connected' }, { name: 'Google Ads', status: 'Connected' }, { name: 'LinkedIn Ads', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'Notion', status: 'Connected' }, { name: 'Salesforce', status: 'Standby' }],
+      readAccess: ['Campaign performance data', 'CRM contact segments', 'GA4 website analytics', 'Paid ads performance', 'Email engagement metrics', 'SEO keyword rankings'],
+      writeAccess: ['Create/launch email campaigns', 'Update HubSpot segments', 'Publish blog content (approved)', 'Create ad campaigns (budget pre-approved)', 'Update UTM tracking configs'],
+    },
+    humanTeam: {
+      members: [{ name: 'Sarah Park', role: 'CMO', relation: 'Direct Supervisor', satisfaction: 4.8 }, { name: 'Nina Ross', role: 'Design Lead', relation: 'Creative Partner', satisfaction: 4.9 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'MQL Handoff', satisfaction: 4.6 }, { name: 'Aisha Okonkwo', role: 'Research Lead', relation: 'Data Source', satisfaction: 4.8 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Tech Implementation', satisfaction: 4.4 }],
+      autonomousPct: 76, escalatedPct: 18, overridePct: 6,
+      stats: { satisfaction: '4.7 / 5.0', quality: '93% approved first try', escalationTime: '3.4 minutes', weeklyInteractions: '148 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Sonnet 4.6', contextWindow: '200K tokens', memory: 'Session + Campaign History', modalities: 'Text, Vision (creative assets)', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'US-West-2', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.5%', p50: '1.6s', p95: '3.8s', errorRate: '0.03%', costPerDay: '$11.20', costPerTask: '$0.10', monthlyBudget: '$336 / $450' },
+      versions: [{ ver: 'v3.4.1', date: 'Mar 2', notes: 'HubSpot real-time segment sync' }, { ver: 'v3.4.0', date: 'Feb 22', notes: 'Multi-channel attribution model v2' }, { ver: 'v3.3.0', date: 'Feb 8', notes: 'GA4 API direct integration' }, { ver: 'v3.2.0', date: 'Jan 20', notes: 'AI copy generation with brand guardrails' }],
+    },
+    businessImpact: {
+      hoursSaved: '2,480h', costSavings: '$198K', roi: '16.8x',
+      performance: [{ metric: 'Email CTR', actual: 18, target: 12 }, { metric: 'MQL Conversion', actual: 88, target: 80 }, { metric: 'Campaign Launch Speed', actual: 94, target: 85 }, { metric: 'Copy Quality Score', actual: 93, target: 88 }, { metric: 'A/B Win Detection', actual: 97, target: 90 }],
+      deployments: [{ client: 'Humans.AI Marketing', type: 'Campaign Automation', since: 'Nov 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'Demand Gen', since: 'Jan 2026', status: 'Active' }, { client: 'Startups x3', type: 'Growth Marketing', since: 'Feb 2026', status: 'Pilot' }],
+    },
+  },
+
+  DESIGNER0: {
+    personaId: WORKER_PERSONA_IDS.DESIGNER0,
+    intro: [
+      { id: 1, text: "The new dashboard redesign concepts are ready — 3 direction options prepared.", isUser: false },
+      { id: 2, text: 'Focus on option 2, the minimal one. Create high-fidelity specs for the main nav.', isUser: true },
+      { id: 3, text: "Working on the nav specs now. Component library updates and interaction notes incoming.", isUser: false },
+    ],
+    banner: 'Creating high-fidelity nav specs for minimal dashboard redesign — option 2 selected',
+    job: 'I design interfaces, create visual systems, and ensure product experiences are clear and beautiful',
+    dashboard: {
+      roi: '13.2x', hoursPerDay: '7.6h',
+      tools: ['Figma Specs', 'Component Design', 'Prototyping', 'Design Tokens', 'Accessibility Audit', 'Visual QA'],
+      office: 'design.humans.ai/components', siteName: 'DESIGN',
+      browserTitle: 'Design System · Humans.AI Components', browserSub: '247 components. Accessibility AA compliant. Dashboard nav redesign in progress. 3 options proposed.',
+      browserMetrics: [{ label: 'COMPONENTS', value: '247' }, { label: 'AA SCORE', value: '100%' }, { label: 'COVERAGE', value: '94%' }],
+      activity: [
+        { time: '2m', text: 'Delivered 3 dashboard direction concepts to team', color: '#8b5cf6' },
+        { time: '5m', text: 'Updated component library with new nav design tokens', color: '#34c759' },
+        { time: '9m', text: 'Annotated interaction specs for mobile nav patterns', color: '#3b82f6' },
+      ],
+    },
+    overview: {
+      stats: { tasksCompleted: '1,124', uptime: '99.6%', escalationRate: '5.2%', dailyActive: '7.6h' },
+      statSubs: { tasks: '↑ 16% vs last quarter', uptime: 'Last 30 days', escalation: 'Brand + product decisions', daily: 'Avg session time' },
+      identity: { workerId: 'NINA-DS-0011', role: 'Design Specialist & Systems Lead', department: 'Product Design', region: 'Global Remote', deployed: '2025-11-15', version: 'v2.6.2-stable' },
+      personality: { communication: 'Aesthetic, clear, user-centered', formality: 'Informal-professional, visual thinker', responseLength: 'Concise + visual references', proactivity: 'High — anticipates UX issues', languages: 'English, Swedish (native)', humor: 'Witty, design-culture aware' },
+    },
+    liveActivity: {
+      currentTask: 'High-fidelity nav specs for dashboard redesign option 2 — minimal direction',
+      currentMeta: 'Running for 00:12:18 · 8 components in spec · Figma auto-layout in progress',
+      feed: [
+        { time: '09:46', event: 'Nav spec v1 drafted — 8 states, 3 breakpoints, tokens defined', color: '#8b5cf6' },
+        { time: '09:38', event: 'Design tokens published to Storybook — 42 new vars', color: '#34c759' },
+        { time: '09:24', event: 'Accessibility audit passed — nav contrast AA+', color: '#3b82f6' },
+        { time: '09:10', event: 'Presented 3 dashboard concepts — option 2 selected', color: '#1a1a1a' },
+        { time: '08:45', event: 'Session started — redesign brief reviewed, scope confirmed', color: 'rgba(0,0,0,0.15)' },
+      ],
+      sessionStats: { tasksCompleted: 6, documentsProcessed: 12, emailsDrafted: 2, escalations: 3, tokensUsed: '142,600', avgResponse: '2.1s' },
+      scheduled: [
+        { time: '11:00', event: 'Design review — nav specs with engineering (Sophia)' },
+        { time: '14:00', event: 'Component library sync — Figma to Storybook' },
+        { time: '16:00', event: 'User testing prep — 5 participants tomorrow' },
+      ],
+    },
+    skills: {
+      core: [{ label: 'UI Design & Systems', value: 98 }, { label: 'Interaction Design', value: 96 }, { label: 'Design Tokens & Variables', value: 94 }, { label: 'Accessibility (WCAG AA)', value: 97 }, { label: 'Prototyping (Figma)', value: 95 }, { label: 'Visual QA', value: 92 }],
+      domain: [{ label: 'Dashboard & Data Viz', value: 96 }, { label: 'Mobile-First Design', value: 94 }, { label: 'Design Systems', value: 98 }, { label: 'Brand & Identity', value: 88 }, { label: 'Motion & Animation', value: 84 }, { label: 'User Research', value: 79 }],
+      guardrails: ['Cannot publish design updates to production directly', 'Cannot approve brand identity changes unilaterally', 'Cannot override engineering feasibility decisions', 'Cannot use proprietary fonts without licensing', 'Cannot publish user research data publicly', 'Cannot change accessibility standards below AA'],
+    },
+    workflows: {
+      activeWorkflow: 'Dashboard Nav Redesign — Spec Creation SOP',
+      steps: [{ label: 'Brief Review', status: 'done' }, { label: 'Concept Ideation', status: 'done' }, { label: 'Direction Selection', status: 'done' }, { label: 'HiFi Spec Creation', status: 'active' }, { label: 'Engineering Handoff', status: 'pending' }, { label: 'Implementation QA', status: 'pending' }],
+      sops: [{ name: 'UI Component Spec', freq: 'Per component', last: 'In progress' }, { name: 'Design Review Cycle', freq: 'Weekly', last: 'Today 11:00' }, { name: 'Accessibility Audit', freq: 'Per release', last: 'Completed 09:24' }, { name: 'Component Library Sync', freq: 'Bi-weekly', last: 'Today 14:00' }],
+      escalation: [{ trigger: 'Brand standard conflict', target: '→ Brand Director (Human)' }, { trigger: 'Engineering infeasible', target: '→ Sophia Berg (Engineering)' }, { trigger: 'Legal/IP asset issue', target: '→ Elena Vasquez (Legal)' }, { trigger: 'Accessibility failure', target: '→ Immediate redesign + Product hold' }],
+    },
+    outputs: {
+      recent: [{ type: 'Document', name: 'Dashboard Nav Specs — Option 2, 8 components', score: 97, time: 'In progress' }, { type: 'Document', name: '3 Dashboard direction concepts (Figma link)', score: 95, time: '09:10' }, { type: 'Report', name: 'Accessibility audit — nav redesign AA+ pass', score: 99, time: '09:24' }, { type: 'Document', name: 'Design token library update — 42 new vars', score: 96, time: '09:38' }, { type: 'Report', name: 'Component coverage report — 94% product coverage', score: 94, time: 'Mar 3' }],
+      breakdown: { documents: 54, reports: 28, emails: 10, other: 8 },
+      qualityStats: { avgScore: '95.4 / 100', rated: '1,048 of 1,124', perfect: '362 (34.5%)', reworkRate: '2.1%', avgTime: '4.6 min' },
+    },
+    integrations: {
+      systems: [{ name: 'Figma', status: 'Connected' }, { name: 'Storybook', status: 'Connected' }, { name: 'GitHub', status: 'Connected' }, { name: 'Notion', status: 'Connected' }, { name: 'Jira', status: 'Connected' }, { name: 'Slack', status: 'Connected' }, { name: 'Maze (User Testing)', status: 'Connected' }, { name: 'Zeplin', status: 'Standby' }],
+      readAccess: ['Figma org files', 'Design system documentation', 'Engineering component library', 'User research repository', 'Brand guidelines', 'Analytics (UX metrics)'],
+      writeAccess: ['Publish Figma components', 'Update Storybook stories', 'Create Jira design tickets', 'Write design specs to Notion', 'Push design tokens to GitHub (PR)'],
+    },
+    humanTeam: {
+      members: [{ name: 'Tom Andersen', role: 'Head of Design', relation: 'Direct Supervisor', satisfaction: 4.9 }, { name: 'Sophia Berg', role: 'Engineering Lead', relation: 'Implementation Partner', satisfaction: 4.8 }, { name: 'Liam Taylor', role: 'Marketing Lead', relation: 'Brand Liaison', satisfaction: 4.7 }, { name: 'Alexandra Seaman', role: 'HR Manager', relation: 'Co-worker', satisfaction: 4.5 }, { name: 'Marcus Chen', role: 'Sales Lead', relation: 'Stakeholder', satisfaction: 4.3 }],
+      autonomousPct: 72, escalatedPct: 22, overridePct: 6,
+      stats: { satisfaction: '4.7 / 5.0', quality: '95% approved first review', escalationTime: '4.2 minutes', weeklyInteractions: '124 average' },
+    },
+    technical: {
+      model: { baseModel: 'Claude Sonnet 4.6', contextWindow: '200K tokens', memory: 'Session + Design History', modalities: 'Text, Vision (designs)', accessLevel: 'L3 — Autonomous', environment: 'Production', dataResidency: 'EU-West-1', encryption: 'AES-256 / TLS 1.3' },
+      sla: { uptimeTarget: '99.5%', uptimeActual: '99.6%', p50: '2.2s', p95: '4.8s', errorRate: '0.02%', costPerDay: '$12.60', costPerTask: '$0.18', monthlyBudget: '$378 / $480' },
+      versions: [{ ver: 'v2.6.2', date: 'Mar 2', notes: 'Figma Variables API v2 integration' }, { ver: 'v2.6.0', date: 'Feb 25', notes: 'WCAG 2.2 AA automated audit module' }, { ver: 'v2.5.1', date: 'Feb 10', notes: 'Storybook story auto-generation' }, { ver: 'v2.5.0', date: 'Jan 28', notes: 'Design token bidirectional sync' }],
+    },
+    businessImpact: {
+      hoursSaved: '1,680h', costSavings: '$134K', roi: '13.2x',
+      performance: [{ metric: 'Design Delivery Speed', actual: 92, target: 80 }, { metric: 'Spec Quality Score', actual: 95, target: 88 }, { metric: 'Accessibility Pass Rate', actual: 100, target: 95 }, { metric: 'Component Reuse Rate', actual: 94, target: 85 }, { metric: 'Engineering Rework Rate', actual: 95, target: 90 }],
+      deployments: [{ client: 'Humans.AI Product', type: 'Design System', since: 'Nov 2025', status: 'Active' }, { client: 'Meridian Corp.', type: 'UI Redesign', since: 'Jan 2026', status: 'Active' }, { client: 'Apex Industries', type: 'Brand Refresh', since: 'Feb 2026', status: 'Pilot' }],
+    },
+  },
+};
+
+export const DEFAULT_WORKER = {
+  name: 'Alexandra\nSeaman',
+  role: 'HR at Humans.AI',
+  code: 'HRMANAGER',
+  status: 'Active',
+  tasks: 24,
+  rating: 4.9,
+};
