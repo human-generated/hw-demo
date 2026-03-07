@@ -697,15 +697,160 @@ function BusinessImpactTab() {
   );
 }
 
+/* ─── Per-worker default data ─── */
+const WORKER_DEFAULTS = {
+  HRMANAGER: {
+    intro: [
+      { id: 1, author: 'ALEXANDRA', text: "I've completed the initial HR audit. Onboarding backlog is down 40% and compliance gaps are closed.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Great. Can you run a policy review for the engineering team?', time: '1m ago', isUser: true },
+      { id: 3, author: 'ALEXANDRA', text: "On it. Pulling the latest policy docs and cross-referencing with last quarter's audit findings.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Running HR policy review for Engineering team — compliance check and gap analysis',
+    job: 'I manage human resources workflows, employee onboarding, and policy compliance at scale',
+    office: 'hr-portal.humans.ai/onboarding',
+    siteName: 'HR PORTAL',
+    activity: [
+      { time: '2m', text: 'Completed onboarding checklist for 3 new hires', color: '#3b82f6' },
+      { time: '5m', text: 'Flagged policy gap in engineering leave policy', color: '#f59e0b' },
+      { time: '9m', text: 'Sent compliance reminder to 12 team members', color: '#34c759' },
+    ],
+  },
+  SALESREP0: {
+    intro: [
+      { id: 1, author: 'MARCUS', text: "Q3 pipeline is looking strong — I've qualified 14 new enterprise leads this week.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Focus on the APAC segment. Run outreach for the top 5 prospects.', time: '1m ago', isUser: true },
+      { id: 3, author: 'MARCUS', text: "On it. Drafting personalized sequences and scheduling follow-up calls for all 5.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Running APAC outreach sequences — prospect research and personalized email drafts',
+    job: 'I drive enterprise sales pipeline, qualify leads, run outreach, and close deals efficiently',
+    office: 'crm.humans.ai/pipeline',
+    siteName: 'CRM',
+    activity: [
+      { time: '2m', text: 'Qualified 3 new APAC enterprise prospects', color: '#34c759' },
+      { time: '6m', text: 'Drafted outreach sequence for Hanwha Group', color: '#3b82f6' },
+      { time: '10m', text: 'Updated pipeline forecast — $2.4M this quarter', color: '#f59e0b' },
+    ],
+  },
+  LEGALADV0: {
+    intro: [
+      { id: 1, author: 'ELENA', text: "Contract review for the Apex partnership is complete — 3 clauses flagged for negotiation.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'What are the main risks in the IP ownership clause?', time: '1m ago', isUser: true },
+      { id: 3, author: 'ELENA', text: 'The clause grants broad IP transfer rights. I recommend carving out pre-existing IP and adding a 2-year sunset.', time: 'Just now', isUser: false },
+    ],
+    banner: 'Reviewing Apex partnership contract — IP ownership clause risk analysis',
+    job: 'I review contracts, assess legal risks, ensure regulatory compliance, and draft legal documents',
+    office: 'legal.humans.ai/contracts',
+    siteName: 'LEGAL',
+    activity: [
+      { time: '2m', text: 'Flagged 3 high-risk clauses in Apex contract', color: '#ef4444' },
+      { time: '7m', text: 'Completed GDPR compliance check for new data pipeline', color: '#34c759' },
+      { time: '11m', text: 'Filed NDA for the Meridian partnership', color: '#3b82f6' },
+    ],
+  },
+  FINANALYS: {
+    intro: [
+      { id: 1, author: 'JAMES', text: "Q3 close is done. EBITDA came in at $214M — 2% above forecast, driven by SaaS margins.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Model the impact of a 10% headcount reduction on Q4 cash flow.', time: '1m ago', isUser: true },
+      { id: 3, author: 'JAMES', text: "Running the model now. Preliminary estimate shows $4.2M in Q4 savings with a 60-day payback.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Modeling Q4 headcount reduction scenarios — cash flow and payback analysis',
+    job: 'I analyze financial data, build models, forecast cash flow, and support strategic decisions',
+    office: 'finance.humans.ai/reports',
+    siteName: 'FINANCE',
+    activity: [
+      { time: '2m', text: 'Completed Q3 financial close — EBITDA $214M', color: '#34c759' },
+      { time: '5m', text: 'Built Q4 headcount reduction model', color: '#3b82f6' },
+      { time: '9m', text: 'Flagged variance in APAC operating costs', color: '#f59e0b' },
+    ],
+  },
+  RESEARCHER: {
+    intro: [
+      { id: 1, author: 'AISHA', text: "Market analysis complete. The TAM for AI back-office is $47B, growing at 34% CAGR through 2028.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Pull the top 5 competitor funding rounds and their product roadmaps.', time: '1m ago', isUser: true },
+      { id: 3, author: 'AISHA', text: "Pulling SEC filings, Crunchbase data, and product blogs now. ETA 3 minutes.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Researching competitor funding and product roadmaps — $47B AI back-office TAM analysis',
+    job: 'I conduct deep market research, competitive analysis, and strategic intelligence gathering',
+    office: 'research.humans.ai/insights',
+    siteName: 'RESEARCH',
+    activity: [
+      { time: '2m', text: 'Completed TAM analysis — $47B AI back-office market', color: '#34c759' },
+      { time: '6m', text: 'Pulled 5 competitor funding rounds from Crunchbase', color: '#3b82f6' },
+      { time: '10m', text: 'Synthesized 3 product roadmap leaks into brief', color: '#8b5cf6' },
+    ],
+  },
+  ENGINEER0: {
+    intro: [
+      { id: 1, author: 'SOPHIA', text: "The API migration to v3 is 80% complete. All critical endpoints are live, 4 legacy routes remaining.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Run a performance audit on the remaining legacy routes and estimate migration effort.', time: '1m ago', isUser: true },
+      { id: 3, author: 'SOPHIA', text: "On it. Running latency profiling and dependency analysis on all 4 routes.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Auditing legacy API routes — latency profiling and v3 migration estimation',
+    job: 'I build and maintain software systems, review code, manage infrastructure, and solve technical problems',
+    office: 'eng.humans.ai/dashboard',
+    siteName: 'ENGINEERING',
+    activity: [
+      { time: '2m', text: 'Completed API v3 migration for 12 endpoints', color: '#34c759' },
+      { time: '5m', text: 'Identified performance bottleneck in auth route', color: '#ef4444' },
+      { time: '8m', text: 'Deployed hotfix for rate limiting bug', color: '#3b82f6' },
+    ],
+  },
+  MARKETING: {
+    intro: [
+      { id: 1, author: 'LIAM', text: "Campaign performance this week: CTR is up 18%, but conversion on the landing page dropped 6%.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: "Run an A/B test analysis on last month's email campaigns and suggest the best subject line format.", time: '1m ago', isUser: true },
+      { id: 3, author: 'LIAM', text: "Analyzing 12 campaigns now. Personalized subject lines with numbers outperformed generic ones by 31%.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Analyzing A/B email campaign performance — subject line optimization for Q1',
+    job: 'I run marketing campaigns, analyze performance data, and optimize messaging and conversion funnels',
+    office: 'marketing.humans.ai/campaigns',
+    siteName: 'MARKETING',
+    activity: [
+      { time: '2m', text: 'Analyzed 12 email A/B tests — 31% uplift identified', color: '#34c759' },
+      { time: '6m', text: 'Flagged 6% conversion drop on landing page', color: '#f59e0b' },
+      { time: '10m', text: 'Scheduled 3 new campaigns for Q1 launch', color: '#3b82f6' },
+    ],
+  },
+  DESIGNER0: {
+    intro: [
+      { id: 1, author: 'NINA', text: "The new dashboard redesign concepts are ready for review. I've prepared 3 direction options.", time: '2m ago', isUser: false },
+      { id: 2, author: 'YOU', text: 'Focus on option 2 — the minimal one. Create high-fidelity specs for the main nav.', time: '1m ago', isUser: true },
+      { id: 3, author: 'NINA', text: "Working on the nav specs now. Component library updates and interaction notes incoming.", time: 'Just now', isUser: false },
+    ],
+    banner: 'Creating high-fidelity specs for dashboard nav redesign — minimal direction',
+    job: 'I design interfaces, create visual systems, and ensure product experiences are clear and beautiful',
+    office: 'design.humans.ai/components',
+    siteName: 'DESIGN',
+    activity: [
+      { time: '2m', text: 'Delivered 3 dashboard direction concepts', color: '#8b5cf6' },
+      { time: '5m', text: 'Updated component library with new nav tokens', color: '#34c759' },
+      { time: '9m', text: 'Annotated interaction specs for mobile nav', color: '#3b82f6' },
+    ],
+  },
+};
+
+const DEFAULT_WORKER = {
+  name: 'Alexandra\nSeaman',
+  role: 'HR at Humans.AI',
+  code: 'HRMANAGER',
+  status: 'Active',
+  tasks: 24,
+  rating: 4.9,
+};
+
 /* ─── Main WorkerPage component ─── */
-export function WorkerPage({ anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId }) {
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId }) {
+  const worker = workerProp || DEFAULT_WORKER;
+  const workerCode = worker.code || 'HRMANAGER';
+  const workerData = WORKER_DEFAULTS[workerCode] || WORKER_DEFAULTS.HRMANAGER;
+  const firstName = worker.name.split('\n')[0];
+  const authorName = firstName.toUpperCase();
+
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState([
-    { id: 1, author: 'ALEXANDRA', text: "I've completed the initial research. Q3 revenue is up 23% YoY with strong hiring signals.", time: '2m ago', isUser: false },
-    { id: 2, author: 'YOU', text: 'Show me competitive landscape and run a sandbox of their mobile app.', time: '1m ago', isUser: true },
-    { id: 3, author: 'ALEXANDRA', text: 'On it. Pulling competitor data and spinning up iOS sandbox now.', time: 'Just now', isUser: false },
-  ]);
+  const [messages, setMessages] = useState(() =>
+    workerData.intro.map(m => ({ ...m, author: m.isUser ? 'YOU' : authorName }))
+  );
   const [isConnected, setIsConnected] = useState(!!anamClient);
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(!!cameraStream);
@@ -859,7 +1004,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
       if (data.reply || data.message) {
         setMessages(prev => [...prev, {
           id: ++msgSeqRef.current,
-          author: 'ALEXANDRA',
+          author: authorName,
           text: data.reply || data.message,
           time: 'Just now',
           isUser: false,
@@ -885,7 +1030,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
-          <span className="wkp-menu-label">AI Worker</span>
+          <span className="wkp-menu-label">{firstName} · {worker.role.split(' at ')[0]}</span>
         </div>
         <div className="wkp-menu-center">
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
@@ -921,8 +1066,8 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
             <div className="wkp-badge-info">
               <div className="wkp-badge-name-row">
                 <div className="wkp-badge-name-col">
-                  <span className="wkp-badge-name">Alexandra{'\n'}Seaman</span>
-                  <span className="wkp-badge-role">HR at Humans.AI</span>
+                  <span className="wkp-badge-name">{worker.name.replace('\\n', '\n')}</span>
+                  <span className="wkp-badge-role">{worker.role}</span>
                 </div>
                 {cameraOn && (
                   <div className="wkp-badge-camera-pip">
@@ -950,7 +1095,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
               </div>
             </div>
             <div className="wkp-badge-top">
-              <div className="wkp-badge-verif"><span>VERIFIEDAIHUMAN{'<<<<<'}</span><span>HRMANAGER{'<<<<<<<<<<<'}</span></div>
+              <div className="wkp-badge-verif"><span>VERIFIEDAIHUMAN{'<<<<<'}</span><span>{workerCode}{'<<<<<<<<<<<'}</span></div>
               <BarcodeSvg />
             </div>
             <FlutedGlass className="wkp-badge-glass" size={0.95} shape="zigzag" angle={0} distortionShape="cascade" distortion={1} shift={0} blur={0.34} edges={0.25} stretch={0} scale={1} fit="cover" highlights={0} shadows={0.25} colorBack="#00000000" colorHighlight="#FFFFFF" colorShadow="#FFFFFF" />
@@ -968,7 +1113,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
             ))}
             {workerLoading && (
               <div className="wkp-msg">
-                <div className="wkp-msg-meta"><span className="wkp-msg-author">ALEXANDRA</span></div>
+                <div className="wkp-msg-meta"><span className="wkp-msg-author">{authorName}</span></div>
                 <div className="wkp-msg-bubble" style={{ opacity: 0.6 }}>Thinking...</div>
               </div>
             )}
@@ -976,7 +1121,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
 
           <form className="wkp-chat-input" onSubmit={handleChatSubmit}>
             <div className="wkp-chat-input-wrap">
-              <input className="wkp-chat-input-field" placeholder="Message Alexandra..." value={chatInput} onChange={e => setChatInput(e.target.value)} />
+              <input className="wkp-chat-input-field" placeholder={`Message ${firstName}...`} value={chatInput} onChange={e => setChatInput(e.target.value)} />
               <div className="wkp-send-wrap">
                 <LiquidMetal className="wkp-send-ring" speed={1} softness={0.1} repetition={2} shiftRed={0.3} shiftBlue={0.3} distortion={0.07} contour={0.4} scale={1.87} rotation={0} shape="diamond" angle={70} colorBack="#00000000" colorTint="#FFFFFF" style={{ backgroundColor: '#AAAAAC', borderRadius: '999px', height: '44px', width: '44px' }} />
                 <button type="submit" className="wkp-chat-send">
@@ -1000,14 +1145,14 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
             <div className="wkp-center">
               <div className="wkp-status-banner">
                 <div className="wkp-status-dot-live" />
-                <span className="wkp-status-text">Researching Meridian Corp — Q3 financials, competitive analysis, mobile app audit</span>
+                <span className="wkp-status-text">{workerData.banner}</span>
                 <span className="wkp-status-time">14:32</span>
               </div>
 
               <div className="wkp-metrics-row">
                 <TiltCard className="wkp-metric-card wkp-metric-card--job">
                   <WordsStagger className="wkp-metric-label" delay={0.3} stagger={0.05} speed={0.35}>Job</WordsStagger>
-                  <WordsStagger className="wkp-metric-desc" delay={0.5} stagger={0.04} speed={0.4}>I make things possible and try to be the best in enterprise research</WordsStagger>
+                  <WordsStagger className="wkp-metric-desc" delay={0.5} stagger={0.04} speed={0.4}>{workerData.job}</WordsStagger>
                 </TiltCard>
                 <div className="wkp-metric-card">
                   <WordsStagger className="wkp-metric-label" delay={0.4} stagger={0.05} speed={0.35}>ROI</WordsStagger>
@@ -1032,7 +1177,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
               </div>
 
               <div className="wkp-section">
-                <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>Her office</WordsStagger>
+                <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>{firstName}'s office</WordsStagger>
                 <div className="wkp-office-row">
                   <div className="wkp-browser">
                     <div className="wkp-browser-toolbar">
@@ -1045,11 +1190,11 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </div>
-                      <div className="wkp-browser-url">meridian-corp.com/investor-relations</div>
+                      <div className="wkp-browser-url">{workerData.office}</div>
                     </div>
                     <div className="wkp-browser-page">
                       <div className="wkp-browser-nav-row">
-                        <span className="wkp-browser-site">MERIDIAN</span>
+                        <span className="wkp-browser-site">{workerData.siteName}</span>
                         <div className="wkp-browser-links"><span>Products</span><span>Investors</span><span>About</span></div>
                       </div>
                       <div className="wkp-browser-content">
@@ -1108,11 +1253,7 @@ export function WorkerPage({ anamClient = null, cameraStream = null, avatarStrea
               <div className="wkp-section">
                 <WordsStagger className="wkp-section-label" delay={1.2} stagger={0.05} speed={0.35}>Recent activity</WordsStagger>
                 <div className="wkp-activity-list">
-                  {[
-                    { time: '2m', text: 'Pulled Q3 earnings from SEC filing', color: '#3b82f6' },
-                    { time: '5m', text: 'Identified 4 direct competitors', color: '#34c759' },
-                    { time: '8m', text: 'Launched iOS sandbox for app audit', color: '#f59e0b' },
-                  ].map((a, i) => (
+                  {workerData.activity.map((a, i) => (
                     <div key={i} className="wkp-activity-item">
                       <span className="wkp-activity-dot" style={{ background: a.color }} />
                       <span className="wkp-activity-text">{a.text}</span>

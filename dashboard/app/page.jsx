@@ -215,6 +215,7 @@ function AppInner() {
   const searchParams = useSearchParams();
   // AI Workers Hub view: null | 'home' | 'workspace' | 'workers' | 'worker-page'
   const [aiView, setAiView] = useState(null);
+  const [selectedWorker, setSelectedWorker] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -989,7 +990,7 @@ function AppInner() {
             <Workspace
               companyName={company?.name || 'Humans.AI'}
               sessionId={sessionId}
-              onOpenWorkerProfile={() => setAiView('worker-page')}
+              onOpenWorkerProfile={(w) => { if (w) setSelectedWorker(w); setAiView('worker-page'); }}
               onGoHome={() => setAiView('home')}
               onGoCall={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
@@ -998,13 +999,14 @@ function AppInner() {
           {aiView === 'workers' && (
             <AIWorkers
               companyName={company?.name || 'Humans.AI'}
-              onSelectWorker={() => setAiView('worker-page')}
+              onSelectWorker={(w) => { setSelectedWorker(w); setAiView('worker-page'); }}
               onGoHome={() => setAiView('home')}
               onGoCall={() => setAiView('workspace')}
             />
           )}
           {aiView === 'worker-page' && (
             <WorkerPage
+              worker={selectedWorker}
               sessionId={sessionId}
               onBack={() => setAiView('workers')}
               onGoHome={() => setAiView('home')}
