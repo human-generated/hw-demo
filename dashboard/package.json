@@ -8,10 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anam-ai/js-sdk": "^4.10.0",
+    "@paper-design/shaders-react": "^0.0.71",
     "@xyflow/react": "^12.10.1",
+    "motion": "^12.35.0",
     "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "web-haptics": "^0.0.6"
   }
 }

@@ -1,3 +1,5 @@
+import './ai-workers.css';
+
 export const metadata = { title: 'H Worker Dashboard' };
 export default function RootLayout({ children }) {
   return (

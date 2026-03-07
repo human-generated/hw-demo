@@ -1,0 +1,58 @@
+'use client';
+
+export function DockIcons({ active, onHome, onCall, onWorkers }) {
+  return (
+    <div className="dock-icons">
+      <div
+        className={`dock-icon ${active === "home" ? "dock-icon--active" : ""}`}
+        style={{
+          background: "linear-gradient(145deg, #f5d4a0 0%, #d4a056 50%, #c48a3a 100%)",
+          boxShadow: "inset 0 1px 2px rgba(255,255,255,0.4), inset 0 -1px 2px rgba(0,0,0,0.1), 0 2px 6px rgba(180,130,60,0.3)",
+        }}
+        onClick={onHome}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M3 10L10 4L17 10" stroke="rgba(120,70,20,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M5 9V15.5C5 15.8 5.2 16 5.5 16H8.5V12.5C8.5 12.2 8.7 12 9 12H11C11.3 12 11.5 12.2 11.5 12.5V16H14.5C14.8 16 15 15.8 15 15.5V9" stroke="rgba(120,70,20,0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="dock-label">Home</span>
+      </div>
+      <div
+        className={`dock-icon ${active === "call" ? "dock-icon--active" : ""}`}
+        style={{
+          background: "linear-gradient(145deg, #f0f8f2 0%, #d4e8d8 50%, #c0d8c4 100%)",
+          boxShadow: "inset 0 1px 2px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.06), 0 2px 6px rgba(52,160,89,0.15)",
+        }}
+        onClick={onCall}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="3" y="8" width="2" height="4" rx="1" fill="#34c759" opacity="0.5" />
+          <rect x="6.5" y="5" width="2" height="10" rx="1" fill="#34c759" opacity="0.6" />
+          <rect x="10" y="7" width="2" height="6" rx="1" fill="#34c759" opacity="0.7" />
+          <rect x="13.5" y="4" width="2" height="12" rx="1" fill="#34c759" opacity="0.5" />
+          <rect x="17" y="6" width="2" height="8" rx="1" fill="#34c759" opacity="0.4" />
+        </svg>
+        <span className="dock-label">Call</span>
+      </div>
+      <div
+        className={`dock-icon ${active === "workers" ? "dock-icon--active" : ""}`}
+        style={{
+          background: "linear-gradient(145deg, #f8f8f6 0%, #e8e6e0 50%, #dddbd4 100%)",
+          boxShadow: "inset 0 1px 2px rgba(255,255,255,0.6), inset 0 -1px 2px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.08)",
+        }}
+        onClick={onWorkers}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          {[
+            { x: 5, y: 5, c: "#d97706" }, { x: 10, y: 5, c: "#34c759" }, { x: 15, y: 5, c: "#ef4444" },
+            { x: 5, y: 10, c: "#f59e0b" }, { x: 10, y: 10, c: "#3b82f6" }, { x: 15, y: 10, c: "#d97706" },
+            { x: 5, y: 15, c: "#34c759" }, { x: 10, y: 15, c: "#ef4444" }, { x: 15, y: 15, c: "#f59e0b" },
+          ].map((d, i) => (
+            <circle key={i} cx={d.x} cy={d.y} r="1.8" fill={d.c} opacity="0.7" />
+          ))}
+        </svg>
+        <span className="dock-label">Workers</span>
+      </div>
+    </div>
+  );
+}

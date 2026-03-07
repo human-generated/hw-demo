@@ -3,6 +3,10 @@ import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Homepage } from './components/Homepage';
+import { Workspace } from './components/Workspace';
+import { AIWorkers } from './components/AIWorkers';
+import { WorkerPage } from './components/WorkerPage';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -209,6 +213,8 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const searchParams = useSearchParams();
+  // AI Workers Hub view: null | 'home' | 'workspace' | 'workers' | 'worker-page'
+  const [aiView, setAiView] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -965,8 +971,58 @@ function AppInner() {
           <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
+          <Btn small onClick={() => setAiView('home')} style={{ background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none' }}>✦ Hub</Btn>
         </div>
       </div>
+
+      {/* AI Workers Hub overlay */}
+      {aiView && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
+          {aiView === 'home' && (
+            <Homepage
+              onSubmit={() => setAiView('workspace')}
+              onGoCall={() => setAiView('workspace')}
+              onGoWorkers={() => setAiView('workers')}
+            />
+          )}
+          {aiView === 'workspace' && (
+            <Workspace
+              companyName={company?.name || 'Humans.AI'}
+              sessionId={sessionId}
+              onOpenWorkerProfile={() => setAiView('worker-page')}
+              onGoHome={() => setAiView('home')}
+              onGoCall={() => setAiView('workspace')}
+              onGoWorkers={() => setAiView('workers')}
+            />
+          )}
+          {aiView === 'workers' && (
+            <AIWorkers
+              companyName={company?.name || 'Humans.AI'}
+              onSelectWorker={() => setAiView('worker-page')}
+              onGoHome={() => setAiView('home')}
+              onGoCall={() => setAiView('workspace')}
+            />
+          )}
+          {aiView === 'worker-page' && (
+            <WorkerPage
+              sessionId={sessionId}
+              onBack={() => setAiView('workers')}
+              onGoHome={() => setAiView('home')}
+              onGoWorkers={() => setAiView('workers')}
+            />
+          )}
+          <button
+            onClick={() => setAiView(null)}
+            style={{
+              position: 'fixed', top: 12, right: 16, zIndex: 9001,
+              background: 'rgba(0,0,0,0.6)', color: '#fff',
+              border: 'none', borderRadius: 8, padding: '6px 14px',
+              fontFamily: 'monospace', fontSize: '0.75rem',
+              cursor: 'pointer', backdropFilter: 'blur(8px)',
+            }}
+          >✕ Back to Dashboard</button>
+        </div>
+      )}
       {showSessions && (
         <SessionListPanel
           currentId={sessionId}
