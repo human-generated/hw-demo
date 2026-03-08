@@ -674,9 +674,9 @@ function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissions
                 </div>
                 <div style={{ display: 'flex', gap: '16px', paddingLeft: '28px' }}>
                   {DB_OPS.map(op => (
-                    <label key={op} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', fontWeight: 500, color: ops.includes(op) ? DB_OP_COLORS[op] : '#aaa' }}>
-                      <input type="checkbox" checked={ops.includes(op)} onChange={() => toggleOp(sb.id, op)}
-                        style={{ accentColor: DB_OP_COLORS[op], width: '13px', height: '13px', cursor: 'pointer' }} />
+                    <label key={op} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 500, color: sb.status === 'error' ? '#ccc' : ops.includes(op) ? DB_OP_COLORS[op] : '#aaa' }}>
+                      <input type="checkbox" checked={ops.includes(op)} disabled={sb.status === 'error'} onChange={() => toggleOp(sb.id, op)}
+                        style={{ accentColor: DB_OP_COLORS[op], width: '13px', height: '13px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer' }} />
                       {DB_OP_LABELS[op]}
                     </label>
                   ))}
