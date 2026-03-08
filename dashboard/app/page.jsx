@@ -2373,20 +2373,40 @@ function WorkerCard({ worker, sessionId, onDeploy, onRun, deploying, realClientA
         </div>
       </div>
 
-      {/* Steps mini-flow */}
-      {steps.length > 0 && (
-        <div style={{ padding: '0.6rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', gap: '0.3rem', overflowX: 'auto' }}>
-          {steps.map((s, i) => (
-            <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-              <div style={{ background: T.faint, borderRadius: T.radius, padding: '0.25rem 0.5rem', fontSize: '0.62rem', fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <span>{SKILL_ICONS[s.skill] || '●'}</span>
-                <span>{s.name || s.skill}</span>
-              </div>
-              {i < steps.length - 1 && <span style={{ color: T.muted, fontSize: '0.7rem' }}>›</span>}
+      {/* Workflows grouped list */}
+      {(() => {
+        const workflows = worker.workflows || [];
+        const hasWorkflows = Array.isArray(workflows) && workflows.length > 0;
+        const hasSteps = !hasWorkflows && steps.length > 0;
+        if (hasWorkflows) return (
+          <div style={{ padding: '0.5rem 1rem', borderBottom: T.border, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <div style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.1rem' }}>
+              {workflows.length} Workflow{workflows.length !== 1 ? 's' : ''}
             </div>
-          ))}
-        </div>
-      )}
+            {workflows.map((wf, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', borderBottom: i < workflows.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: wf.status === 'active' ? T.mint : T.muted, flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ flex: 1, fontSize: '0.67rem', color: T.text, fontFamily: T.ui, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wf.name}</span>
+                <span style={{ fontSize: '0.58rem', fontFamily: T.mono, color: T.muted }}>{wf.trigger}</span>
+              </div>
+            ))}
+          </div>
+        );
+        if (hasSteps) return (
+          <div style={{ padding: '0.6rem 1rem', borderBottom: T.border, display: 'flex', alignItems: 'center', gap: '0.3rem', overflowX: 'auto' }}>
+            {steps.map((s, i) => (
+              <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                <div style={{ background: T.faint, borderRadius: T.radius, padding: '0.25rem 0.5rem', fontSize: '0.62rem', fontFamily: T.mono, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span>{SKILL_ICONS[s.skill] || '●'}</span>
+                  <span>{s.name || s.skill}</span>
+                </div>
+                {i < steps.length - 1 && <span style={{ color: T.muted, fontSize: '0.7rem' }}>›</span>}
+              </div>
+            ))}
+          </div>
+        );
+        return null;
+      })()}
 
       {/* Recent runs toggle */}
       <div style={{ borderTop: T.border }}>

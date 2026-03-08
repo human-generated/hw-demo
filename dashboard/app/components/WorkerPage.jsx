@@ -246,13 +246,19 @@ function LiveActivityTab({ cfg }) {
         <span className="wkpt-live-badge">LIVE</span>
       </div>
       <div className="wkpt-grid-2">
-        <Card title="Activity Feed" sub="Today">
+        <Card title="Activity Feed" sub="Today — cost &amp; tokens per event">
           <div className="wkpt-feed">
             {d.feed.map((e, i) => (
               <div key={i} className="wkpt-feed-item">
                 <span className="wkpt-feed-time">{e.time}</span>
                 <span className="wkpt-feed-dot" style={{ background: e.color }} />
                 <span className="wkpt-feed-text">{e.event}</span>
+                {(e.cost || e.tokens) && (
+                  <span className="wkpt-feed-costs">
+                    {e.cost && <span className="wkpt-feed-cost">{e.cost}</span>}
+                    {e.tokens && <span className="wkpt-feed-tokens">{e.tokens}</span>}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -287,6 +293,7 @@ function LiveActivityTab({ cfg }) {
 
 function SkillsTab({ cfg }) {
   const d = cfg.skills;
+  const integrations = d.integrations || (cfg.integrations?.systems || []).map(s => ({ name: s.name, access: 'Read/Write', status: s.status }));
   return (
     <div className="wkpt-page">
       <div className="wkpt-grid-3">
@@ -307,46 +314,80 @@ function SkillsTab({ cfg }) {
           </div>
         </Card>
       </div>
+      {integrations.length > 0 && (
+        <Card title="Integration Access" sub={`${integrations.length} systems granted`} className="wkpt-card--full">
+          <div className="wkpt-int-grid">
+            {integrations.map((ig, i) => (
+              <div key={i} className={`wkpt-int-item${ig.status === 'Standby' ? ' wkpt-int-item--standby' : ''}`}>
+                <span className="wkpt-integration-icon"><IntegrationIcon name={ig.name} /></span>
+                <div className="wkpt-int-info">
+                  <span className="wkpt-int-name">{ig.name}</span>
+                  <span className="wkpt-int-access">{ig.access}</span>
+                </div>
+                <span className={`wkpt-integration-status${ig.status === 'Connected' ? ' wkpt-integration-status--on' : ''}`}>{ig.status}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
 
 function WorkflowsTab({ cfg }) {
-  const d = cfg.workflows;
-  const activeStep = d.steps.findIndex(s => s.status === 'active') + 1;
+  const [expanded, setExpanded] = useState(null);
+  const wfList = cfg.workflows?.list || [];
+  const escalation = cfg.workflows?.escalation || [];
   return (
     <div className="wkpt-page">
-      <Card title={`Active Workflow — ${d.activeWorkflow}`} badge={`Step ${activeStep} of ${d.steps.length}`} className="wkpt-card--full">
-        <div className="wkpt-wf-steps">
-          {d.steps.map((s, i) => (
-            <div key={i} className={`wkpt-wf-step wkpt-wf-step--${s.status}`}>
-              <div className="wkpt-wf-node">
-                {s.status === 'done' && <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                {s.status === 'active' && <div className="wkpt-wf-pulse" />}
+      <Card title="Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
+        {wfList.map((wf, i) => (
+          <div key={wf.id || i} className={`wkpt-wf-row${expanded === i ? ' wkpt-wf-row--open' : ''}`}>
+            <div className="wkpt-wf-row-head" onClick={() => setExpanded(expanded === i ? null : i)}>
+              <div className="wkpt-wf-row-left">
+                <span className={`wkpt-wf-status-dot wkpt-wf-status-dot--${wf.status}`} />
+                <div className="wkpt-wf-row-info">
+                  <span className="wkpt-wf-row-name">{wf.name}</span>
+                  <span className="wkpt-wf-row-trigger">{wf.trigger} · last: {wf.lastRun}</span>
+                </div>
               </div>
-              {i < d.steps.length - 1 && <div className="wkpt-wf-line" />}
-              <span className="wkpt-wf-label">{s.label}</span>
+              <div className="wkpt-wf-row-meta">
+                <span className="wkpt-wf-row-cost">{wf.cost}/run</span>
+                <span className="wkpt-wf-row-runs">{wf.runs} runs</span>
+                <span className={`wkpt-badge${wf.status === 'active' ? '' : ' wkpt-badge--idle'}`}>{wf.status}</span>
+                <span className="wkpt-wf-chevron">{expanded === i ? '▲' : '▼'}</span>
+              </div>
             </div>
-          ))}
-        </div>
-      </Card>
-      <div className="wkpt-grid-2">
-        <Card title="Active SOPs" sub={`${d.sops.length} procedures`}>
-          <div className="wkpt-sop-list">
-            {d.sops.map((s, i) => (
-              <div key={i} className="wkpt-sop">
-                <div className="wkpt-sop-info"><span className="wkpt-sop-name">{s.name}</span><span className="wkpt-sop-freq">{s.freq}</span></div>
-                <span className="wkpt-sop-last">{s.last}</span>
+            {expanded === i && (
+              <div className="wkpt-wf-row-body">
+                <div className="wkpt-wf-steps">
+                  {wf.steps.map((s, j) => (
+                    <div key={j} className={`wkpt-wf-step wkpt-wf-step--${s.status}`}>
+                      <div className="wkpt-wf-node">
+                        {s.status === 'done' && <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                        {s.status === 'active' && <div className="wkpt-wf-pulse" />}
+                      </div>
+                      {j < wf.steps.length - 1 && <div className="wkpt-wf-line" />}
+                      <span className="wkpt-wf-label">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="wkpt-wf-row-foot">
+                  <span>Avg duration: {wf.avgDuration}</span>
+                  <span>Cost per run: {wf.cost}</span>
+                </div>
               </div>
-            ))}
+            )}
           </div>
-        </Card>
-        <Card title="Escalation Logic">
+        ))}
+      </Card>
+      {escalation.length > 0 && (
+        <Card title="Escalation Logic" className="wkpt-card--full">
           <div className="wkpt-kv-list">
-            {d.escalation.map((e, i) => <KV key={i} k={e.trigger} v={e.target} />)}
+            {escalation.map((e, i) => <KV key={i} k={e.trigger} v={e.target} />)}
           </div>
         </Card>
-      </div>
+      )}
     </div>
   );
 }
@@ -450,16 +491,17 @@ function IntegrationsTab({ cfg }) {
 
 function HumanTeamTab({ cfg }) {
   const d = cfg.humanTeam;
+  const peers = d.peers || [];
   return (
     <div className="wkpt-page">
       <div className="wkpt-grid-2">
-        <Card title="Team Members" sub={`${d.members.length} humans`}>
+        <Card title="Peer Workers" sub={`${peers.length} AI workers in network`}>
           <div className="wkpt-team-list">
-            {d.members.map((t, i) => (
+            {peers.map((p, i) => (
               <div key={i} className="wkpt-team-item">
-                <div className="wkpt-team-avatar">{t.name.split(' ').map(n => n[0]).join('')}</div>
-                <div className="wkpt-team-info"><span className="wkpt-team-name">{t.name}</span><span className="wkpt-team-role">{t.role}</span></div>
-                <div className="wkpt-team-right"><span className="wkpt-team-relation">{t.relation}</span><span className="wkpt-team-sat">★ {t.satisfaction}</span></div>
+                <div className="wkpt-team-avatar wkpt-team-avatar--ai">AI</div>
+                <div className="wkpt-team-info"><span className="wkpt-team-name">{p.name}</span><span className="wkpt-team-role">{p.role}</span></div>
+                <div className="wkpt-team-right"><span className="wkpt-team-relation">{p.relation}</span><span className="wkpt-team-sat">{p.freq}</span></div>
               </div>
             ))}
           </div>
