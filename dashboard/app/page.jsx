@@ -343,6 +343,7 @@ function AppInner() {
 
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
+  const hubInitRef = useRef(false); // only initialize hub from URL once
 
   // Load hub session workers and handle URL params when hubSessionId changes
   useEffect(() => {
@@ -456,15 +457,16 @@ function AppInner() {
 
   async function initSession() {
     try {
-      // Check for ?hub= URL param — auto-open hub with that session
+      // Check for ?hub= URL param — auto-open hub with that session (only once)
       const hubParam = searchParams.get('hub');
-      if (hubParam) {
+      if (hubParam && !hubInitRef.current) {
+        hubInitRef.current = true;
         const hr = await fetch(`/api/demo/session/${hubParam}`);
         if (hr.ok) {
           const hd = await hr.json();
           setHubSessionId(hubParam);
           setHubCompanyName(hd?.company?.name || hd?.company || null);
-          setShowHubPicker(false); // skip picker when opening from URL
+          setShowHubPicker(false);
           setAiView('workers');
           // Also load main session from localStorage so dashboard still works
         }
