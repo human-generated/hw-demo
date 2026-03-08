@@ -248,10 +248,12 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
                 <span style={{ fontFamily: "'Space Grotesk','Inter',sans-serif", fontWeight: 600, fontSize: '0.88rem', color: '#1a1a1a' }}>{s.company || <span style={{ color: 'rgba(0,0,0,0.35)', fontWeight: 400 }}>Unnamed Session</span>}</span>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', textTransform: 'uppercase', color: phaseColors[s.phase] || '#8e8e93', fontWeight: 700, letterSpacing: '0.05em', background: `${phaseColors[s.phase] || '#8e8e93'}18`, borderRadius: 4, padding: '2px 6px' }}>{s.phase || 'start'}</span>
               </div>
-              <div style={{ display: 'flex', gap: 10, fontFamily: 'monospace', fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>
+              <div style={{ display: 'flex', gap: 10, fontFamily: 'monospace', fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', alignItems: 'center' }}>
                 {s.workers > 0 && <span>{s.workers} worker{s.workers !== 1 ? 's' : ''}</span>}
                 {s.workers > 0 && s.updatedAt && <span>·</span>}
                 {(s.updatedAt || s.createdAt) && <span>{timeAgo(s.updatedAt || s.createdAt)}</span>}
+                <span style={{ flex: 1 }} />
+                <span onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(s.id); e.currentTarget.textContent = 'copied!'; setTimeout(() => { e.currentTarget.textContent = s.id; }, 1200); }} title="Copy session ID" style={{ cursor: 'pointer', color: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: 3, border: '1px solid rgba(0,0,0,0.1)', transition: 'color 0.15s' }}>{s.id}</span>
               </div>
             </div>
           ))}
