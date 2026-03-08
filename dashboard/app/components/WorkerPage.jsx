@@ -385,7 +385,7 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
         // Real session worker — call actual run-steps endpoint
         const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, mode }),
+          body: JSON.stringify({ sessionId, mode, workflowId: wf.id }),
         });
         d = await r.json();
         if (d.error) throw new Error(d.error);
@@ -841,7 +841,11 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
       } catch { /* camera denied */ }
       if (cancelled) return;
       try {
-        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: cfg.personaId });
+        const workerTitle = (worker.name || cfg.job || 'AI Worker').replace(/\n/g, ' ').trim();
+        const workerDesc = (worker.description || worker.role || cfg.overview || '').slice(0, 300);
+        const co = companyName && companyName !== 'Humans.AI' ? ` at ${companyName}` : '';
+        const systemPrompt = `You are an AI worker named "${workerTitle}"${co}. ${workerDesc} When users ask what you do, describe your automated workflows and capabilities. Be professional and concise.`;
+        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: cfg.personaId, systemPrompt });
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
           if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
