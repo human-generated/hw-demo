@@ -804,25 +804,33 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
         }
       });
-      // Forward completed AI messages to orchestrator for context
-      client.addListener('MESSAGE_HISTORY_UPDATED', (messages) => {
-        if (!Array.isArray(messages) || messages.length === 0) return;
-        const lastMsg = messages[messages.length - 1];
-        if (!lastMsg || lastMsg.role === 'user') return;
-        const content = lastMsg.content || (Array.isArray(lastMsg.content) ? lastMsg.content.map(c => c.text || '').join('') : '');
+      // Handle voice messages: user speech → orchestrate, AI speech → context
+      client.addListener('MESSAGE_HISTORY_UPDATED', (msgs) => {
+        if (!Array.isArray(msgs) || msgs.length === 0) return;
+        const lastMsg = msgs[msgs.length - 1];
+        if (!lastMsg) return;
+        const content = typeof lastMsg.content === 'string' ? lastMsg.content
+          : Array.isArray(lastMsg.content) ? lastMsg.content.map(c => c.text || '').join('') : '';
         if (!content) return;
-        fetch('/api/demo/orchestrate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: content,
-            sessionId: sessionId || 'worker-session',
-            workerId: workerCode,
-            workerName: firstName,
-            workerRole: worker.role,
-            context: `[Avatar AI message from ${firstName}] ${cfg.job}`,
-          }),
-        }).catch(() => {});
+        if (lastMsg.role === 'user') {
+          // User spoke — show in chat and forward to orchestrator for execution
+          setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: 'YOU', text: content, time: 'Just now', isUser: true }]);
+          fetch('/api/demo/orchestrate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: content,
+              sessionId: sessionId || 'worker-session',
+              workerId: workerCode,
+              workerName: firstName,
+              workerRole: worker.role,
+              context: `You are acting as ${firstName}, ${worker.role}. ${cfg.job}. Respond in character, concisely and professionally.`,
+            }),
+          }).then(r => r.json()).then(data => {
+            const reply = data.reply || data.message;
+            if (reply) setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
+          }).catch(() => {});
+        }
       });
     }
     async function init() {
