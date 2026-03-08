@@ -7,6 +7,7 @@ import { Homepage } from './components/Homepage';
 import { Workspace } from './components/Workspace';
 import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage } from './components/WorkerPage';
+import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -210,6 +211,62 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
   );
 }
 
+// ── HubSessionPicker ──────────────────────────────────────────────────────────
+function HubSessionPicker({ onSelect, onNew, onClose }) {
+  const [sessions, setSessions] = useState(null);
+  useEffect(() => {
+    fetch('/api/demo/sessions').then(r => r.json()).then(setSessions).catch(() => setSessions([]));
+  }, []);
+  const phaseColors = { start: '#8e8e93', research: '#3b82f6', building: '#f59e0b', platforms: '#34c759', workers: '#a855f7' };
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const ms = Date.now() - new Date(iso).getTime();
+    if (ms < 60000) return 'just now';
+    if (ms < 3600000) return `${Math.floor(ms/60000)}m ago`;
+    if (ms < 86400000) return `${Math.floor(ms/3600000)}h ago`;
+    return `${Math.floor(ms/86400000)}d ago`;
+  }
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <MeshGradient style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} speed={0.19} scale={1.51} distortion={0.88} swirl={1} colors={['#E0EAFF', '#FFFFFF', '#AEE8E2', '#D4EAED']} />
+      <div style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.75)', backdropFilter: 'blur(28px) saturate(1.5)', WebkitBackdropFilter: 'blur(28px) saturate(1.5)', borderRadius: 20, padding: '2rem', width: 440, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.9) inset' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #34c759, #30a74f)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.875rem', boxShadow: '0 8px 24px rgba(52,199,89,0.35)' }}>
+            <span style={{ fontFamily: 'Georgia, serif', fontSize: '1.6rem', color: '#fff', fontWeight: 700, lineHeight: 1 }}>h</span>
+          </div>
+          <div style={{ fontFamily: "'Space Grotesk', 'Inter', sans-serif", fontSize: '1.15rem', fontWeight: 700, marginBottom: 4, color: '#1a1a1a' }}>Humans.AI Hub</div>
+          <div style={{ fontFamily: 'system-ui', fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)' }}>Select a company session to open in the Hub</div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: '1rem', maxHeight: 320 }}>
+          {sessions === null && <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: '0.75rem', fontFamily: 'monospace', padding: '1.5rem' }}>Loading sessions…</div>}
+          {sessions?.length === 0 && <div style={{ textAlign: 'center', color: 'rgba(0,0,0,0.4)', fontSize: '0.75rem', fontFamily: 'monospace', padding: '1.5rem' }}>No sessions yet — create a new one below</div>}
+          {(sessions || []).map(s => (
+            <div key={s.id} onClick={() => onSelect(s)} style={{ padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.9)', cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.92)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.55)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontFamily: "'Space Grotesk','Inter',sans-serif", fontWeight: 600, fontSize: '0.88rem', color: '#1a1a1a' }}>{s.company || <span style={{ color: 'rgba(0,0,0,0.35)', fontWeight: 400 }}>Unnamed Session</span>}</span>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', textTransform: 'uppercase', color: phaseColors[s.phase] || '#8e8e93', fontWeight: 700, letterSpacing: '0.05em', background: `${phaseColors[s.phase] || '#8e8e93'}18`, borderRadius: 4, padding: '2px 6px' }}>{s.phase || 'start'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, fontFamily: 'monospace', fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>
+                {s.workers > 0 && <span>{s.workers} worker{s.workers !== 1 ? 's' : ''}</span>}
+                {s.workers > 0 && s.updatedAt && <span>·</span>}
+                {(s.updatedAt || s.createdAt) && <span>{timeAgo(s.updatedAt || s.createdAt)}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={onNew} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'Space Grotesk','Inter',sans-serif", boxShadow: '0 4px 16px rgba(52,199,89,0.3)', marginBottom: 8 }}>
+          + New Hub Session
+        </button>
+        <button onClick={onClose} style={{ width: '100%', padding: '0.5rem', background: 'none', color: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: 8, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'monospace' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const searchParams = useSearchParams();
@@ -219,7 +276,9 @@ function AppInner() {
   const [hubAnamClient, setHubAnamClient] = useState(null);
   const [hubCameraStream, setHubCameraStream] = useState(null);
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
-  const [hubSessionId] = useState(() => 'hub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
+  const [hubSessionId, setHubSessionId] = useState(null);
+  const [hubCompanyName, setHubCompanyName] = useState(null);
+  const [showHubPicker, setShowHubPicker] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -373,6 +432,18 @@ function AppInner() {
 
   async function initSession() {
     try {
+      // Check for ?hub= URL param — auto-open hub with that session
+      const hubParam = searchParams.get('hub');
+      if (hubParam) {
+        const hr = await fetch(`/api/demo/session/${hubParam}`);
+        if (hr.ok) {
+          const hd = await hr.json();
+          setHubSessionId(hubParam);
+          setHubCompanyName(hd?.company?.name || hd?.company || null);
+          setAiView('home');
+          // Also load main session from localStorage so dashboard still works
+        }
+      }
       // Check URL ?session= param first
       const urlSession = searchParams.get('session');
       if (urlSession) {
@@ -976,10 +1047,35 @@ function AppInner() {
           <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>New Session</Btn>
-          <Btn small onClick={() => setAiView('home')} style={{ background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none' }}>✦ Hub</Btn>
+          <Btn small onClick={() => setShowHubPicker(true)} style={{ background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none' }}>✦ Hub</Btn>
         </div>
       </div>
 
+      {showHubPicker && (
+        <HubSessionPicker
+          onSelect={async (s) => {
+            setHubSessionId(s.id);
+            setHubCompanyName(s.company || null);
+            if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${s.id}`);
+            setShowHubPicker(false);
+            setAiView('home');
+          }}
+          onNew={async () => {
+            try {
+              const r = await fetch('/api/demo/session', { method: 'POST' });
+              const d = await r.json();
+              if (d.sessionId) {
+                setHubSessionId(d.sessionId);
+                setHubCompanyName(null);
+                if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${d.sessionId}`);
+              }
+            } catch {}
+            setShowHubPicker(false);
+            setAiView('home');
+          }}
+          onClose={() => setShowHubPicker(false)}
+        />
+      )}
       {/* AI Workers Hub overlay */}
       {aiView && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
@@ -1002,7 +1098,7 @@ function AppInner() {
           )}
           {aiView === 'workspace' && (
             <Workspace
-              companyName={company?.name || 'Humans.AI'}
+              companyName={hubCompanyName || company?.name || 'Humans.AI'}
               company={company}
               researchSummary={researchSummary}
               researchFindings={researchFindings}
@@ -1018,7 +1114,7 @@ function AppInner() {
           )}
           {aiView === 'workers' && (
             <AIWorkers
-              companyName={company?.name || 'Humans.AI'}
+              companyName={hubCompanyName || company?.name || 'Humans.AI'}
               onSelectWorker={(w) => { setSelectedWorker(w); setAiView('worker-page'); }}
               onGoHome={() => setAiView('home')}
               onGoCall={() => setAiView('workspace')}
@@ -1034,16 +1130,19 @@ function AppInner() {
             />
           )}
           <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 9001, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.62rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '4px 8px', backdropFilter: 'blur(8px)' }}>
-              {hubSessionId.slice(0, 16)}
-            </span>
+            <button onClick={() => setShowHubPicker(true)} style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '5px 12px', fontFamily: 'monospace', fontSize: '0.62rem', cursor: 'pointer', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34c759', display: 'inline-block', boxShadow: '0 0 6px rgba(52,199,89,0.8)' }} />
+              {hubSessionId ? hubSessionId.slice(0, 16) : 'Select Session'}
+            </button>
             <button
-              onClick={() => setAiView(null)}
+              onClick={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
               style={{
-                background: 'rgba(0,0,0,0.6)', color: '#fff',
-                border: 'none', borderRadius: 8, padding: '6px 14px',
+                background: 'rgba(0,0,0,0.55)', color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px',
                 fontFamily: 'monospace', fontSize: '0.75rem',
-                cursor: 'pointer', backdropFilter: 'blur(8px)',
+                cursor: 'pointer', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
               }}
             >✕ Back to Dashboard</button>
           </div>

@@ -44,6 +44,10 @@ export const WORKER_CONFIG = {
         { time: '5m', text: 'Flagged policy gap in engineering leave policy', color: '#f59e0b' },
         { time: '9m', text: 'Sent compliance reminder to 12 team members', color: '#34c759' },
       ],
+      sandboxes: [
+        { name: 'HR-Sandbox-01', type: 'Node.js 20', region: 'us-east-1', status: 'running', cost: '$0.04' },
+        { name: 'Policy-Analyzer', type: 'Python 3.11', region: 'us-east-1', status: 'idle', cost: '$0.02' },
+      ],
     },
     overview: {
       stats: { tasksCompleted: '1,247', uptime: '99.7%', escalationRate: '3.2%', dailyActive: '6.4h' },
@@ -187,6 +191,10 @@ export const WORKER_CONFIG = {
         { time: '2m', text: 'Qualified 3 new APAC enterprise prospects', color: '#34c759' },
         { time: '6m', text: 'Drafted outreach sequence for Hanwha Group', color: '#3b82f6' },
         { time: '10m', text: 'Updated pipeline forecast — $4.2M this quarter', color: '#f59e0b' },
+      ],
+      sandboxes: [
+        { name: 'Sales-Sandbox-01', type: 'Node.js 20', region: 'us-west-2', status: 'running', cost: '$0.04' },
+        { name: 'CRM-Integrator', type: 'Python 3.11', region: 'us-west-2', status: 'running', cost: '$0.03' },
       ],
     },
     overview: {
@@ -332,6 +340,10 @@ export const WORKER_CONFIG = {
         { time: '7m', text: 'Completed GDPR compliance check for new data pipeline', color: '#34c759' },
         { time: '11m', text: 'Filed NDA for the Meridian partnership', color: '#3b82f6' },
       ],
+      sandboxes: [
+        { name: 'Legal-Sandbox-01', type: 'Node.js 20', region: 'eu-west-1', status: 'running', cost: '$0.04' },
+        { name: 'Contract-Parser', type: 'Python 3.11', region: 'eu-west-1', status: 'idle', cost: '$0.02' },
+      ],
     },
     overview: {
       stats: { tasksCompleted: '984', uptime: '99.8%', escalationRate: '2.1%', dailyActive: '7.2h' },
@@ -475,6 +487,11 @@ export const WORKER_CONFIG = {
         { time: '2m', text: 'Completed Q3 financial close — EBITDA $214M (+2%)', color: '#34c759' },
         { time: '5m', text: 'Built Q4 headcount reduction model — $4.2M savings', color: '#3b82f6' },
         { time: '9m', text: 'Flagged 8% variance in APAC operating costs', color: '#f59e0b' },
+      ],
+      sandboxes: [
+        { name: 'Finance-Sandbox-01', type: 'Python 3.11', region: 'us-east-1', status: 'running', cost: '$0.05' },
+        { name: 'Model-Runner', type: 'Python 3.11', region: 'us-east-1', status: 'running', cost: '$0.06' },
+        { name: 'Report-Gen', type: 'Node.js 20', region: 'us-east-1', status: 'idle', cost: '$0.02' },
       ],
     },
     overview: {
@@ -620,6 +637,10 @@ export const WORKER_CONFIG = {
         { time: '6m', text: 'Pulled 5 competitor funding rounds from Crunchbase', color: '#3b82f6' },
         { time: '10m', text: 'Synthesized 3 product roadmap signals into intel brief', color: '#8b5cf6' },
       ],
+      sandboxes: [
+        { name: 'Research-Sandbox-01', type: 'Python 3.11', region: 'us-west-2', status: 'running', cost: '$0.05' },
+        { name: 'Data-Scraper', type: 'Node.js 20', region: 'us-west-2', status: 'idle', cost: '$0.03' },
+      ],
     },
     overview: {
       stats: { tasksCompleted: '748', uptime: '99.9%', escalationRate: '1.4%', dailyActive: '7.8h' },
@@ -763,6 +784,11 @@ export const WORKER_CONFIG = {
         { time: '2m', text: 'Completed API v3 migration for 12 endpoints', color: '#34c759' },
         { time: '5m', text: 'Identified performance bottleneck in auth route p95', color: '#ef4444' },
         { time: '8m', text: 'Deployed hotfix for rate limiting bug — zero downtime', color: '#3b82f6' },
+      ],
+      sandboxes: [
+        { name: 'Eng-Sandbox-01', type: 'Node.js 20', region: 'us-east-1', status: 'running', cost: '$0.04' },
+        { name: 'Eng-Sandbox-02', type: 'Python 3.11', region: 'us-east-1', status: 'running', cost: '$0.04' },
+        { name: 'Test-Runner', type: 'Node.js 20', region: 'eu-west-1', status: 'idle', cost: '$0.02' },
       ],
     },
     overview: {
@@ -908,6 +934,10 @@ export const WORKER_CONFIG = {
         { time: '6m', text: 'Flagged 6% conversion drop on landing page (mobile)', color: '#f59e0b' },
         { time: '10m', text: 'Scheduled 3 new campaigns for Q1 launch (Wed–Fri)', color: '#3b82f6' },
       ],
+      sandboxes: [
+        { name: 'Mktg-Sandbox-01', type: 'Node.js 20', region: 'us-west-2', status: 'running', cost: '$0.04' },
+        { name: 'Content-Gen', type: 'Python 3.11', region: 'us-west-2', status: 'idle', cost: '$0.03' },
+      ],
     },
     overview: {
       stats: { tasksCompleted: '1,842', uptime: '99.5%', escalationRate: '4.8%', dailyActive: '7.4h' },
@@ -1051,6 +1081,10 @@ export const WORKER_CONFIG = {
         { time: '2m', text: 'Delivered 3 dashboard direction concepts to team', color: '#8b5cf6' },
         { time: '5m', text: 'Updated component library with new nav design tokens', color: '#34c759' },
         { time: '9m', text: 'Annotated interaction specs for mobile nav patterns', color: '#3b82f6' },
+      ],
+      sandboxes: [
+        { name: 'Design-Sandbox-01', type: 'Node.js 20', region: 'us-west-2', status: 'running', cost: '$0.04' },
+        { name: 'Asset-Processor', type: 'Python 3.11', region: 'us-west-2', status: 'idle', cost: '$0.02' },
       ],
     },
     overview: {

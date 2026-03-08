@@ -191,6 +191,30 @@ function DashboardTab({ cfg, firstName }) {
           </div>
         </div>
       </div>
+      {cfg.dashboard.sandboxes && cfg.dashboard.sandboxes.length > 0 && (
+        <div className="wkp-section">
+          <WordsStagger className="wkp-section-label" delay={1.2} stagger={0.05} speed={0.35}>Sandboxes</WordsStagger>
+          <div className="wkpt-card">
+            <div className="wkpt-card-head" />
+            <div className="wkpt-sandbox-grid">
+              {cfg.dashboard.sandboxes.map((sb, i) => (
+                <div key={i} className="wkpt-sandbox-item">
+                  <div className="wkpt-sandbox-header">
+                    <span className="wkpt-sandbox-name">{sb.name}</span>
+                    <span className={`wkpt-sandbox-status${sb.status === 'running' ? ' wkpt-sandbox-status--running' : sb.status === 'idle' ? ' wkpt-sandbox-status--idle' : ''}`}>{sb.status}</span>
+                  </div>
+                  <div className="wkpt-sandbox-meta">
+                    <span>{sb.type}</span>
+                    <span>·</span>
+                    <span>{sb.region}</span>
+                    {sb.cost && <><span>·</span><span>{sb.cost}/hr</span></>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -334,10 +358,31 @@ function SkillsTab({ cfg }) {
   );
 }
 
-function WorkflowsTab({ cfg }) {
+function WorkflowsTab({ cfg, sessionId }) {
   const [expanded, setExpanded] = useState(null);
+  const [runningWf, setRunningWf] = useState(null);
+  const [ranWf, setRanWf] = useState({});
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
+
+  async function handleRunWorkflow(wf) {
+    if (runningWf) return;
+    setRunningWf(wf.id);
+    try {
+      await fetch('/api/demo/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Execute workflow: ${wf.name}`,
+          sessionId: sessionId || 'worker-session',
+          context: `Workflow execution request for "${wf.name}" (${wf.trigger}). Steps: ${wf.steps.map(s => s.label).join(' → ')}`,
+        }),
+      });
+      setRanWf(prev => ({ ...prev, [wf.id]: true }));
+    } catch {}
+    setRunningWf(null);
+  }
+
   return (
     <div className="wkpt-page">
       <Card title="Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
@@ -355,6 +400,13 @@ function WorkflowsTab({ cfg }) {
                 <span className="wkpt-wf-row-cost">{wf.cost}/run</span>
                 <span className="wkpt-wf-row-runs">{wf.runs} runs</span>
                 <span className={`wkpt-badge${wf.status === 'active' ? '' : ' wkpt-badge--idle'}`}>{wf.status}</span>
+                <button
+                  className={`wkpt-wf-run-btn${runningWf === wf.id ? ' wkpt-wf-run-btn--running' : ''}${ranWf[wf.id] ? ' wkpt-wf-run-btn--done' : ''}`}
+                  onClick={e => { e.stopPropagation(); handleRunWorkflow(wf); }}
+                  disabled={!!runningWf}
+                >
+                  {runningWf === wf.id ? '⟳' : ranWf[wf.id] ? '✓' : '▶'}
+                </button>
                 <span className="wkpt-wf-chevron">{expanded === i ? '▲' : '▼'}</span>
               </div>
             </div>
@@ -661,6 +713,26 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
         }
       });
+      // Forward completed AI messages to orchestrator for context
+      client.addListener('MESSAGE_HISTORY_UPDATED', (messages) => {
+        if (!Array.isArray(messages) || messages.length === 0) return;
+        const lastMsg = messages[messages.length - 1];
+        if (!lastMsg || lastMsg.role === 'user') return;
+        const content = lastMsg.content || (Array.isArray(lastMsg.content) ? lastMsg.content.map(c => c.text || '').join('') : '');
+        if (!content) return;
+        fetch('/api/demo/orchestrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: content,
+            sessionId: sessionId || 'worker-session',
+            workerId: workerCode,
+            workerName: firstName,
+            workerRole: worker.role,
+            context: `[Avatar AI message from ${firstName}] ${cfg.job}`,
+          }),
+        }).catch(() => {});
+      });
     }
     async function init() {
       if (cameraStreamRef.current && cameraVideoRef.current) {
@@ -880,7 +952,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab cfg={cfg} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
