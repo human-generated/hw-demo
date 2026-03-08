@@ -590,37 +590,111 @@ function OutputsTab({ cfg }) {
   );
 }
 
-function IntegrationsTab({ cfg }) {
-  const d = cfg.integrations;
-  const connected = d.systems.filter(s => s.status === 'Connected').length;
-  const standby = d.systems.filter(s => s.status === 'Standby').length;
+function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissionsChange }) {
+  const [data, setData] = useState(null);
+  const [perms, setPerms] = useState(workerPermissions || { sandboxes: [], keys: [] });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    fetch(`/api/demo/sessions/${sessionId}/integrations`)
+      .then(r => r.json())
+      .then(d => {
+        setData(d);
+        // Default: all deployed sandboxes and all keys enabled if no permissions saved yet
+        if (!workerPermissions) {
+          setPerms({
+            sandboxes: (d.sandboxes || []).filter(s => s.status === 'deployed').map(s => s.id),
+            keys: (d.keys || []).map(k => k.id),
+          });
+        }
+      })
+      .catch(() => {});
+  }, [sessionId]);
+
+  async function toggle(type, id) {
+    const cur = perms[type] || [];
+    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+    const newPerms = { ...perms, [type]: next };
+    setPerms(newPerms);
+    setSaving(true);
+    try {
+      await fetch(`/api/demo/workers/${workerId}/permissions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, permissions: newPerms }),
+      });
+      onPermissionsChange?.(newPerms);
+    } finally { setSaving(false); }
+  }
+
+  if (!data) return <div className="wkpt-page" style={{ padding: '2rem', color: '#999' }}>Loading integrations…</div>;
+
+  const statusColor = s => s === 'deployed' ? '#34c759' : s === 'error' ? '#ff3b30' : '#8e8e93';
+
   return (
     <div className="wkpt-page">
       <div className="wkpt-grid-2">
-        <Card title="Connected Systems" sub={`${connected} active · ${standby} standby`}>
+        <Card title="Data Access — Sandboxes" sub={`${(perms.sandboxes || []).length} of ${data.sandboxes.length} enabled`}>
           <div className="wkpt-integrations">
-            {d.systems.map((ig, i) => (
-              <div key={i} className={`wkpt-integration${ig.status === 'Standby' ? ' wkpt-integration--standby' : ''}`}>
-                <span className="wkpt-integration-icon"><IntegrationIcon name={ig.name} /></span>
-                <span className="wkpt-integration-name">{ig.name}</span>
-                <span className={`wkpt-integration-status${ig.status === 'Connected' ? ' wkpt-integration-status--on' : ''}`}>{ig.status}</span>
-              </div>
-            ))}
+            {data.sandboxes.map(sb => {
+              const on = (perms.sandboxes || []).includes(sb.id);
+              return (
+                <div key={sb.id} className="wkpt-integration" style={{ opacity: on ? 1 : 0.45 }}>
+                  <span className="wkpt-integration-icon"><IntegrationIcon name={sb.name} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="wkpt-integration-name">{sb.name}</span>
+                    {sb.url && <span style={{ display: 'block', fontSize: '10px', color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sb.url}</span>}
+                  </div>
+                  <span style={{ fontSize: '10px', color: statusColor(sb.status), marginRight: '8px', whiteSpace: 'nowrap' }}>{sb.status}</span>
+                  <button onClick={() => toggle('sandboxes', sb.id)} style={{ background: on ? '#34c759' : '#e5e5ea', border: 'none', borderRadius: '999px', width: '36px', height: '20px', cursor: 'pointer', flexShrink: 0, position: 'relative', transition: 'background 0.2s' }}>
+                    <span style={{ position: 'absolute', top: '2px', left: on ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', display: 'block' }} />
+                  </button>
+                </div>
+              );
+            })}
+            {data.sandboxes.length === 0 && <span style={{ color: '#999', fontSize: '12px' }}>No platforms deployed yet</span>}
           </div>
         </Card>
-        <Card title="Data Access Permissions">
+        <Card title="Data Access — API Keys" sub={`${(perms.keys || []).length} of ${data.keys.length} enabled`}>
+          <div className="wkpt-integrations">
+            {data.keys.map(k => {
+              const on = (perms.keys || []).includes(k.id);
+              return (
+                <div key={k.id} className="wkpt-integration" style={{ opacity: on ? 1 : 0.45 }}>
+                  <span className="wkpt-integration-icon"><IntegrationIcon name={k.label} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="wkpt-integration-name">{k.label}</span>
+                    <span style={{ display: 'block', fontSize: '10px', color: k.hasValue ? '#34c759' : '#ff3b30' }}>{k.hasValue ? 'Configured' : 'Not set'}</span>
+                  </div>
+                  <button onClick={() => toggle('keys', k.id)} style={{ background: on ? '#34c759' : '#e5e5ea', border: 'none', borderRadius: '999px', width: '36px', height: '20px', cursor: 'pointer', flexShrink: 0, position: 'relative', transition: 'background 0.2s' }}>
+                    <span style={{ position: 'absolute', top: '2px', left: on ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s', display: 'block' }} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {saving && <span style={{ fontSize: '11px', color: '#999', marginTop: '8px', display: 'block' }}>Saving…</span>}
+        </Card>
+      </div>
+      <div style={{ marginTop: '12px' }}>
+        <Card title="Effective Capabilities" sub="What this worker can do based on granted access">
           <div className="wkpt-perms">
             <div className="wkpt-perm-section">
-              <span className="wkpt-perm-heading">Read Access</span>
-              {d.readAccess.map((p, i) => (
-                <div key={i} className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#34c759" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg><span>{p}</span></div>
-              ))}
+              <span className="wkpt-perm-heading">Sandboxes with access</span>
+              {(perms.sandboxes || []).length === 0 && <div className="wkpt-perm-item" style={{ color: '#ff3b30' }}><span>No sandboxes enabled</span></div>}
+              {(perms.sandboxes || []).map(id => {
+                const sb = data.sandboxes.find(s => s.id === id);
+                return sb ? <div key={id} className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#34c759" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg><span>Read/Write {sb.name}{sb.url ? ` (${sb.url})` : ''}</span></div> : null;
+              })}
             </div>
             <div className="wkpt-perm-section">
-              <span className="wkpt-perm-heading">Write / Action</span>
-              {d.writeAccess.map((p, i) => (
-                <div key={i} className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg><span>{p}</span></div>
-              ))}
+              <span className="wkpt-perm-heading">API keys with access</span>
+              {(perms.keys || []).length === 0 && <div className="wkpt-perm-item" style={{ color: '#ff3b30' }}><span>No keys enabled</span></div>}
+              {(perms.keys || []).map(id => {
+                const k = data.keys.find(x => x.id === id);
+                return k ? <div key={id} className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg><span>{k.label}</span></div> : null;
+              })}
             </div>
           </div>
         </Card>
@@ -779,6 +853,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
   const [workerLoading, setWorkerLoading] = useState(false);
+  const [workerPermissions, setWorkerPermissions] = useState(worker.permissions || null);
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -860,7 +935,17 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
         const workerTitle = (worker.name || cfg.job || 'AI Worker').replace(/\n/g, ' ').trim();
         const workerDesc = (worker.description || worker.role || cfg.overview || '').slice(0, 300);
         const co = companyName && companyName !== 'Humans.AI' ? ` at ${companyName}` : '';
-        const systemPrompt = `You are an AI worker named "${workerTitle}"${co}. ${workerDesc} When users ask what you do, describe your automated workflows and capabilities. Be professional and concise.`;
+        // Build capabilities from permissions
+        let integrationsData = null;
+        try { integrationsData = sessionId ? await fetch(`/api/demo/sessions/${sessionId}/integrations`).then(r => r.json()) : null; } catch {}
+        const curPerms = workerPermissions || (integrationsData ? {
+          sandboxes: (integrationsData.sandboxes || []).filter(s => s.status === 'deployed').map(s => s.id),
+          keys: (integrationsData.keys || []).map(k => k.id),
+        } : null);
+        const sandboxCaps = integrationsData && curPerms ? (integrationsData.sandboxes || []).filter(s => (curPerms.sandboxes || []).includes(s.id)).map(s => `- Full read/write access to ${s.name} database (${s.url || s.id})`).join('\n') : '';
+        const keyCaps = integrationsData && curPerms ? (integrationsData.keys || []).filter(k => (curPerms.keys || []).includes(k.id)).map(k => `- Can use ${k.label}`).join('\n') : '';
+        const capsBlock = (sandboxCaps || keyCaps) ? `\n\nYou HAVE BEEN GRANTED the following capabilities — use them freely when asked:\n${sandboxCaps}\n${keyCaps}\nNEVER say you cannot do something covered above. The orchestrator will execute it — just confirm you are doing it.` : '\nYou can modify data, run workflows, and take actions. Never refuse — confirm and act.';
+        const systemPrompt = `You are an AI worker named "${workerTitle}"${co}. ${workerDesc}${capsBlock} Be professional and concise.`;
         // Update the Anam persona's system prompt to match this specific worker
         await fetch(`https://api.anam.ai/v1/personas/${cfg.personaId}`, {
           method: 'PUT',
@@ -1094,7 +1179,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} />}
           {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
-          {activeTab === 'Integrations' && <IntegrationsTab cfg={cfg} />}
+          {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
