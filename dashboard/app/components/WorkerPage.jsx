@@ -4,7 +4,7 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
-import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER, WORKER_PERSONA_IDS, guessWorkerCode, getWorkerPhoto, buildConfigFromWorker } from './WorkerConfig';
+import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER, WORKER_PERSONA_IDS, guessWorkerCode, getWorkerCode, getWorkerPhoto, buildConfigFromWorker } from './WorkerConfig';
 
 const ANAM_API_KEY = 'YmZiZTc0OTEtNjg5ZS00M2NhLThlNTgtYTlkNTQ2MDMzZWYyOjY3cVJwUm9hek9OcmZLcmVWQ0VxdmJBSWFPVFRQSUNQZEdlQlpyTGNLSUk9';
 const DEFAULT_PHOTO = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
@@ -758,8 +758,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
-  const PHOTO_KEYS = Object.keys(WORKER_PHOTOS);
-  const workerCode = worker.code || guessWorkerCode(worker) || PHOTO_KEYS[workerIndex % PHOTO_KEYS.length];
+  const workerCode = worker.code || getWorkerCode(worker, allWorkers);
   const workerId = worker.id || workerCode; // actual session worker id or predefined code
   const cfg = buildConfigFromWorker(worker, companyName, allWorkers, workerIndex);
   const photoUrl = getWorkerPhoto(worker, workerIndex) || DEFAULT_PHOTO;

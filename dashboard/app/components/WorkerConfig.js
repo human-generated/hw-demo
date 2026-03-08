@@ -1333,15 +1333,31 @@ function buildSessionWorkflows(worker) {
   return result;
 }
 
+// ─── Assign a unique code to a worker, aware of all other workers ────────────
+// Ensures no two workers in the same session share the same avatar/persona.
+export function getWorkerCode(worker, allWorkers = []) {
+  const ALL_CODES = Object.keys(WORKER_PHOTOS);
+  const guessed = guessWorkerCode(worker);
+  // Codes claimed by OTHER workers via pattern match
+  const takenByGuess = new Set(
+    allWorkers.filter(w => w.id !== worker.id).map(w => guessWorkerCode(w)).filter(Boolean)
+  );
+  if (guessed && !takenByGuess.has(guessed)) return guessed;
+  // Fallback: pick first code not taken by any other worker
+  const myIndex = Math.max(0, allWorkers.findIndex(w => w.id === worker.id));
+  const taken = new Set(allWorkers.filter(w => w.id !== worker.id).map(w => getWorkerCode(w, [])));
+  const available = ALL_CODES.filter(c => !taken.has(c));
+  return available[myIndex % Math.max(1, available.length)] || ALL_CODES[myIndex % ALL_CODES.length];
+}
+
 // ─── Build full WorkerPage config from a session worker object ───────────────
 export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWorkers = [], workerIndex = 0) {
   if (!worker) return WORKER_CONFIG.HRMANAGER;
   const company = companyName || 'Humans.AI';
   const companySafe = company.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-  // Match to predefined config — index-based fallback ensures different workers get different avatars
-  const PHOTO_KEYS = Object.keys(WORKER_PHOTOS);
-  const code = worker.code || guessWorkerCode(worker) || PHOTO_KEYS[workerIndex % PHOTO_KEYS.length];
+  // Match to predefined config — collision-free code assignment
+  const code = worker.code || getWorkerCode(worker, allWorkers);
   const predef = WORKER_CONFIG[code] || WORKER_CONFIG.HRMANAGER;
 
   // Parse name
@@ -1433,7 +1449,7 @@ export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWork
 
   return {
     ...predef,
-    personaId: WORKER_PERSONA_IDS[code] || WORKER_PERSONA_IDS[PHOTO_KEYS[workerIndex % PHOTO_KEYS.length]],
+    personaId: WORKER_PERSONA_IDS[code] || WORKER_PERSONA_IDS[Object.keys(WORKER_PHOTOS)[workerIndex % Object.keys(WORKER_PHOTOS).length]],
     job: jobDesc,
     banner: `${firstName} · ${jobDesc.slice(0, 60)}`,
     dashboard: tailoredDashboard,

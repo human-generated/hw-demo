@@ -1,7 +1,7 @@
 'use client';
 import { MeshGradient } from '@paper-design/shaders-react';
 import { DockIcons } from './DockIcons';
-import { WORKER_PHOTOS, guessWorkerCode, getWorkerPhoto } from './WorkerConfig';
+import { WORKER_PHOTOS, guessWorkerCode, getWorkerCode, getWorkerPhoto } from './WorkerConfig';
 
 const WORKERS = [
   { name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', tilt: -12, code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 },
@@ -37,8 +37,8 @@ function StatusDot({ status }) {
 
 // Map a session worker to the card display format
 const CARD_TILTS = [-12, 8, -6, 15, -18, 10, -9, 20];
-function sessionWorkerToCard(w, index) {
-  const code = guessWorkerCode(w) || Object.keys(WORKER_PHOTOS)[index % 8];
+function sessionWorkerToCard(w, index, allWorkers) {
+  const code = getWorkerCode(w, allWorkers);
   const photo = getWorkerPhoto(w, index);
   // Format name with line break between first and last name
   const nameParts = (w.name || 'AI Worker').replace('\n', ' ').trim().split(/\s+/);
@@ -66,7 +66,7 @@ function sessionWorkerToCard(w, index) {
 export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, workers: sessionWorkers }) {
   // Use session workers if provided, otherwise use hardcoded WORKERS
   const displayWorkers = sessionWorkers && sessionWorkers.length > 0
-    ? sessionWorkers.map(sessionWorkerToCard)
+    ? sessionWorkers.map((w, i) => sessionWorkerToCard(w, i, sessionWorkers))
     : WORKERS;
 
   function handleView(e, w) {
