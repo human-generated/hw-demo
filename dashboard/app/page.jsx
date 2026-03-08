@@ -278,7 +278,7 @@ function AppInner() {
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
-  const [showHubPicker, setShowHubPicker] = useState(false);
+  const [showHubPicker, setShowHubPicker] = useState(true); // hub is the default view
   const [hubWorkers, setHubWorkers] = useState([]);
   const [hubWorkerIdParam, setHubWorkerIdParam] = useState(null);
   const [hubWorkflowIdParam, setHubWorkflowIdParam] = useState(null);
@@ -464,7 +464,8 @@ function AppInner() {
           const hd = await hr.json();
           setHubSessionId(hubParam);
           setHubCompanyName(hd?.company?.name || hd?.company || null);
-          setAiView('home');
+          setShowHubPicker(false); // skip picker when opening from URL
+          setAiView('workers');
           // Also load main session from localStorage so dashboard still works
         }
       }

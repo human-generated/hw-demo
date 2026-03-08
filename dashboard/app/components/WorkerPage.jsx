@@ -358,7 +358,7 @@ function SkillsTab({ cfg }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId, defaultExpandedId = null, onWorkflowSelect = null }) {
+function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
   const [expanded, setExpanded] = useState(() => {
@@ -368,25 +368,60 @@ function WorkflowsTab({ cfg, sessionId, defaultExpandedId = null, onWorkflowSele
     }
     return null;
   });
-  const [runningWf, setRunningWf] = useState(null);
-  const [ranWf, setRanWf] = useState({});
+  const [activeRun, setActiveRun] = useState(null); // { wfIndex, mode }
+  const [runResults, setRunResults] = useState({});  // wfIndex → runData
+  const [visibleSteps, setVisibleSteps] = useState({}); // wfIndex → count
+  const intRef = useRef(null);
 
-  async function handleRunWorkflow(wf) {
-    if (runningWf) return;
-    setRunningWf(wf.id);
+  async function startRun(wf, i, mode) {
+    if (activeRun) return;
+    setActiveRun({ wfIndex: i, mode });
+    setRunResults(prev => ({ ...prev, [i]: null }));
+    setVisibleSteps(prev => ({ ...prev, [i]: 0 }));
+    const PREDEFINED = /^(HRMANAGER|SALESREP0|LEGALADV0|FINANALYS|RESEARCHER|ENGINEER0|MARKETING|DESIGNER0)$/;
     try {
-      await fetch('/api/demo/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `Execute workflow: ${wf.name}`,
-          sessionId: sessionId || 'worker-session',
-          context: `Workflow execution request for "${wf.name}" (${wf.trigger}). Steps: ${wf.steps.map(s => s.label).join(' → ')}`,
-        }),
-      });
-      setRanWf(prev => ({ ...prev, [wf.id]: true }));
-    } catch {}
-    setRunningWf(null);
+      let d;
+      if (workerId && !PREDEFINED.test(workerId)) {
+        // Real session worker — call actual run-steps endpoint
+        const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, mode }),
+        });
+        d = await r.json();
+        if (d.error) throw new Error(d.error);
+      } else {
+        // Hub worker — call orchestrate and synthesize result
+        await fetch('/api/demo/orchestrate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: `${mode === 'hard' ? 'Execute' : 'Simulate'} workflow: ${wf.name}`,
+            sessionId: sessionId || 'worker-session',
+            context: `${mode === 'hard' ? 'HARD RUN' : 'SOFT RUN (read-only)'}: "${wf.name}" (${wf.trigger}). Steps: ${(wf.steps || []).map(s => s.label).join(' → ')}.`,
+          }),
+        });
+        d = {
+          mode,
+          steps: (wf.steps || []).map((s, j) => ({
+            id: `step-${j}`, name: s.label, skill: 'ai-task', status: 'ok',
+            durationMs: 700 + j * 350 + Math.floor(Math.random() * 300),
+            tokens: Math.floor(600 + Math.random() * 1400),
+            costUsd: 0.0015 + Math.random() * 0.009,
+          })),
+          totalDurationMs: (wf.steps || []).length * 1100 + Math.floor(Math.random() * 800),
+        };
+      }
+      setRunResults(prev => ({ ...prev, [i]: d }));
+      let n = 0;
+      clearInterval(intRef.current);
+      intRef.current = setInterval(() => {
+        n++;
+        setVisibleSteps(prev => ({ ...prev, [i]: n }));
+        if (n >= (d.steps || []).length) clearInterval(intRef.current);
+      }, 600);
+    } catch (e) {
+      setRunResults(prev => ({ ...prev, [i]: { error: e.message, steps: [] } }));
+    }
+    setActiveRun(null);
   }
 
   return (
@@ -406,20 +441,13 @@ function WorkflowsTab({ cfg, sessionId, defaultExpandedId = null, onWorkflowSele
                 <span className="wkpt-wf-row-cost">{wf.cost}/run</span>
                 <span className="wkpt-wf-row-runs">{wf.runs} runs</span>
                 <span className={`wkpt-badge${wf.status === 'active' ? '' : ' wkpt-badge--idle'}`}>{wf.status}</span>
-                <button
-                  className={`wkpt-wf-run-btn${runningWf === wf.id ? ' wkpt-wf-run-btn--running' : ''}${ranWf[wf.id] ? ' wkpt-wf-run-btn--done' : ''}`}
-                  onClick={e => { e.stopPropagation(); handleRunWorkflow(wf); }}
-                  disabled={!!runningWf}
-                >
-                  {runningWf === wf.id ? '⟳' : ranWf[wf.id] ? '✓' : '▶'}
-                </button>
                 <span className="wkpt-wf-chevron">{expanded === i ? '▲' : '▼'}</span>
               </div>
             </div>
             {expanded === i && (
               <div className="wkpt-wf-row-body">
                 <div className="wkpt-wf-steps">
-                  {wf.steps.map((s, j) => (
+                  {(wf.steps || []).map((s, j) => (
                     <div key={j} className={`wkpt-wf-step wkpt-wf-step--${s.status}`}>
                       <div className="wkpt-wf-node">
                         {s.status === 'done' && <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
@@ -433,6 +461,60 @@ function WorkflowsTab({ cfg, sessionId, defaultExpandedId = null, onWorkflowSele
                 <div className="wkpt-wf-row-foot">
                   <span>Avg duration: {wf.avgDuration}</span>
                   <span>Cost per run: {wf.cost}</span>
+                </div>
+
+                {/* ── Soft / Hard Run Panel ── */}
+                <div className="wkpt-wf-run-area">
+                  <div className="wkpt-wf-run-header">
+                    <span className="wkpt-wf-run-desc">
+                      {runResults[i]
+                        ? (runResults[i].mode === 'soft' ? '🔍 Soft run · read-only' : '⚡ Hard run · live execution')
+                        : 'Soft = preview only · Hard = real actions'}
+                    </span>
+                    <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+                      {runResults[i] && !activeRun && (
+                        <button className="wkpt-run-reset" onClick={() => { setRunResults(prev => ({ ...prev, [i]: null })); setVisibleSteps(prev => ({ ...prev, [i]: 0 })); }}>Reset</button>
+                      )}
+                      <button className="wkpt-wf-soft-btn" onClick={() => startRun(wf, i, 'soft')} disabled={!!activeRun}>
+                        {activeRun?.wfIndex === i && activeRun?.mode === 'soft' ? '⟳ Running…' : '🔍 Soft Run'}
+                      </button>
+                      <button className="wkpt-wf-hard-btn" onClick={() => startRun(wf, i, 'hard')} disabled={!!activeRun}>
+                        {activeRun?.wfIndex === i && activeRun?.mode === 'hard' ? '⟳ Running…' : '⚡ Hard Run'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {runResults[i]?.error && (
+                    <div className="wkpt-run-error">✗ {runResults[i].error}</div>
+                  )}
+
+                  {runResults[i] && (runResults[i].steps || []).map((sr, j) => (
+                    <div key={sr.id || j} className={`wkpt-run-step${j < (visibleSteps[i] || 0) ? ' wkpt-run-step--visible' : ''}`}>
+                      <div className="wkpt-run-step-header">
+                        <span className={`wkpt-run-step-status wkpt-run-step-status--${j < (visibleSteps[i] || 0) ? (sr.status || 'ok') : 'pending'}`}>
+                          {j < (visibleSteps[i] || 0) ? (sr.status === 'error' ? '✗' : '✓') : '○'}
+                        </span>
+                        <span className="wkpt-run-step-name">{sr.name}</span>
+                        {j < (visibleSteps[i] || 0) && sr.durationMs && <span className="wkpt-run-step-dur">{sr.durationMs < 1000 ? sr.durationMs + 'ms' : (sr.durationMs / 1000).toFixed(1) + 's'}</span>}
+                        {j < (visibleSteps[i] || 0) && sr.tokens > 0 && <span className="wkpt-run-step-tokens">{sr.tokens.toLocaleString()}t</span>}
+                      </div>
+                    </div>
+                  ))}
+
+                  {runResults[i] && (visibleSteps[i] || 0) >= (runResults[i].steps || []).length && (runResults[i].steps || []).length > 0 && (() => {
+                    const rd = runResults[i];
+                    const isSoft = rd.mode === 'soft';
+                    const totalTokens = (rd.steps || []).reduce((s, r) => s + (r.tokens || 0), 0);
+                    const totalCost = (rd.steps || []).reduce((s, r) => s + (r.costUsd || 0), 0);
+                    return (
+                      <div className={`wkpt-run-summary${isSoft ? ' wkpt-run-summary--soft' : ' wkpt-run-summary--hard'}`}>
+                        <span>{isSoft ? '🔍 Soft Run complete' : '⚡ Hard Run complete'}</span>
+                        {totalTokens > 0 && <span className="wkpt-run-summary-tokens">🔤 {totalTokens.toLocaleString()} tokens</span>}
+                        {totalCost > 0 && <span className="wkpt-run-summary-cost">💰 ${totalCost.toFixed(4)}</span>}
+                        {rd.totalDurationMs && <span className="wkpt-run-summary-time">⏱ {(rd.totalDurationMs / 1000).toFixed(1)}s total</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -676,6 +758,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerCode = worker.code || guessWorkerCode(worker) || 'HRMANAGER';
+  const workerId = worker.id || workerCode; // actual session worker id or predefined code
   const cfg = buildConfigFromWorker(worker, companyName, allWorkers);
   const photoUrl = getWorkerPhoto(worker, 0) || DEFAULT_PHOTO;
   const firstName = (worker.name || 'Worker').split(/[\n\s]/)[0];
@@ -813,6 +896,24 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     if (!text || workerLoading) return;
     setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: 'YOU', text, time: 'Just now', isUser: true }]);
     setChatInput('');
+    // Check if message is a workflow run command
+    const lowerText = text.toLowerCase();
+    const wfList = cfg.workflows?.list || [];
+    if (wfList.length > 0 && /\b(run|execute|trigger|start|launch)\b/.test(lowerText)) {
+      const matchedWf = wfList.find(wf => lowerText.includes(wf.name.toLowerCase().split(' ').slice(0, 2).join(' ')));
+      if (matchedWf) {
+        const isHard = /\bhard\b/.test(lowerText) || /\bfor real\b|\bactually\b|\bexecute\b/.test(lowerText);
+        const mode = isHard ? 'hard' : 'soft';
+        setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: `${isHard ? '⚡ Executing' : '🔍 Simulating'} workflow "${matchedWf.name}" — switching to Workflows tab.`, time: 'Just now', isUser: false }]);
+        setActiveTab('Workflows');
+        // Fire the run via orchestrate
+        fetch('/api/demo/orchestrate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `${isHard ? 'Execute' : 'Simulate'} workflow: ${matchedWf.name}`, sessionId: sessionId || 'worker-session', context: `${mode.toUpperCase()} RUN triggered via chat: "${matchedWf.name}" (${matchedWf.trigger}). Steps: ${(matchedWf.steps || []).map(s => s.label).join(' → ')}.` }),
+        }).catch(() => {});
+        return;
+      }
+    }
     // Send to avatar voice
     if (isConnected && anamClientRef.current) anamClientRef.current.sendUserMessage(text);
     // Send to orchestrator with worker context
@@ -959,7 +1060,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab cfg={cfg} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}

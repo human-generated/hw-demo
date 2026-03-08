@@ -5857,3 +5857,169 @@ body {
   font-size: 0.6rem;
   color: rgba(0, 0, 0, 0.4);
 }
+
+/* ─── Workflow Soft/Hard Run Panel ───────────────────────────────────────────── */
+.wkpt-wf-run-area {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: 14px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wkpt-wf-run-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wkpt-wf-run-desc {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 0.6rem;
+  color: rgba(0, 0, 0, 0.38);
+}
+.wkpt-run-reset {
+  background: none;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 5px;
+  padding: 4px 9px;
+  font-size: 0.62rem;
+  font-family: monospace;
+  color: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.wkpt-run-reset:hover { border-color: rgba(0,0,0,0.25); color: rgba(0,0,0,0.6); }
+.wkpt-wf-soft-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.07);
+  color: #3b82f6;
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.wkpt-wf-soft-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.8);
+}
+.wkpt-wf-soft-btn:disabled { opacity: 0.45; cursor: default; }
+.wkpt-wf-hard-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.15s;
+  box-shadow: 0 2px 10px rgba(239, 68, 68, 0.35);
+  letter-spacing: 0.02em;
+}
+.wkpt-wf-hard-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+.wkpt-wf-hard-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.wkpt-run-error {
+  background: rgba(239, 68, 68, 0.07);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: #ef4444;
+}
+.wkpt-run-step {
+  opacity: 0.2;
+  transform: translateY(5px);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wkpt-run-step--visible { opacity: 1; transform: translateY(0); }
+.wkpt-run-step-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, 0.025);
+  border-radius: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.wkpt-run-step-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+  line-height: 1;
+}
+.wkpt-run-step-status--ok { color: #34c759; }
+.wkpt-run-step-status--error { color: #ef4444; }
+.wkpt-run-step-status--pending { color: rgba(0, 0, 0, 0.2); }
+.wkpt-run-step-name {
+  font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+  font-size: 0.69rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+.wkpt-run-step-dur {
+  font-family: monospace;
+  font-size: 0.6rem;
+  color: rgba(0, 0, 0, 0.38);
+}
+.wkpt-run-step-tokens {
+  font-family: monospace;
+  font-size: 0.58rem;
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.09);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.wkpt-run-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.wkpt-run-summary--soft {
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+.wkpt-run-summary--hard {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+.wkpt-run-summary-tokens {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-weight: 500;
+}
+.wkpt-run-summary-cost {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-weight: 500;
+}
+.wkpt-run-summary-time {
+  color: rgba(0, 0, 0, 0.38);
+  font-weight: 400;
+  margin-left: auto;
+}
