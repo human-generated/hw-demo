@@ -219,6 +219,7 @@ function AppInner() {
   const [hubAnamClient, setHubAnamClient] = useState(null);
   const [hubCameraStream, setHubCameraStream] = useState(null);
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
+  const [hubSessionId] = useState(() => 'hub-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -1008,7 +1009,7 @@ function AppInner() {
               anamClient={hubAnamClient}
               cameraStream={hubCameraStream}
               avatarStream={hubAvatarStream}
-              sessionId={sessionId}
+              sessionId={hubSessionId}
               onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
               onGoCall={() => setAiView('workspace')}
@@ -1026,22 +1027,26 @@ function AppInner() {
           {aiView === 'worker-page' && (
             <WorkerPage
               worker={selectedWorker}
-              sessionId={sessionId}
+              sessionId={hubSessionId}
               onBack={() => setAiView('workers')}
               onGoHome={() => setAiView('home')}
               onGoWorkers={() => setAiView('workers')}
             />
           )}
-          <button
-            onClick={() => setAiView(null)}
-            style={{
-              position: 'fixed', top: 12, right: 16, zIndex: 9001,
-              background: 'rgba(0,0,0,0.6)', color: '#fff',
-              border: 'none', borderRadius: 8, padding: '6px 14px',
-              fontFamily: 'monospace', fontSize: '0.75rem',
-              cursor: 'pointer', backdropFilter: 'blur(8px)',
-            }}
-          >✕ Back to Dashboard</button>
+          <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 9001, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.62rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(0,0,0,0.4)', borderRadius: 6, padding: '4px 8px', backdropFilter: 'blur(8px)' }}>
+              {hubSessionId.slice(0, 16)}
+            </span>
+            <button
+              onClick={() => setAiView(null)}
+              style={{
+                background: 'rgba(0,0,0,0.6)', color: '#fff',
+                border: 'none', borderRadius: 8, padding: '6px 14px',
+                fontFamily: 'monospace', fontSize: '0.75rem',
+                cursor: 'pointer', backdropFilter: 'blur(8px)',
+              }}
+            >✕ Back to Dashboard</button>
+          </div>
         </div>
       )}
       {showSessions && (
