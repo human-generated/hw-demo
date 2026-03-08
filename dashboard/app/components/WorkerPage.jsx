@@ -824,11 +824,18 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
               workerId: workerCode,
               workerName: firstName,
               workerRole: worker.role,
-              context: `You are acting as ${firstName}, ${worker.role}. ${cfg.job}. Respond in character, concisely and professionally.`,
+              context: `Worker: ${firstName}, ${worker.role}. ${cfg.job}.`,
             }),
           }).then(r => r.json()).then(data => {
             const reply = data.reply || data.message;
-            if (reply) setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
+            if (reply) {
+              setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
+              // Feed result back to avatar so it can speak the answer
+              if (anamClientRef.current) {
+                const spokenReply = reply.replace(/```[\s\S]*?```/g, '').trim().slice(0, 300);
+                if (spokenReply) anamClientRef.current.sendUserMessage(`[System result for your previous action, speak this to the user]: ${spokenReply}`);
+              }
+            }
           }).catch(() => {});
         }
       });
@@ -947,12 +954,18 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           workerId: workerCode,
           workerName: firstName,
           workerRole: worker.role,
-          context: `You are acting as ${firstName}, ${worker.role}. ${cfg.job}. Respond in character, concisely and professionally.`,
+          context: `Worker: ${firstName}, ${worker.role}. ${cfg.job}.`,
         }),
       });
       const data = await res.json();
-      if (data.reply || data.message) {
-        setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: data.reply || data.message, time: 'Just now', isUser: false }]);
+      const reply = data.reply || data.message;
+      if (reply) {
+        setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
+        // Feed result back to avatar so it can speak the answer
+        if (isConnected && anamClientRef.current) {
+          const spokenReply = reply.replace(/```[\s\S]*?```/g, '').trim().slice(0, 300);
+          if (spokenReply) anamClientRef.current.sendUserMessage(`[System result, speak this to the user]: ${spokenReply}`);
+        }
       }
     } catch (err) { console.error('Worker chat error:', err); }
     finally { setWorkerLoading(false); }
