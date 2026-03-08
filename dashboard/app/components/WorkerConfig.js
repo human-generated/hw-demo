@@ -1334,13 +1334,14 @@ function buildSessionWorkflows(worker) {
 }
 
 // ─── Build full WorkerPage config from a session worker object ───────────────
-export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWorkers = []) {
+export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWorkers = [], workerIndex = 0) {
   if (!worker) return WORKER_CONFIG.HRMANAGER;
   const company = companyName || 'Humans.AI';
   const companySafe = company.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-  // Match to predefined config (or use HRMANAGER as fallback base)
-  const code = worker.code || guessWorkerCode(worker) || 'HRMANAGER';
+  // Match to predefined config — index-based fallback ensures different workers get different avatars
+  const PHOTO_KEYS = Object.keys(WORKER_PHOTOS);
+  const code = worker.code || guessWorkerCode(worker) || PHOTO_KEYS[workerIndex % PHOTO_KEYS.length];
   const predef = WORKER_CONFIG[code] || WORKER_CONFIG.HRMANAGER;
 
   // Parse name
@@ -1432,7 +1433,7 @@ export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWork
 
   return {
     ...predef,
-    personaId: (WORKER_PERSONA_IDS[code]) || WORKER_PERSONA_IDS.HRMANAGER,
+    personaId: WORKER_PERSONA_IDS[code] || WORKER_PERSONA_IDS[PHOTO_KEYS[workerIndex % PHOTO_KEYS.length]],
     job: jobDesc,
     banner: `${firstName} · ${jobDesc.slice(0, 60)}`,
     dashboard: tailoredDashboard,

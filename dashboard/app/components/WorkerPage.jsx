@@ -761,7 +761,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const PHOTO_KEYS = Object.keys(WORKER_PHOTOS);
   const workerCode = worker.code || guessWorkerCode(worker) || PHOTO_KEYS[workerIndex % PHOTO_KEYS.length];
   const workerId = worker.id || workerCode; // actual session worker id or predefined code
-  const cfg = buildConfigFromWorker(worker, companyName, allWorkers);
+  const cfg = buildConfigFromWorker(worker, companyName, allWorkers, workerIndex);
   const photoUrl = getWorkerPhoto(worker, workerIndex) || DEFAULT_PHOTO;
   const firstName = (worker.name || 'Worker').split(/[\n\s]/)[0];
   const authorName = firstName.toUpperCase();
