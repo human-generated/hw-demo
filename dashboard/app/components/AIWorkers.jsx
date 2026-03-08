@@ -1,7 +1,7 @@
 'use client';
 import { MeshGradient } from '@paper-design/shaders-react';
 import { DockIcons } from './DockIcons';
-import { WORKER_PHOTOS } from './WorkerConfig';
+import { WORKER_PHOTOS, guessWorkerCode, getWorkerPhoto } from './WorkerConfig';
 
 const WORKERS = [
   { name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', tilt: -12, code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 },
@@ -35,14 +35,48 @@ function StatusDot({ status }) {
   return <span className="aw-status-dot" style={{ background: color }} />;
 }
 
-export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall }) {
+// Map a session worker to the card display format
+const CARD_TILTS = [-12, 8, -6, 15, -18, 10, -9, 20];
+function sessionWorkerToCard(w, index) {
+  const code = guessWorkerCode(w) || Object.keys(WORKER_PHOTOS)[index % 8];
+  const photo = getWorkerPhoto(w, index);
+  // Format name with line break between first and last name
+  const nameParts = (w.name || 'AI Worker').replace('\n', ' ').trim().split(/\s+/);
+  const displayName = nameParts.length >= 2
+    ? nameParts.slice(0, -1).join(' ') + '\n' + nameParts[nameParts.length - 1]
+    : w.name;
+  // Status mapping
+  const statusMap = { running: 'Active', deployed: 'Active', proposed: 'Idle', error: 'Busy' };
+  const status = statusMap[w.status] || 'Active';
+  // Tasks = workflows count × 8, or steps count, or simulated
+  const tasks = (w.workflows?.length || 0) * 8 + (w.steps?.length || 0) || (10 + index * 7);
+  const rating = (4.5 + (index % 5) * 0.1).toFixed(1);
+  return {
+    name: displayName,
+    role: (w.description || w.role || 'AI Worker').slice(0, 50),
+    tilt: CARD_TILTS[index % CARD_TILTS.length],
+    code,
+    status,
+    tasks,
+    rating: parseFloat(rating),
+    _sessionWorker: w, // keep reference for onSelectWorker
+  };
+}
+
+export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, workers: sessionWorkers }) {
+  // Use session workers if provided, otherwise use hardcoded WORKERS
+  const displayWorkers = sessionWorkers && sessionWorkers.length > 0
+    ? sessionWorkers.map(sessionWorkerToCard)
+    : WORKERS;
+
   function handleView(e, w) {
     e.stopPropagation();
-    onSelectWorker?.(w);
+    // Pass the original session worker if available, otherwise the hub worker object
+    onSelectWorker?.(w._sessionWorker || w);
   }
   function handleCall(e, w) {
     e.stopPropagation();
-    onSelectWorker?.(w);
+    onSelectWorker?.(w._sessionWorker || w);
   }
   return (
     <div className="aw">
@@ -71,11 +105,11 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
       <div className="aw-content">
         <div className="aw-tab-workers">
           <div className="aw-grid">
-            {WORKERS.map((w, i) => (
+            {displayWorkers.map((w, i) => (
               <div key={i} className="aw-worker" style={{ '--tilt': `${w.tilt}deg` }}>
                 <div className="aw-photo-wrap">
                   <div className="aw-photo" style={{
-                    backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${WORKER_PHOTOS[w.code]})`,
+                    backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${getWorkerPhoto(w._sessionWorker || w, i) || WORKER_PHOTOS[w.code]})`,
                     backgroundSize: 'auto, 130%', backgroundPosition: '0% 0%, center 15%',
                     filter: 'contrast(1.06)', transform: `rotate(calc(-1 * var(--tilt)))`,
                   }} />
@@ -85,7 +119,7 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
                     <div className="aw-badge-green" />
                     <div className="aw-badge-status"><StatusDot status={w.status} /><span>{w.status}</span></div>
                     <div className="aw-badge-photo" style={{
-                      backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${WORKER_PHOTOS[w.code]})`,
+                      backgroundImage: `radial-gradient(ellipse 51% 51% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${getWorkerPhoto(w._sessionWorker || w, i) || WORKER_PHOTOS[w.code]})`,
                       backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
                     }} />
                     <div className="aw-badge-info">

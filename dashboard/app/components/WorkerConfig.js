@@ -1219,3 +1219,228 @@ export const DEFAULT_WORKER = {
   tasks: 24,
   rating: 4.9,
 };
+
+// ─── Helper: guess which predefined code matches a session worker ────────────
+export function guessWorkerCode(worker) {
+  const text = `${worker.name || ''} ${worker.description || ''} ${worker.role || ''}`.toLowerCase();
+  if (/\bhr\b|human resource|people ops|talent|onboard|recruit|employee/.test(text)) return 'HRMANAGER';
+  if (/\bsale|revenue|crm|account manager|client success|business dev/.test(text)) return 'SALESREP0';
+  if (/\blegal|law|contract|counsel|compliance|gdpr|regulatory/.test(text)) return 'LEGALADV0';
+  if (/\bfinance|cfo|budget|accounting|forecast|payment|invoice|financial/.test(text)) return 'FINANALYS';
+  if (/\bresearch|analyst|data scien|insight|intelligence|market intel/.test(text)) return 'RESEARCHER';
+  if (/\bengineer|develop|software|devops|infrastructure|backend|frontend|sre/.test(text)) return 'ENGINEER0';
+  if (/\bmarket|content|brand|social|seo|campaign|growth|demand/.test(text)) return 'MARKETING';
+  if (/\bdesign|ux|ui|creative|visual|product design|brand design/.test(text)) return 'DESIGNER0';
+  return null;
+}
+
+// ─── Helper: get photo URL for a session worker ───────────────────────────────
+export function getWorkerPhoto(worker, fallbackIndex = 0) {
+  const code = guessWorkerCode(worker);
+  if (code && WORKER_PHOTOS[code]) return WORKER_PHOTOS[code];
+  const photos = Object.values(WORKER_PHOTOS);
+  return photos[fallbackIndex % photos.length];
+}
+
+// ─── Helper: convert session worker's workflows/steps to WorkflowsTab format ─
+function buildSessionWorkflows(worker) {
+  function stepsForWorkflow(wf, allSteps, wfIndex, totalWfs) {
+    // Try to slice allSteps proportionally
+    if (allSteps && allSteps.length > 0) {
+      const chunk = Math.ceil(allSteps.length / totalWfs);
+      const slice = allSteps.slice(wfIndex * chunk, (wfIndex + 1) * chunk);
+      if (slice.length > 0) {
+        return slice.map((s, i) => ({
+          label: s.name || s.skill || 'Step',
+          status: i === 0 ? 'done' : i === 1 ? 'active' : 'pending',
+        }));
+      }
+    }
+    // Infer steps from workflow name
+    const n = (wf.name || '').toLowerCase();
+    if (/onboard|hire|recruit|welcome/.test(n)) return [
+      { label: 'Receive Request', status: 'done' },
+      { label: 'Prepare Package', status: 'done' },
+      { label: 'Execute Process', status: 'active' },
+      { label: 'Notify Stakeholders', status: 'pending' },
+    ];
+    if (/review|audit|check|scan|analyz|assess/.test(n)) return [
+      { label: 'Fetch Documents', status: 'done' },
+      { label: 'Analyze Content', status: 'done' },
+      { label: 'Identify Issues', status: 'active' },
+      { label: 'Generate Report', status: 'pending' },
+    ];
+    if (/report|summary|export|generat/.test(n)) return [
+      { label: 'Gather Data', status: 'done' },
+      { label: 'Process & Transform', status: 'done' },
+      { label: 'Format Output', status: 'active' },
+      { label: 'Distribute', status: 'pending' },
+    ];
+    if (/monitor|track|watch|alert/.test(n)) return [
+      { label: 'Connect Data Source', status: 'done' },
+      { label: 'Run Checks', status: 'active' },
+      { label: 'Evaluate Thresholds', status: 'pending' },
+      { label: 'Send Alerts', status: 'pending' },
+    ];
+    return [
+      { label: 'Initialize', status: 'done' },
+      { label: 'Process', status: 'active' },
+      { label: 'Finalize', status: 'pending' },
+    ];
+  }
+
+  function triggerLabel(t) {
+    const map = { schedule: 'Scheduled', webhook: 'Webhook', manual: 'Manual', 'db-change': 'DB change', 'db-condition': 'DB condition', message: 'Message', 'platform-event': 'Platform event' };
+    return map[(t || '').toLowerCase()] || t || 'Manual';
+  }
+
+  const result = [];
+  // Priority 1: worker.workflows array (simple format: { name, status, trigger })
+  if (Array.isArray(worker.workflows) && worker.workflows.length > 0) {
+    worker.workflows.forEach((wf, i) => {
+      const steps = stepsForWorkflow(wf, worker.steps, i, worker.workflows.length);
+      result.push({
+        id: `wf-${(worker.id || '').slice(-6)}-${i}`,
+        name: wf.name,
+        trigger: triggerLabel(wf.trigger || worker.trigger?.type),
+        status: (wf.status === 'inactive') ? 'idle' : 'active',
+        lastRun: i === 0 ? 'Today' : i === 1 ? 'Yesterday' : '2 days ago',
+        avgDuration: ['~8 min', '~15 min', '~42 min', '~1.2h'][i % 4],
+        runs: [12, 8, 31, 5, 47][i % 5] + i * 7,
+        cost: ['$0.08', '$0.12', '$0.45', '$1.20', '$0.22'][i % 5],
+        steps,
+      });
+    });
+    return result;
+  }
+  // Priority 2: worker.steps → single "Main Workflow"
+  if (Array.isArray(worker.steps) && worker.steps.length > 0) {
+    result.push({
+      id: `wf-${(worker.id || 'main').slice(-6)}`,
+      name: `${(worker.name || 'Worker').split(/[\s\n]/)[0]} Workflow`,
+      trigger: triggerLabel(worker.trigger?.type),
+      status: 'active',
+      lastRun: 'Today',
+      avgDuration: `~${worker.steps.length * 4} min`,
+      runs: 18,
+      cost: '$0.18',
+      steps: worker.steps.map((s, i) => ({
+        label: s.name || s.skill || 'Step',
+        status: i === 0 ? 'done' : i === 1 ? 'active' : 'pending',
+      })),
+    });
+  }
+  return result;
+}
+
+// ─── Build full WorkerPage config from a session worker object ───────────────
+export function buildConfigFromWorker(worker, companyName = 'Humans.AI', allWorkers = []) {
+  if (!worker) return WORKER_CONFIG.HRMANAGER;
+  const company = companyName || 'Humans.AI';
+  const companySafe = company.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+  // Match to predefined config (or use HRMANAGER as fallback base)
+  const code = worker.code || guessWorkerCode(worker) || 'HRMANAGER';
+  const predef = WORKER_CONFIG[code] || WORKER_CONFIG.HRMANAGER;
+
+  // Parse name
+  const rawName = worker.name || predef.intro?.[0]?.text?.split("'")[0] || 'AI Worker';
+  const firstName = rawName.split(/[\n\s]/)[0];
+
+  // Role label derived from matched code
+  const roleLabels = { HRMANAGER: 'HR Manager', SALESREP0: 'Sales Rep', LEGALADV0: 'Legal Advisor', FINANALYS: 'Finance Analyst', RESEARCHER: 'Research Analyst', ENGINEER0: 'Engineer', MARKETING: 'Marketing Manager', DESIGNER0: 'Designer' };
+  const roleLabel = roleLabels[code] || 'AI Worker';
+  const roleAtCompany = `${roleLabel} at ${company}`;
+
+  // Build real workflows from session
+  const sessionWfs = buildSessionWorkflows(worker);
+  const wfList = sessionWfs.length > 0 ? sessionWfs : predef.workflows.list;
+
+  // Build peers from other session workers
+  const peers = allWorkers
+    .filter(w => (w.id || w.code) !== (worker.id || worker.code) && w.name)
+    .slice(0, 4)
+    .map((w, i) => {
+      const pCode = guessWorkerCode(w) || 'HRMANAGER';
+      const pRole = roleLabels[pCode] || 'AI Worker';
+      return {
+        name: w.name.replace('\n', ' '),
+        role: `${pRole} at ${company}`,
+        code: pCode,
+        relation: ['Peer Worker', 'Collaborator', 'Cross-functional', 'Escalation path'][i % 4],
+        freq: ['Daily', 'Weekly', '2x/week', 'As needed'][i % 4],
+      };
+    });
+
+  // Description for job field
+  const jobDesc = worker.description || predef.job.replace('Humans.AI', company);
+
+  // Tailor dashboard data
+  const officeSlug = roleLabel.toLowerCase().replace(/\s+/g, '-');
+  const tailoredDashboard = {
+    ...predef.dashboard,
+    office: `${companySafe}.humans.ai/${officeSlug}`,
+    siteName: `${roleLabel.toUpperCase()} PORTAL`,
+    browserTitle: `${rawName.replace('\n', ' ')} · ${company} · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+    browserSub: jobDesc.length > 80 ? jobDesc.slice(0, 77) + '...' : jobDesc,
+    activity: predef.dashboard.activity.map(a => ({
+      ...a,
+      text: a.text.replace(/Humans\.AI/g, company),
+    })),
+    sandboxes: predef.dashboard.sandboxes,
+  };
+
+  // Tailor overview
+  const tailoredOverview = {
+    ...predef.overview,
+    identity: {
+      ...predef.overview.identity,
+      role: `${roleLabel} & Operations Lead`,
+      department: `${roleLabel} · ${company}`,
+      workerId: `${code.slice(0, 4)}-${company.slice(0, 4).toUpperCase()}-${(worker.id || '0001').slice(-4).toUpperCase()}`,
+    },
+  };
+
+  // Tailor live activity
+  const tailoredLiveActivity = {
+    ...predef.liveActivity,
+    currentTask: `${jobDesc.slice(0, 60)}...`,
+    currentMeta: `Running for 00:${String(Math.floor(Math.random() * 59) + 1).padStart(2, '0')}:00 · ${company}`,
+    feed: predef.liveActivity.feed.map(f => ({ ...f, event: f.event.replace(/Humans\.AI/g, company) })),
+  };
+
+  // Tailor skills (guardrails mention company)
+  const tailoredSkills = {
+    ...predef.skills,
+    guardrails: predef.skills.guardrails,
+  };
+
+  // Tailor human team
+  const tailoredHumanTeam = {
+    ...predef.humanTeam,
+    peers: peers.length > 0 ? peers : predef.humanTeam.peers,
+  };
+
+  // Tailor business impact
+  const tailoredBusinessImpact = {
+    ...predef.businessImpact,
+    deployments: predef.businessImpact.deployments.map(d => ({
+      ...d,
+      client: d.client === 'Humans.AI' ? company : d.client,
+    })),
+  };
+
+  return {
+    ...predef,
+    personaId: (WORKER_PERSONA_IDS[code]) || WORKER_PERSONA_IDS.HRMANAGER,
+    job: jobDesc,
+    banner: `${firstName} · ${jobDesc.slice(0, 60)}`,
+    dashboard: tailoredDashboard,
+    overview: tailoredOverview,
+    liveActivity: tailoredLiveActivity,
+    skills: tailoredSkills,
+    workflows: { list: wfList, escalation: predef.workflows.escalation },
+    humanTeam: tailoredHumanTeam,
+    businessImpact: tailoredBusinessImpact,
+  };
+}

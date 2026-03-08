@@ -279,6 +279,9 @@ function AppInner() {
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
   const [showHubPicker, setShowHubPicker] = useState(false);
+  const [hubWorkers, setHubWorkers] = useState([]);
+  const [hubWorkerIdParam, setHubWorkerIdParam] = useState(null);
+  const [hubWorkflowIdParam, setHubWorkflowIdParam] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [phase, setPhase] = useState('start');
   const [maxPhase, setMaxPhase] = useState('start');
@@ -340,6 +343,27 @@ function AppInner() {
 
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
+
+  // Load hub session workers and handle URL params when hubSessionId changes
+  useEffect(() => {
+    if (!hubSessionId) return;
+    fetch(`/api/demo/session/${hubSessionId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        if (d.workers && d.workers.length > 0) setHubWorkers(d.workers);
+        if (d.company) setHubCompanyName(d.company?.name || d.company || null);
+        // Handle workerId URL param to auto-navigate
+        const workerIdParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workerId') : null;
+        const workflowIdParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workflowId') : null;
+        if (workflowIdParam) setHubWorkflowIdParam(workflowIdParam);
+        if (workerIdParam && d.workers) {
+          const w = d.workers.find(w => w.id === workerIdParam);
+          if (w) { setSelectedWorker(w); setAiView('worker-page'); }
+        }
+      })
+      .catch(() => {});
+  }, [hubSessionId]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
 
@@ -1056,9 +1080,11 @@ function AppInner() {
           onSelect={async (s) => {
             setHubSessionId(s.id);
             setHubCompanyName(s.company || null);
+            setHubWorkers([]);
+            setHubWorkflowIdParam(null);
             if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${s.id}`);
             setShowHubPicker(false);
-            setAiView('home');
+            setAiView('workers'); // go directly to workers view to show session workers
           }}
           onNew={async () => {
             try {
@@ -1067,6 +1093,8 @@ function AppInner() {
               if (d.sessionId) {
                 setHubSessionId(d.sessionId);
                 setHubCompanyName(null);
+                setHubWorkers([]);
+                setHubWorkflowIdParam(null);
                 if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${d.sessionId}`);
               }
             } catch {}
@@ -1115,7 +1143,17 @@ function AppInner() {
           {aiView === 'workers' && (
             <AIWorkers
               companyName={hubCompanyName || company?.name || 'Humans.AI'}
-              onSelectWorker={(w) => { setSelectedWorker(w); setAiView('worker-page'); }}
+              workers={hubWorkers.length > 0 ? hubWorkers : null}
+              onSelectWorker={(w) => {
+                setSelectedWorker(w);
+                setAiView('worker-page');
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('workerId', w.id || w.code || '');
+                  url.searchParams.delete('workflowId');
+                  window.history.replaceState(null, '', url.toString());
+                }
+              }}
               onGoHome={() => setAiView('home')}
               onGoCall={() => setAiView('workspace')}
             />
@@ -1124,9 +1162,36 @@ function AppInner() {
             <WorkerPage
               worker={selectedWorker}
               sessionId={hubSessionId}
-              onBack={() => setAiView('workers')}
+              companyName={hubCompanyName || company?.name || 'Humans.AI'}
+              allWorkers={hubWorkers}
+              defaultExpandedWorkflow={hubWorkflowIdParam}
+              onWorkflowSelect={(wfId) => {
+                setHubWorkflowIdParam(wfId);
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('workflowId', wfId);
+                  window.history.replaceState(null, '', url.toString());
+                }
+              }}
+              onBack={() => {
+                setAiView('workers');
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('workerId');
+                  url.searchParams.delete('workflowId');
+                  window.history.replaceState(null, '', url.toString());
+                }
+              }}
               onGoHome={() => setAiView('home')}
-              onGoWorkers={() => setAiView('workers')}
+              onGoWorkers={() => {
+                setAiView('workers');
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('workerId');
+                  url.searchParams.delete('workflowId');
+                  window.history.replaceState(null, '', url.toString());
+                }
+              }}
             />
           )}
           <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 9001, display: 'flex', alignItems: 'center', gap: 8 }}>

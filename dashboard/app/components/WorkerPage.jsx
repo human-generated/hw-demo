@@ -4,7 +4,7 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
-import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER } from './WorkerConfig';
+import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER, WORKER_PERSONA_IDS, guessWorkerCode, getWorkerPhoto, buildConfigFromWorker } from './WorkerConfig';
 
 const ANAM_API_KEY = 'YmZiZTc0OTEtNjg5ZS00M2NhLThlNTgtYTlkNTQ2MDMzZWYyOjY3cVJwUm9hek9OcmZLcmVWQ0VxdmJBSWFPVFRQSUNQZEdlQlpyTGNLSUk9';
 const DEFAULT_PHOTO = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
@@ -358,12 +358,18 @@ function SkillsTab({ cfg }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId }) {
-  const [expanded, setExpanded] = useState(null);
-  const [runningWf, setRunningWf] = useState(null);
-  const [ranWf, setRanWf] = useState({});
+function WorkflowsTab({ cfg, sessionId, defaultExpandedId = null, onWorkflowSelect = null }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
+  const [expanded, setExpanded] = useState(() => {
+    if (defaultExpandedId) {
+      const idx = wfList.findIndex(wf => wf.id === defaultExpandedId);
+      return idx >= 0 ? idx : null;
+    }
+    return null;
+  });
+  const [runningWf, setRunningWf] = useState(null);
+  const [ranWf, setRanWf] = useState({});
 
   async function handleRunWorkflow(wf) {
     if (runningWf) return;
@@ -388,7 +394,7 @@ function WorkflowsTab({ cfg, sessionId }) {
       <Card title="Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
         {wfList.map((wf, i) => (
           <div key={wf.id || i} className={`wkpt-wf-row${expanded === i ? ' wkpt-wf-row--open' : ''}`}>
-            <div className="wkpt-wf-row-head" onClick={() => setExpanded(expanded === i ? null : i)}>
+            <div className="wkpt-wf-row-head" onClick={() => { const next = expanded === i ? null : i; setExpanded(next); if (next !== null && wfList[next] && onWorkflowSelect) onWorkflowSelect(wfList[next].id); }}>
               <div className="wkpt-wf-row-left">
                 <span className={`wkpt-wf-status-dot wkpt-wf-status-dot--${wf.status}`} />
                 <div className="wkpt-wf-row-info">
@@ -666,12 +672,13 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
-export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId }) {
-  const worker = (workerProp && workerProp.code) ? workerProp : DEFAULT_WORKER;
-  const workerCode = worker.code || 'HRMANAGER';
-  const cfg = WORKER_CONFIG[workerCode] || WORKER_CONFIG.HRMANAGER;
-  const photoUrl = WORKER_PHOTOS[workerCode] || DEFAULT_PHOTO;
-  const firstName = worker.name.split('\n')[0];
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null }) {
+  // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
+  const worker = workerProp || DEFAULT_WORKER;
+  const workerCode = worker.code || guessWorkerCode(worker) || 'HRMANAGER';
+  const cfg = buildConfigFromWorker(worker, companyName, allWorkers);
+  const photoUrl = getWorkerPhoto(worker, 0) || DEFAULT_PHOTO;
+  const firstName = (worker.name || 'Worker').split(/[\n\s]/)[0];
   const authorName = firstName.toUpperCase();
 
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -847,7 +854,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
-          <span className="wkp-menu-label">{firstName} · {worker.role.split(' at ')[0]}</span>
+          <span className="wkp-menu-label">{firstName} · {(worker.role || worker.description || cfg.job || 'AI Worker').split(' at ')[0].slice(0, 40)}</span>
         </div>
         <div className="wkp-menu-center">
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
@@ -952,7 +959,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab cfg={cfg} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
