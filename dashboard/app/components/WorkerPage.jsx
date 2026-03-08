@@ -757,10 +757,12 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
-  const workerCode = worker.code || guessWorkerCode(worker) || 'HRMANAGER';
+  const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
+  const PHOTO_KEYS = Object.keys(WORKER_PHOTOS);
+  const workerCode = worker.code || guessWorkerCode(worker) || PHOTO_KEYS[workerIndex % PHOTO_KEYS.length];
   const workerId = worker.id || workerCode; // actual session worker id or predefined code
   const cfg = buildConfigFromWorker(worker, companyName, allWorkers);
-  const photoUrl = getWorkerPhoto(worker, 0) || DEFAULT_PHOTO;
+  const photoUrl = getWorkerPhoto(worker, workerIndex) || DEFAULT_PHOTO;
   const firstName = (worker.name || 'Worker').split(/[\n\s]/)[0];
   const authorName = firstName.toUpperCase();
 
@@ -845,6 +847,12 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
         const workerDesc = (worker.description || worker.role || cfg.overview || '').slice(0, 300);
         const co = companyName && companyName !== 'Humans.AI' ? ` at ${companyName}` : '';
         const systemPrompt = `You are an AI worker named "${workerTitle}"${co}. ${workerDesc} When users ask what you do, describe your automated workflows and capabilities. Be professional and concise.`;
+        // Update the Anam persona's system prompt to match this specific worker
+        await fetch(`https://api.anam.ai/v1/personas/${cfg.personaId}`, {
+          method: 'PUT',
+          headers: { 'Authorization': `Bearer ${ANAM_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brain: { systemPrompt } }),
+        }).catch(() => {});
         const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: cfg.personaId, systemPrompt });
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
