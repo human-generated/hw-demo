@@ -348,76 +348,97 @@ const SKILL_ICONS = {
 
 function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   const [skills, setSkills] = useState(null);
-  const [runningSkill, setRunningSkill] = useState(null);
-  const [taskInput, setTaskInput] = useState('');
-  const [showInput, setShowInput] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState('');
+  const [running, setRunning] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState(null);
 
   useEffect(() => {
     if (!sessionId || !workerId) return;
     fetch(`/api/demo/skills?sessionId=${sessionId}&workerId=${workerId}`)
-      .then(r => r.json()).then(setSkills).catch(() => {});
+      .then(r => r.json())
+      .then(d => { setSkills(d.skills || []); setLoading(false); })
+      .catch(() => setLoading(false));
   }, [sessionId, workerId]);
 
-  const d = cfg.skills;
-  const byCategory = skills ? skills.skills.reduce((acc, s) => { (acc[s.category] = acc[s.category] || []).push(s); return acc; }, {}) : {};
-
-  async function runGuiAgent() {
-    if (!taskInput.trim()) return;
-    setRunningSkill('gui_agent');
-    setShowInput(false);
-    onRunGuiAgent?.(taskInput.trim());
-    setTaskInput('');
-    setTimeout(() => setRunningSkill(null), 3000);
+  async function handleRun() {
+    if (!task.trim() || running) return;
+    setRunning(true);
+    const isGui = selectedSkill && (selectedSkill.id === 'gui_agent' || selectedSkill.icon === 'eye' || selectedSkill.icon === 'desktop');
+    if (isGui) {
+      await onRunGuiAgent?.(task.trim());
+    } else {
+      await fetch('/api/demo/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: task.trim(), workerId }),
+      });
+    }
+    setTask('');
+    setRunning(false);
   }
+
+  if (loading) return <div className="wkpt-page"><div style={{ padding: '32px', color: '#aaa', fontSize: '13px' }}>Loading skills…</div></div>;
+  if (!skills || skills.length === 0) return <div className="wkpt-page"><div style={{ padding: '32px', color: '#aaa', fontSize: '13px' }}>No skills available. Grant data access or API keys in the Integrations tab.</div></div>;
+
+  const byCategory = skills.reduce((acc, s) => { (acc[s.category] = acc[s.category] || []).push(s); return acc; }, {});
 
   return (
     <div className="wkpt-page">
-      {skills ? (
-        <>
-          <Card title="Available Actions" sub={`${skills.skills.length} actions from granted permissions`} className="wkpt-card--full">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {Object.entries(byCategory).map(([cat, catSkills]) => (
-                <div key={cat} style={{ flex: '1 1 200px', minWidth: '180px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: SKILL_CATEGORY_COLORS[cat] || '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>{cat}</div>
-                  {catSkills.map(sk => (
-                    <div key={sk.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
-                      <span style={{ color: SKILL_CATEGORY_COLORS[cat] || '#666', marginTop: '1px', flexShrink: 0 }}>{SKILL_ICONS[sk.icon] || SKILL_ICONS.brain}</span>
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#1a1a1a' }}>{sk.label}</div>
-                        <div style={{ fontSize: '11px', color: '#888' }}>{sk.description}</div>
-                      </div>
-                      {sk.id === 'gui_agent' && (
-                        <button onClick={() => setShowInput(v => !v)} style={{ marginLeft: 'auto', fontSize: '10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: '6px', padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>Run</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {Object.entries(byCategory).map(([cat, catSkills]) => (
+          <div key={cat} className="wkpt-card">
+            <div className="wkpt-card-head">
+              <span style={{ fontSize: '10px', fontWeight: 700, color: SKILL_CATEGORY_COLORS[cat] || '#888', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{cat}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {catSkills.map(sk => (
+                <div key={sk.id}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f4f4f4' }}>
+                    <span style={{ color: SKILL_CATEGORY_COLORS[cat] || '#888', marginTop: '2px', flexShrink: 0 }}>{SKILL_ICONS[sk.icon] || SKILL_ICONS.brain}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1a1a1a', marginBottom: '2px' }}>{sk.label}</div>
+                      <div style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>{sk.description}</div>
+                      {sk.samples && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                          {sk.samples.map((s, i) => (
+                            <button key={i} onClick={() => { setTask(s); setSelectedSkill(sk); }} style={{ fontSize: '11px', color: SKILL_CATEGORY_COLORS[cat] || '#555', background: `${SKILL_CATEGORY_COLORS[cat]}10` || '#f5f5f5', border: `1px solid ${SKILL_CATEGORY_COLORS[cat]}30`, borderRadius: '20px', padding: '2px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              {s}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  ))}
+                  </div>
                 </div>
               ))}
             </div>
-            {showInput && (
-              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                <input value={taskInput} onChange={e => setTaskInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && runGuiAgent()} placeholder="e.g. Search OTP MUC flight price on 9/03/2026" style={{ flex: 1, border: '1px solid #e5e5ea', borderRadius: '8px', padding: '8px 12px', fontSize: '13px', outline: 'none' }} />
-                <button onClick={runGuiAgent} disabled={!!runningSkill} style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>{runningSkill ? 'Running…' : 'Launch'}</button>
-              </div>
-            )}
-          </Card>
-          <div className="wkpt-grid-3" style={{ marginTop: '12px' }}>
-            <Card title="Core Skills"><div className="wkpt-skills-list">{d.core.map(s => <SkillBar key={s.label} label={s.label} value={s.value} />)}</div></Card>
-            <Card title="Domain Knowledge"><div className="wkpt-skills-list">{d.domain.map(s => <SkillBar key={s.label} label={s.label} value={s.value} />)}</div></Card>
-            <Card title="Guardrails" badge="Enforced" badgeColor="#ef4444">
-              <div className="wkpt-guardrails">{d.guardrails.map((g, i) => <div key={i} className="wkpt-guardrail"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" /></svg><span>{g}</span></div>)}</div>
-            </Card>
           </div>
-        </>
-      ) : (
-        <div className="wkpt-grid-3">
-          <Card title="Core Skills"><div className="wkpt-skills-list">{d.core.map(s => <SkillBar key={s.label} label={s.label} value={s.value} />)}</div></Card>
-          <Card title="Domain Knowledge"><div className="wkpt-skills-list">{d.domain.map(s => <SkillBar key={s.label} label={s.label} value={s.value} />)}</div></Card>
-          <Card title="Guardrails" badge="Enforced" badgeColor="#ef4444">
-            <div className="wkpt-guardrails">{d.guardrails.map((g, i) => <div key={i} className="wkpt-guardrail"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" /></svg><span>{g}</span></div>)}</div>
-          </Card>
+        ))}
+      </div>
+
+      <div style={{ marginTop: '14px', background: '#fff', border: '1px solid #e5e5ea', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {selectedSkill && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: SKILL_CATEGORY_COLORS[selectedSkill.category] || '#888' }}>
+            <span>{SKILL_ICONS[selectedSkill.icon] || SKILL_ICONS.brain}</span>
+            <span style={{ fontWeight: 600 }}>{selectedSkill.label}</span>
+            <button onClick={() => setSelectedSkill(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: '14px', lineHeight: 1 }}>×</button>
+          </div>
+        )}
+        <textarea
+          value={task}
+          onChange={e => setTask(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleRun(); }}
+          placeholder="Describe what you want the agent to do… click a sample above or type freely"
+          rows={3}
+          style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontSize: '13px', color: '#1a1a1a', background: 'transparent', fontFamily: 'inherit', lineHeight: '1.5' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={handleRun} disabled={!task.trim() || running} style={{ background: task.trim() && !running ? '#1a1a1a' : '#e5e5ea', color: task.trim() && !running ? '#fff' : '#aaa', border: 'none', borderRadius: '8px', padding: '8px 20px', cursor: task.trim() && !running ? 'pointer' : 'default', fontSize: '12px', fontWeight: 600, transition: 'all 0.15s' }}>
+            {running ? 'Running…' : 'Run'}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
