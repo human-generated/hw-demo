@@ -353,7 +353,7 @@ function AppInner() {
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [realClientActive, setRealClientActive] = useState(false);
-
+  const [hubPlatforms, setHubPlatforms] = useState([]);
 
   const chatEndRef = useRef(null);
   const pollRef = useRef(null);
@@ -368,6 +368,7 @@ function AppInner() {
         if (!d) return;
         if (d.workers && d.workers.length > 0) setHubWorkers(d.workers);
         if (d.company) setHubCompanyName(d.company?.name || d.company || null);
+        if (d.platforms && d.platforms.length > 0) setHubPlatforms(d.platforms);
         // Handle workerId URL param to auto-navigate
         const workerIdParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workerId') : null;
         const workflowIdParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workflowId') : null;
@@ -1180,6 +1181,7 @@ function AppInner() {
               worker={selectedWorker}
               sessionId={hubSessionId}
               companyName={hubCompanyName || company?.name || 'Humans.AI'}
+              platforms={hubPlatforms}
               allWorkers={hubWorkers}
               defaultExpandedWorkflow={hubWorkflowIdParam}
               onWorkflowSelect={(wfId) => {

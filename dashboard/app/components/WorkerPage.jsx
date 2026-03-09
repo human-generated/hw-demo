@@ -213,7 +213,7 @@ function TiltCard({ children, className }) {
 
 /* ─── Tab Components (all data-driven) ──────────────────────────────────────── */
 
-function DashboardTab({ cfg, firstName, companyName }) {
+function DashboardTab({ cfg, firstName, companyName, platforms }) {
   const d = cfg.dashboard;
   return (
     <div className="wkp-center">
@@ -253,61 +253,92 @@ function DashboardTab({ cfg, firstName, companyName }) {
       <div className="wkp-section">
         <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>{firstName}'s office</WordsStagger>
         <div className="wkp-office-row">
-          <div className="wkp-browser">
-            <div className="wkp-browser-toolbar">
-              <div className="wkp-browser-dots">
-                <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
-              </div>
-              <div className="wkp-browser-nav">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
-              <div className="wkp-browser-url">{d.office}</div>
-            </div>
-            <div className="wkp-browser-page">
-              <div className="wkp-browser-nav-row">
-                <span className="wkp-browser-site">{d.siteName}</span>
-                <div className="wkp-browser-links"><span>Dashboard</span><span>Reports</span><span>Settings</span></div>
-              </div>
-              <div className="wkp-browser-content">
-                <span className="wkp-browser-title">{d.browserTitle}</span>
-                <span className="wkp-browser-sub">{d.browserSub}</span>
-              </div>
-              <div className="wkp-browser-metrics">
-                {d.browserMetrics.map(m => (
-                  <div key={m.label} className={`wkp-browser-metric${m === d.browserMetrics[0] ? ' wkp-browser-metric--hl' : ''}`}>
-                    <span className="wkp-browser-metric-label">{m.label}</span>
-                    <span className={`wkp-browser-metric-value${m.value.includes('%') || m.value.includes('↑') ? ' wkp-green' : ''}`}>{m.value}</span>
+          {platforms && platforms.length > 0 ? (
+            platforms.map(p => {
+              const slug = (companyName || 'company').toLowerCase().replace(/[^a-z0-9]/g, '');
+              const displayUrl = `${slug}.humans.ai/${p.name.toLowerCase()}`;
+              return (
+                <div key={p.id} className="wkp-browser wkp-platform-card">
+                  <div className="wkp-browser-toolbar wkp-platform-toolbar">
+                    <div className="wkp-browser-dots">
+                      <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
+                    </div>
+                    <div className="wkp-browser-nav">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </div>
+                    <div className="wkp-browser-url wkp-platform-url">{displayUrl}</div>
                   </div>
-                ))}
+                  <div className="wkp-platform-body">
+                    <div className="wkp-platform-name">{p.name}</div>
+                    <div className="wkp-platform-status">
+                      <span className="wkp-platform-dot" />
+                      <span>Live</span>
+                    </div>
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="wkp-platform-open">Open ↗</a>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <>
+              <div className="wkp-browser">
+                <div className="wkp-browser-toolbar">
+                  <div className="wkp-browser-dots">
+                    <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
+                  </div>
+                  <div className="wkp-browser-nav">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </div>
+                  <div className="wkp-browser-url">{d.office}</div>
+                </div>
+                <div className="wkp-browser-page">
+                  <div className="wkp-browser-nav-row">
+                    <span className="wkp-browser-site">{d.siteName}</span>
+                    <div className="wkp-browser-links"><span>Dashboard</span><span>Reports</span><span>Settings</span></div>
+                  </div>
+                  <div className="wkp-browser-content">
+                    <span className="wkp-browser-title">{d.browserTitle}</span>
+                    <span className="wkp-browser-sub">{d.browserSub}</span>
+                  </div>
+                  <div className="wkp-browser-metrics">
+                    {d.browserMetrics.map(m => (
+                      <div key={m.label} className={`wkp-browser-metric${m === d.browserMetrics[0] ? ' wkp-browser-metric--hl' : ''}`}>
+                        <span className="wkp-browser-metric-label">{m.label}</span>
+                        <span className={`wkp-browser-metric-value${m.value.includes('%') || m.value.includes('↑') ? ' wkp-green' : ''}`}>{m.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="wkp-phone">
-            <div className="wkp-phone-notch" />
-            <div className="wkp-phone-screen">
-              <div className="wkp-phone-status"><span className="wkp-phone-time">9:41</span></div>
-              <div className="wkp-phone-stock-name">{d.siteName || companyName}</div>
-              <div className="wkp-phone-price-row">
-                <span className="wkp-phone-price">$68.42</span>
-                <span className="wkp-phone-change">+2.4%</span>
+              <div className="wkp-phone">
+                <div className="wkp-phone-notch" />
+                <div className="wkp-phone-screen">
+                  <div className="wkp-phone-status"><span className="wkp-phone-time">9:41</span></div>
+                  <div className="wkp-phone-stock-name">{d.siteName || companyName}</div>
+                  <div className="wkp-phone-price-row">
+                    <span className="wkp-phone-price">$68.42</span>
+                    <span className="wkp-phone-change">+2.4%</span>
+                  </div>
+                  <svg width="100%" height="24" viewBox="0 0 90 24" fill="none" preserveAspectRatio="none">
+                    <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3" stroke="#34C759" strokeWidth="1.5" fill="none" />
+                    <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3 L90 24 L0 24 Z" fill="#34C759" style={{ opacity: 0.08 }} />
+                  </svg>
+                  <div className="wkp-phone-buttons">
+                    <div className="wkp-phone-btn wkp-phone-btn--buy">Buy</div>
+                    <div className="wkp-phone-btn wkp-phone-btn--sell">Sell</div>
+                  </div>
+                  <div className="wkp-phone-stats">
+                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Mkt Cap</span><span className="wkp-phone-stat-val">$24.1B</span></div>
+                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">P/E</span><span className="wkp-phone-stat-val">28.4x</span></div>
+                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Vol</span><span className="wkp-phone-stat-val">3.2M</span></div>
+                  </div>
+                </div>
+                <div className="wkp-phone-home" />
               </div>
-              <svg width="100%" height="24" viewBox="0 0 90 24" fill="none" preserveAspectRatio="none">
-                <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3" stroke="#34C759" strokeWidth="1.5" fill="none" />
-                <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3 L90 24 L0 24 Z" fill="#34C759" style={{ opacity: 0.08 }} />
-              </svg>
-              <div className="wkp-phone-buttons">
-                <div className="wkp-phone-btn wkp-phone-btn--buy">Buy</div>
-                <div className="wkp-phone-btn wkp-phone-btn--sell">Sell</div>
-              </div>
-              <div className="wkp-phone-stats">
-                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Mkt Cap</span><span className="wkp-phone-stat-val">$24.1B</span></div>
-                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">P/E</span><span className="wkp-phone-stat-val">28.4x</span></div>
-                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Vol</span><span className="wkp-phone-stat-val">3.2M</span></div>
-              </div>
-            </div>
-            <div className="wkp-phone-home" />
-          </div>
+            </>
+          )}
         </div>
       </div>
       <div className="wkp-section">
@@ -1210,7 +1241,7 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
-export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null }) {
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [] }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
@@ -1573,7 +1604,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           ))}
         </div>
         <div className="wkp-main-body">
-          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} />}
+          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} platforms={platforms} />}
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}

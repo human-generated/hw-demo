@@ -5002,6 +5002,80 @@ body {
 
 .wkp-green { color: #34C759; }
 
+/* Platform Cards */
+
+.wkp-platform-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.wkp-platform-toolbar {
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.wkp-platform-url {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.wkp-platform-body {
+  flex: 1;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+}
+
+.wkp-platform-name {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.wkp-platform-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.wkp-platform-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34C759;
+  box-shadow: 0 0 6px rgba(52, 199, 89, 0.7);
+  flex-shrink: 0;
+}
+
+.wkp-platform-open {
+  display: inline-flex;
+  align-items: center;
+  margin-top: auto;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.wkp-platform-open:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
 /* Phone */
 
 .wkp-phone {
