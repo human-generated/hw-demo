@@ -58,6 +58,109 @@ function OutputTypeIcon({ type }) {
   }
 }
 
+function ToolIcon({ type }) {
+  const tp = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: '#1A1A1A', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  switch (type) {
+    case 'phone': return <svg {...tp}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>;
+    case 'message': return <svg {...tp}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>;
+    case 'search': return <svg {...tp}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+    case 'code': return <svg {...tp}><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>;
+    case 'mic': return <svg {...tp}><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path d="M19 10v2a7 7 0 01-14 0v-2" /><line x1="12" y1="19" x2="12" y2="23" /></svg>;
+    case 'face': return <svg {...tp}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+    default: return null;
+  }
+}
+
+function guessToolIcon(label) {
+  const l = label.toLowerCase();
+  if (/phone|call|dial|outreach/.test(l)) return 'phone';
+  if (/email|message|chat|slack|sms|notify/.test(l)) return 'message';
+  if (/search|research|scrape|browse|web|sec|finan/.test(l)) return 'search';
+  if (/code|api|sql|data|script|program|query|sandbox/.test(l)) return 'code';
+  if (/voice|mic|audio|speak|record/.test(l)) return 'mic';
+  if (/face|video|visual|camera/.test(l)) return 'face';
+  return null;
+}
+
+function FileThumb({ type, color, bg, ext }) {
+  return (
+    <div className="wkp-file-thumb" style={{ background: bg }}>
+      <div className="wkp-file-icon">
+        {type === 'doc' && (
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+            <path d="M0 4C0 1.79 1.79 0 4 0H20L32 12V36C32 38.21 30.21 40 28 40H4C1.79 40 0 38.21 0 36V4Z" fill="#fff" />
+            <path d="M20 0L32 12H24C21.79 12 20 10.21 20 8V0Z" fill={color} opacity="0.2" />
+            <rect x="6" y="18" width="14" height="2" rx="1" fill={color} opacity="0.6" />
+            <rect x="6" y="23" width="20" height="2" rx="1" fill={color} opacity="0.35" />
+            <rect x="6" y="28" width="17" height="2" rx="1" fill={color} opacity="0.35" />
+            <rect x="6" y="33" width="10" height="2" rx="1" fill={color} opacity="0.2" />
+          </svg>
+        )}
+        {type === 'mic' && (
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+            <path d="M0 4C0 1.79 1.79 0 4 0H20L32 12V36C32 38.21 30.21 40 28 40H4C1.79 40 0 38.21 0 36V4Z" fill="#fff" />
+            <path d="M20 0L32 12H24C21.79 12 20 10.21 20 8V0Z" fill={color} opacity="0.2" />
+            <rect x="5" y="22" width="2" height="8" rx="1" fill={color} opacity="0.4" />
+            <rect x="9" y="19" width="2" height="14" rx="1" fill={color} opacity="0.6" />
+            <rect x="13" y="21" width="2" height="10" rx="1" fill={color} opacity="0.5" />
+            <rect x="17" y="17" width="2" height="16" rx="1" fill={color} opacity="0.7" />
+            <rect x="21" y="20" width="2" height="12" rx="1" fill={color} opacity="0.45" />
+            <rect x="25" y="23" width="2" height="6" rx="1" fill={color} opacity="0.3" />
+          </svg>
+        )}
+        {type === 'transcript' && (
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+            <path d="M0 4C0 1.79 1.79 0 4 0H20L32 12V36C32 38.21 30.21 40 28 40H4C1.79 40 0 38.21 0 36V4Z" fill="#fff" />
+            <path d="M20 0L32 12H24C21.79 12 20 10.21 20 8V0Z" fill={color} opacity="0.2" />
+            <rect x="6" y="17" width="20" height="1.5" rx="0.75" fill={color} opacity="0.3" />
+            <rect x="6" y="21" width="16" height="1.5" rx="0.75" fill={color} opacity="0.3" />
+            <rect x="6" y="25" width="20" height="1.5" rx="0.75" fill={color} opacity="0.3" />
+            <rect x="6" y="29" width="12" height="1.5" rx="0.75" fill={color} opacity="0.3" />
+            <rect x="6" y="33" width="18" height="1.5" rx="0.75" fill={color} opacity="0.2" />
+          </svg>
+        )}
+        {type === 'email' && (
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+            <path d="M0 4C0 1.79 1.79 0 4 0H20L32 12V36C32 38.21 30.21 40 28 40H4C1.79 40 0 38.21 0 36V4Z" fill="#fff" />
+            <path d="M20 0L32 12H24C21.79 12 20 10.21 20 8V0Z" fill={color} opacity="0.2" />
+            <rect x="5" y="18" width="22" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5" opacity="0.4" />
+            <path d="M5 20L16 27L27 20" stroke={color} strokeWidth="1.5" fill="none" opacity="0.5" />
+          </svg>
+        )}
+        {(type === 'media' || (!['doc','mic','transcript','email'].includes(type))) && (
+          <svg width="32" height="40" viewBox="0 0 32 40" fill="none">
+            <path d="M0 4C0 1.79 1.79 0 4 0H20L32 12V36C32 38.21 30.21 40 28 40H4C1.79 40 0 38.21 0 36V4Z" fill="#fff" />
+            <path d="M20 0L32 12H24C21.79 12 20 10.21 20 8V0Z" fill={color} opacity="0.2" />
+            <rect x="6" y="18" width="14" height="2" rx="1" fill={color} opacity="0.5" />
+            <rect x="6" y="23" width="20" height="2" rx="1" fill={color} opacity="0.3" />
+            <rect x="6" y="28" width="12" height="2" rx="1" fill={color} opacity="0.3" />
+          </svg>
+        )}
+      </div>
+      <span className="wkp-file-ext" style={{ background: color }}>{ext}</span>
+    </div>
+  );
+}
+
+const STATIC_OUTPUTS = [
+  { label: 'Q3 Report', ext: 'PDF', color: '#DC4B4B', bg: '#FEF2F2', icon: 'doc' },
+  { label: 'Voice recording', ext: 'WAV', color: '#16A34A', bg: '#F0FDF4', icon: 'mic' },
+  { label: 'Call transcript', ext: 'TXT', color: '#6B7B8D', bg: '#F1F5F9', icon: 'transcript' },
+  { label: 'Email draft', ext: 'EML', color: '#9333EA', bg: '#FAF5FF', icon: 'email' },
+];
+
+function StepDiagramIcon({ status, label }) {
+  const color = (status === 'done' || status === 'active') ? '#fff' : 'rgba(26,26,26,0.25)';
+  const tp = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: status === 'active' ? '#2DB563' : color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  switch (label) {
+    case 'Search': return <svg {...tp}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+    case 'Extract': return <svg {...tp}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+    case 'Compile': return <svg {...tp}><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>;
+    case 'Report': return <svg {...tp}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>;
+    default: return <svg {...tp}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></svg>;
+  }
+}
+
 /* ─── Reusable sub-components ───────────────────────────────────────────────── */
 function SkillBar({ label, value }) {
   return (
@@ -110,7 +213,7 @@ function TiltCard({ children, className }) {
 
 /* ─── Tab Components (all data-driven) ──────────────────────────────────────── */
 
-function DashboardTab({ cfg, firstName }) {
+function DashboardTab({ cfg, firstName, companyName }) {
   const d = cfg.dashboard;
   return (
     <div className="wkp-center">
@@ -136,9 +239,15 @@ function DashboardTab({ cfg, firstName }) {
       <div className="wkp-section">
         <WordsStagger className="wkp-section-label" delay={0.6} stagger={0.05} speed={0.35}>Tools</WordsStagger>
         <div className="wkp-tools-wrap">
-          {d.tools.map(t => (
-            <div key={t} className="wkp-tool-pill"><span>{t}</span></div>
-          ))}
+          {d.tools.map(t => {
+            const icon = guessToolIcon(t);
+            return (
+              <div key={t} className="wkp-tool-pill">
+                {icon && <ToolIcon type={icon} />}
+                <span>{t}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="wkp-section">
@@ -174,21 +283,54 @@ function DashboardTab({ cfg, firstName }) {
               </div>
             </div>
           </div>
+          <div className="wkp-phone">
+            <div className="wkp-phone-notch" />
+            <div className="wkp-phone-screen">
+              <div className="wkp-phone-status"><span className="wkp-phone-time">9:41</span></div>
+              <div className="wkp-phone-stock-name">{d.siteName || companyName}</div>
+              <div className="wkp-phone-price-row">
+                <span className="wkp-phone-price">$68.42</span>
+                <span className="wkp-phone-change">+2.4%</span>
+              </div>
+              <svg width="100%" height="24" viewBox="0 0 90 24" fill="none" preserveAspectRatio="none">
+                <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3" stroke="#34C759" strokeWidth="1.5" fill="none" />
+                <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3 L90 24 L0 24 Z" fill="#34C759" style={{ opacity: 0.08 }} />
+              </svg>
+              <div className="wkp-phone-buttons">
+                <div className="wkp-phone-btn wkp-phone-btn--buy">Buy</div>
+                <div className="wkp-phone-btn wkp-phone-btn--sell">Sell</div>
+              </div>
+              <div className="wkp-phone-stats">
+                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Mkt Cap</span><span className="wkp-phone-stat-val">$24.1B</span></div>
+                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">P/E</span><span className="wkp-phone-stat-val">28.4x</span></div>
+                <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Vol</span><span className="wkp-phone-stat-val">3.2M</span></div>
+              </div>
+            </div>
+            <div className="wkp-phone-home" />
+          </div>
+        </div>
+      </div>
+      <div className="wkp-section">
+        <WordsStagger className="wkp-section-label" delay={0.9} stagger={0.05} speed={0.35}>Outputs</WordsStagger>
+        <div className="wkp-outputs-row">
+          {STATIC_OUTPUTS.map(o => (
+            <div key={o.label} className="wkp-output">
+              <FileThumb type={o.icon} color={o.color} bg={o.bg} ext={o.ext} />
+              <span className="wkp-output-label">{o.label}</span>
+            </div>
+          ))}
         </div>
       </div>
       <div className="wkp-section">
         <WordsStagger className="wkp-section-label" delay={1.0} stagger={0.05} speed={0.35}>Recent Activity</WordsStagger>
-        <div className="wkpt-card">
-          <div className="wkpt-card-head" />
-          <div className="wkpt-feed">
-            {d.activity.map((a, i) => (
-              <div key={i} className="wkpt-feed-item">
-                <span className="wkpt-feed-time">{a.time} ago</span>
-                <span className="wkpt-feed-dot" style={{ background: a.color }} />
-                <span className="wkpt-feed-text">{a.text}</span>
-              </div>
-            ))}
-          </div>
+        <div className="wkp-activity-list">
+          {d.activity.map((a, i) => (
+            <div key={i} className="wkp-activity-item">
+              <span className="wkp-activity-dot" style={{ background: a.color }} />
+              <span className="wkp-activity-text">{a.text}</span>
+              <span className="wkp-activity-time">{a.time}</span>
+            </div>
+          ))}
         </div>
       </div>
       {cfg.dashboard.sandboxes && cfg.dashboard.sandboxes.length > 0 && (
@@ -1347,7 +1489,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           ))}
         </div>
         <div className="wkp-main-body">
-          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} />}
+          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} />}
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
@@ -1357,6 +1499,59 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
+          <div className="wkp-right">
+            <div className="wkp-flow-panel">
+              <div className="wkp-flow-header">
+                <WordsStagger className="wkp-section-label" delay={0.4} stagger={0.05} speed={0.35}>Flow</WordsStagger>
+                <span className="wkp-flow-count">{(cfg.workflows?.list || []).length} workflows</span>
+              </div>
+              {(cfg.workflows?.list || []).slice(0, 3).map((wf, i) => (
+                <div key={i} className="wkp-workflow">
+                  <div className="wkp-workflow-title-row">
+                    <span className="wkp-workflow-dot" style={{ background: ['#2DB563', '#D4A853', '#7B8FA8'][i % 3] }} />
+                    <span className="wkp-workflow-title">{wf.name}</span>
+                  </div>
+                  <span className="wkp-workflow-desc">{wf.description || (wf.steps || []).map(s => s.label).join(' → ')}</span>
+                  <div className="wkp-workflow-tools">
+                    {(wf.steps || []).slice(0, 3).map(s => (
+                      <span key={s.id} className="wkp-workflow-tag" style={{ background: ['#F2F8F4','#FFF8EC','#F0F3F6'][i%3], color: ['#2DB563','#D4A853','#7B8FA8'][i%3] }}>{s.tool || s.label}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {(cfg.workflows?.list || []).length > 0 && (() => {
+                const wf = cfg.workflows.list[0];
+                const steps = (wf.steps || []).map((s, idx) => ({
+                  label: s.label,
+                  status: idx === 0 ? 'done' : idx === 1 ? 'done' : idx === 2 ? 'active' : 'pending',
+                }));
+                return (
+                  <div className="wkp-diagram">
+                    <span className="wkp-diagram-label">Active workflow</span>
+                    <div className="wkp-diagram-steps">
+                      {steps.map((step, i) => (
+                        <div key={step.label} className="wkp-diagram-step-group">
+                          <div className={`wkp-diagram-node wkp-diagram-node--${step.status}`}>
+                            <StepDiagramIcon status={step.status} label={step.label} />
+                          </div>
+                          {i < steps.length - 1 && <div className={`wkp-diagram-line wkp-diagram-line--${step.status}`} />}
+                          <span className={`wkp-diagram-step-label wkp-diagram-step-label--${step.status}`}>{step.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              <div style={{ flex: 1 }} />
+              <div className="wkp-run-btn" onClick={() => setActiveTab('Workflows')}>
+                <LiquidMetal className="wkp-run-shader" speed={1} softness={0.1} repetition={2} shiftRed={0.3} shiftBlue={0.3} distortion={0.07} contour={0.4} scale={10} rotation={0} shape="diamond" angle={70} colorBack="#00000000" colorTint="#FFFFFF" style={{ backgroundColor: '#AAAAAC', borderRadius: '12px', width: '100%', height: '100%', position: 'absolute', inset: 0 }} />
+                <div className="wkp-run-inner">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 2.5L13 8L4 13.5V2.5Z" fill="rgba(0,0,0,0.35)" /></svg>
+                  <span className="wkp-run-text">Run workflow</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
