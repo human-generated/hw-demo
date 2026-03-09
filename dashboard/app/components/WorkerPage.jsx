@@ -561,8 +561,42 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
     setRunning(false);
   }
 
-  if (loading) return <div className="wkpt-page"><div style={{ padding: '32px', color: '#aaa', fontSize: '13px' }}>Loading skills…</div></div>;
-  if (!skills || skills.length === 0) return <div className="wkpt-page"><div style={{ padding: '32px', color: '#aaa', fontSize: '13px' }}>No skills available. Grant data access or API keys in the Integrations tab.</div></div>;
+  const guardrails = cfg.skills?.guardrails || [];
+
+  if (loading) return (
+    <div className="wkpt-page">
+      <div style={{ padding: '32px', color: '#aaa', fontSize: '13px' }}>Loading skills…</div>
+      {guardrails.length > 0 && (
+        <Card title="Guardrails" badge="Enforced" badgeColor="#ef4444">
+          <div className="wkpt-guardrails">
+            {guardrails.map((g, i) => (
+              <div key={i} className="wkpt-guardrail">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                <span>{g}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+  if (!skills || skills.length === 0) return (
+    <div className="wkpt-page">
+      <div style={{ padding: '32px 0 16px', color: '#aaa', fontSize: '13px' }}>No skills available. Grant data access or API keys in the Integrations tab.</div>
+      {guardrails.length > 0 && (
+        <Card title="Guardrails" badge="Enforced" badgeColor="#ef4444">
+          <div className="wkpt-guardrails">
+            {guardrails.map((g, i) => (
+              <div key={i} className="wkpt-guardrail">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                <span>{g}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
 
   const byCategory = skills.reduce((acc, s) => { (acc[s.category] = acc[s.category] || []).push(s); return acc; }, {});
 
@@ -622,6 +656,18 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
           </button>
         </div>
       </div>
+      {guardrails.length > 0 && (
+        <Card title="Guardrails" badge="Enforced" badgeColor="#ef4444">
+          <div className="wkpt-guardrails">
+            {guardrails.map((g, i) => (
+              <div key={i} className="wkpt-guardrail">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 8h8" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                <span>{g}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -692,9 +738,54 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
     setActiveRun(null);
   }
 
+  // Pick first "active" workflow or first workflow for the top card
+  const activeWf = wfList.find(wf => wf.status === 'active') || wfList[0];
+  const activeSteps = activeWf ? (activeWf.steps || []).map((s, i) => ({
+    ...s,
+    status: i === 0 ? 'done' : i === 1 ? 'done' : i === 2 ? 'active' : 'pending',
+  })) : [];
+
   return (
     <div className="wkpt-page">
-      <Card title="Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
+      {activeWf && (
+        <Card title={`Active Workflow — ${activeWf.name}`} badge={`Step 3 of ${activeSteps.length}`} className="wkpt-card--full">
+          <div className="wkpt-wf-steps">
+            {activeSteps.map((s, i) => (
+              <div key={i} className={`wkpt-wf-step wkpt-wf-step--${s.status}`}>
+                <div className="wkpt-wf-node">
+                  {s.status === 'done' && <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  {s.status === 'active' && <div className="wkpt-wf-pulse" />}
+                </div>
+                {i < activeSteps.length - 1 && <div className="wkpt-wf-line" />}
+                <span className="wkpt-wf-label">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+      <div className="wkpt-grid-2">
+        <Card title="Active SOPs" sub={`${wfList.length} procedures`}>
+          <div className="wkpt-sop-list">
+            {wfList.map((wf, i) => (
+              <div key={i} className="wkpt-sop">
+                <div className="wkpt-sop-info">
+                  <span className="wkpt-sop-name">{wf.name}</span>
+                  <span className="wkpt-sop-freq">{wf.trigger}</span>
+                </div>
+                <span className="wkpt-sop-last">{wf.lastRun}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+        {escalation.length > 0 && (
+          <Card title="Escalation Logic">
+            <div className="wkpt-kv-list">
+              {escalation.map((e, i) => <KV key={i} k={e.trigger} v={e.target} />)}
+            </div>
+          </Card>
+        )}
+      </div>
+      <Card title="All Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
         {wfList.map((wf, i) => (
           <div key={wf.id || i} className={`wkpt-wf-row${expanded === i ? ' wkpt-wf-row--open' : ''}`}>
             <div className="wkpt-wf-row-head" onClick={() => { const next = expanded === i ? null : i; setExpanded(next); if (next !== null && wfList[next] && onWorkflowSelect) onWorkflowSelect(wfList[next].id); }}>
@@ -789,13 +880,6 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
           </div>
         ))}
       </Card>
-      {escalation.length > 0 && (
-        <Card title="Escalation Logic" className="wkpt-card--full">
-          <div className="wkpt-kv-list">
-            {escalation.map((e, i) => <KV key={i} k={e.trigger} v={e.target} />)}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }
@@ -1007,13 +1091,13 @@ function HumanTeamTab({ cfg }) {
   return (
     <div className="wkpt-page">
       <div className="wkpt-grid-2">
-        <Card title="Peer Workers" sub={`${peers.length} AI workers in network`}>
+        <Card title="Team Members" sub={`${peers.length} AI workers in network`}>
           <div className="wkpt-team-list">
             {peers.map((p, i) => (
               <div key={i} className="wkpt-team-item">
-                <div className="wkpt-team-avatar wkpt-team-avatar--ai">AI</div>
+                <div className="wkpt-team-avatar">{(p.name || 'AI').split(/[\s\n]/).map(n => n[0]).join('').slice(0, 2).toUpperCase()}</div>
                 <div className="wkpt-team-info"><span className="wkpt-team-name">{p.name}</span><span className="wkpt-team-role">{p.role}</span></div>
-                <div className="wkpt-team-right"><span className="wkpt-team-relation">{p.relation}</span><span className="wkpt-team-sat">{p.freq}</span></div>
+                <div className="wkpt-team-right"><span className="wkpt-team-relation">{p.relation}</span><span className="wkpt-team-sat">{p.satisfaction ? `★ ${p.satisfaction}` : p.freq}</span></div>
               </div>
             ))}
           </div>
