@@ -213,7 +213,116 @@ function TiltCard({ children, className }) {
 
 /* ─── Tab Components (all data-driven) ──────────────────────────────────────── */
 
-function DashboardTab({ cfg, firstName, companyName, platforms }) {
+function PlatformPreviewCard({ platform, sessionId, companyName }) {
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  const slug = (companyName || 'company').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const displayUrl = `${slug}.humans.ai/${platform.name.toLowerCase()}`;
+  const proxyUrl = sessionId && platform.id
+    ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/`
+    : platform.url;
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
+
+  async function sendChat(e) {
+    e.preventDefault();
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+    setChatInput('');
+    setChatHistory(h => [...h, { role: 'user', content: msg }]);
+    setChatLoading(true);
+    try {
+      const sandboxId = platform.sandboxId || platform.id;
+      const r = await fetch(`/api/demo/platforms/${sandboxId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, sessionId }),
+      });
+      const d = await r.json();
+      setChatHistory(h => [...h, { role: 'assistant', content: d.reply || d.message || '…' }]);
+    } catch {
+      setChatHistory(h => [...h, { role: 'assistant', content: 'Error connecting to platform.' }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  return (
+    <div className="wkp-browser wkp-platform-card">
+      {/* Toolbar */}
+      <div className="wkp-browser-toolbar wkp-platform-toolbar">
+        <div className="wkp-browser-dots">
+          <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
+        </div>
+        <div className="wkp-browser-nav">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </div>
+        <div className="wkp-browser-url wkp-platform-url">{displayUrl}</div>
+        <div className="wkp-platform-actions">
+          <button className={`wkp-platform-action-btn${chatOpen ? ' wkp-platform-action-btn--active' : ''}`} onClick={() => setChatOpen(o => !o)}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            Chat
+          </button>
+          <a href={platform.url} target="_blank" rel="noopener noreferrer" className="wkp-platform-action-btn">
+            Open ↗
+          </a>
+        </div>
+      </div>
+
+      {/* Live status strip */}
+      <div className="wkp-platform-strip">
+        <span className="wkp-platform-dot" />
+        <span className="wkp-platform-strip-name">{platform.name}</span>
+        <span className="wkp-platform-strip-status">Live</span>
+      </div>
+
+      {/* iframe preview */}
+      <div className="wkp-platform-frame">
+        <iframe
+          src={proxyUrl}
+          title={platform.name}
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          className="wkp-platform-iframe"
+        />
+      </div>
+
+      {/* Chat panel */}
+      {chatOpen && (
+        <div className="wkp-platform-chat">
+          <div className="wkp-platform-chat-msgs">
+            {chatHistory.length === 0 && (
+              <div className="wkp-platform-chat-empty">Ask anything about this platform…</div>
+            )}
+            {chatHistory.map((m, i) => (
+              <div key={i} className={`wkp-platform-chat-msg wkp-platform-chat-msg--${m.role}`}>{m.content}</div>
+            ))}
+            {chatLoading && <div className="wkp-platform-chat-msg wkp-platform-chat-msg--assistant wkp-platform-chat-loading">…</div>}
+            <div ref={chatEndRef} />
+          </div>
+          <form className="wkp-platform-chat-form" onSubmit={sendChat}>
+            <input
+              className="wkp-platform-chat-input"
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              placeholder="Ask the platform…"
+              autoFocus
+            />
+            <button type="submit" className="wkp-platform-chat-send" disabled={chatLoading}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardTab({ cfg, firstName, companyName, platforms, sessionId }) {
   const d = cfg.dashboard;
   return (
     <div className="wkp-center">
@@ -254,32 +363,9 @@ function DashboardTab({ cfg, firstName, companyName, platforms }) {
         <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>{firstName}'s office</WordsStagger>
         <div className="wkp-office-row">
           {platforms && platforms.length > 0 ? (
-            platforms.map(p => {
-              const slug = (companyName || 'company').toLowerCase().replace(/[^a-z0-9]/g, '');
-              const displayUrl = `${slug}.humans.ai/${p.name.toLowerCase()}`;
-              return (
-                <div key={p.id} className="wkp-browser wkp-platform-card">
-                  <div className="wkp-browser-toolbar wkp-platform-toolbar">
-                    <div className="wkp-browser-dots">
-                      <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
-                    </div>
-                    <div className="wkp-browser-nav">
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </div>
-                    <div className="wkp-browser-url wkp-platform-url">{displayUrl}</div>
-                  </div>
-                  <div className="wkp-platform-body">
-                    <div className="wkp-platform-name">{p.name}</div>
-                    <div className="wkp-platform-status">
-                      <span className="wkp-platform-dot" />
-                      <span>Live</span>
-                    </div>
-                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="wkp-platform-open">Open ↗</a>
-                  </div>
-                </div>
-              );
-            })
+            platforms.map(p => (
+              <PlatformPreviewCard key={p.id} platform={p} sessionId={sessionId} companyName={companyName} />
+            ))
           ) : (
             <>
               <div className="wkp-browser">
@@ -1604,7 +1690,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           ))}
         </div>
         <div className="wkp-main-body">
-          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} platforms={platforms} />}
+          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} platforms={platforms} sessionId={sessionId} />}
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
