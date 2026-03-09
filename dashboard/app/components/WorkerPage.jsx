@@ -280,7 +280,7 @@ function LiveActivityTab({ cfg, sessionId, activeGuiTask }) {
         <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e5ea', background: '#000', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '8px', left: '10px', zIndex: 2, fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }} />
-            XFCE Desktop · Kimi K2.5
+            XFCE Desktop · Vision Agent
           </div>
           <iframe src={desktop.url} style={{ width: '100%', height: '500px', border: 'none', display: 'block' }} allow="fullscreen" title="GUI Agent Desktop" />
         </div>
