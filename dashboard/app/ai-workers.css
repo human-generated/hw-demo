@@ -6161,6 +6161,48 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+
+.wkpt-wf-channels {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wkpt-wf-channels-label {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.wkpt-wf-channel-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #f5f5f5;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: #888;
+}
+
+.wkpt-wf-channel-field input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 11px;
+  color: #333;
+  width: 120px;
+}
+
+.wkpt-wf-channel-field input::placeholder { color: #bbb; }
+.wkpt-wf-channel-field input:focus { color: #111; }
 .wkpt-wf-run-header {
   display: flex;
   align-items: center;

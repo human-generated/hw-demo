@@ -789,7 +789,7 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null, channels = {} }) {
+function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null, channels = {}, onChannelsChange = null }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
   const [expanded, setExpanded] = useState(() => {
@@ -903,6 +903,21 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
 
                 {/* ── Soft / Hard Run Panel ── */}
                 <div className="wkpt-wf-run-area">
+                  <div className="wkpt-wf-channels">
+                    <span className="wkpt-wf-channels-label">Channels</span>
+                    <div className="wkpt-wf-channel-field">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+                      <input placeholder="email" type="email" value={channels.email || ''} onChange={e => { const c = {...channels, email: e.target.value}; if(typeof onChannelsChange==='function') onChannelsChange(c); }} />
+                    </div>
+                    <div className="wkpt-wf-channel-field">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      <input placeholder="phone" type="tel" value={channels.phone || ''} onChange={e => { const c = {...channels, phone: e.target.value}; if(typeof onChannelsChange==='function') onChannelsChange(c); }} />
+                    </div>
+                    <div className="wkpt-wf-channel-field">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7.5a2.25 2.25 0 0 0 .164 4.205l3.99 1.266 1.27 3.975a2.25 2.25 0 0 0 4.163.067L21.8 5.55a2.25 2.25 0 0 0-2.602-3.117z"/></svg>
+                      <input placeholder="telegram ID" type="text" value={channels.telegram || ''} onChange={e => { const c = {...channels, telegram: e.target.value}; if(typeof onChannelsChange==='function') onChannelsChange(c); }} />
+                    </div>
+                  </div>
                   <div className="wkpt-wf-run-header">
                     <span className="wkpt-wf-run-desc">
                       {runResults[i]
@@ -1695,7 +1710,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
