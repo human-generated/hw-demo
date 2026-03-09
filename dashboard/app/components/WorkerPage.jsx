@@ -789,7 +789,59 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null, channels = {}, onChannelsChange = null }) {
+function WorkflowChat({ wf, sessionId, workerId, workerName }) {
+  const [msgs, setMsgs] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+
+  async function send(e) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput('');
+    setMsgs(h => [...h, { role: 'user', text }]);
+    setLoading(true);
+    try {
+      const r = await fetch('/api/demo/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          sessionId: sessionId || 'worker-session',
+          workerId,
+          context: `You are ${workerName}, an AI worker. The user is asking about workflow "${wf.name}" (trigger: ${wf.trigger}). Steps: ${(wf.steps||[]).map(s=>s.label).join(' → ')}. Help them understand or modify this workflow.`,
+        }),
+      });
+      const d = await r.json();
+      setMsgs(h => [...h, { role: 'assistant', text: d.reply || d.message || '…' }]);
+    } catch {
+      setMsgs(h => [...h, { role: 'assistant', text: 'Could not reach agent.' }]);
+    } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="wkpt-wf-chat">
+      <div className="wkpt-wf-chat-msgs">
+        {msgs.length === 0 && <div className="wkpt-wf-chat-empty">Ask {workerName} to modify this workflow…</div>}
+        {msgs.map((m, i) => (
+          <div key={i} className={`wkpt-wf-chat-msg wkpt-wf-chat-msg--${m.role}`}>{m.text}</div>
+        ))}
+        {loading && <div className="wkpt-wf-chat-msg wkpt-wf-chat-msg--assistant wkpt-wf-chat-typing">…</div>}
+        <div ref={endRef} />
+      </div>
+      <form className="wkpt-wf-chat-form" onSubmit={send}>
+        <input className="wkpt-wf-chat-input" value={input} onChange={e => setInput(e.target.value)} placeholder={`Ask ${workerName}…`} autoComplete="off" />
+        <button type="submit" className="wkpt-wf-chat-send" disabled={loading}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function WorkflowsTab({ cfg, sessionId, workerId, workerName, defaultExpandedId = null, onWorkflowSelect = null, channels = {}, onChannelsChange = null }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
   const [expanded, setExpanded] = useState(() => {
@@ -969,6 +1021,7 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
                     );
                   })()}
                 </div>
+              <WorkflowChat wf={wf} sessionId={sessionId} workerId={workerId} workerName={workerName || 'Agent'} />
               </div>
             )}
           </div>
@@ -1355,9 +1408,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
 
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState(() =>
-    cfg.intro.map((m, i) => ({ id: i + 1, author: m.isUser ? 'YOU' : authorName, text: m.text, time: `${(cfg.intro.length - i) * 2}m ago`, isUser: m.isUser }))
-  );
+  const [messages, setMessages] = useState([]);
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
@@ -1375,7 +1426,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const cameraStreamRef = useRef(cameraStream);
   const cameraVideoRef = useRef(null);
   const subtitleTimerRef = useRef(null);
-  const msgSeqRef = useRef(cfg.intro.length + 1);
+  const msgSeqRef = useRef(1);
   const chatEndRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -1710,7 +1761,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
