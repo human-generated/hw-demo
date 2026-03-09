@@ -789,7 +789,7 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   );
 }
 
-function WorkflowChat({ wf, sessionId, workerId, workerName }) {
+function WorkflowChat({ wf, sessionId, workerId, workerName, onWorkerUpdate }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -804,18 +804,14 @@ function WorkflowChat({ wf, sessionId, workerId, workerName }) {
     setMsgs(h => [...h, { role: 'user', text }]);
     setLoading(true);
     try {
-      const r = await fetch('/api/demo/orchestrate', {
+      const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          sessionId: sessionId || 'worker-session',
-          workerId,
-          context: `You are ${workerName}, an AI worker. The user is asking about workflow "${wf.name}" (trigger: ${wf.trigger}). Steps: ${(wf.steps||[]).map(s=>s.label).join(' → ')}. Help them understand or modify this workflow.`,
-        }),
+        body: JSON.stringify({ message: text, sessionId }),
       });
       const d = await r.json();
-      setMsgs(h => [...h, { role: 'assistant', text: d.reply || d.message || '…' }]);
+      setMsgs(h => [...h, { role: 'assistant', text: d.message || '…' }]);
+      if (d.worker) onWorkerUpdate?.(d.worker);
     } catch {
       setMsgs(h => [...h, { role: 'assistant', text: 'Could not reach agent.' }]);
     } finally { setLoading(false); }
@@ -841,7 +837,7 @@ function WorkflowChat({ wf, sessionId, workerId, workerName }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId, workerId, workerName, defaultExpandedId = null, onWorkflowSelect = null, channels = {}, onChannelsChange = null }) {
+function WorkflowsTab({ cfg, sessionId, workerId, workerName, defaultExpandedId = null, onWorkflowSelect = null, channels = {}, onChannelsChange = null, onWorkerUpdate = null }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
   const [expanded, setExpanded] = useState(() => {
@@ -1021,7 +1017,7 @@ function WorkflowsTab({ cfg, sessionId, workerId, workerName, defaultExpandedId 
                     );
                   })()}
                 </div>
-              <WorkflowChat wf={wf} sessionId={sessionId} workerId={workerId} workerName={workerName || 'Agent'} />
+              <WorkflowChat wf={wf} sessionId={sessionId} workerId={workerId} workerName={workerName || 'Agent'} onWorkerUpdate={onWorkerUpdate} />
               </div>
             )}
           </div>
@@ -1395,7 +1391,7 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
-export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [] }) {
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
@@ -1761,7 +1757,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} onWorkerUpdate={onWorkerUpdate} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
           {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}

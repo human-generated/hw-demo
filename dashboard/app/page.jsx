@@ -1179,6 +1179,7 @@ function AppInner() {
           {aiView === 'worker-page' && (
             <WorkerPage
               worker={selectedWorker}
+              onWorkerUpdate={(updated) => { setSelectedWorker(updated); setHubWorkers(prev => prev.map(w => w.id === updated.id ? updated : w)); }}
               sessionId={hubSessionId}
               companyName={hubCompanyName || company?.name || 'Humans.AI'}
               platforms={hubPlatforms}
