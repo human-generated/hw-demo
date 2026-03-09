@@ -257,14 +257,24 @@ function OverviewTab({ cfg }) {
   );
 }
 
-function LiveActivityTab({ cfg, sessionId, activeGuiTask }) {
+function LiveActivityTab({ cfg, sessionId, activeGuiTask, onRunGuiAgent }) {
   const d = cfg.liveActivity;
   const [desktop, setDesktop] = useState(null);
+  const [task, setTask] = useState('');
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
     if (!activeGuiTask) return;
     setDesktop(activeGuiTask);
   }, [activeGuiTask]);
+
+  async function handleRun() {
+    if (!task.trim() || running) return;
+    setRunning(true);
+    await onRunGuiAgent?.(task.trim());
+    setTask('');
+    setRunning(false);
+  }
 
   return (
     <div className="wkpt-page">
@@ -272,17 +282,32 @@ function LiveActivityTab({ cfg, sessionId, activeGuiTask }) {
         <div className="wkpt-live-pulse" />
         <div className="wkpt-live-info">
           <span className="wkpt-live-task">{desktop ? `GUI Agent: ${desktop.task}` : d.currentTask}</span>
-          <span className="wkpt-live-meta">{desktop ? `Desktop :${desktop.display} · noVNC port ${desktop.novncPort}` : d.currentMeta}</span>
+          <span className="wkpt-live-meta">{desktop ? `Desktop :${desktop.display} · port ${desktop.novncPort}` : d.currentMeta}</span>
         </div>
         <span className="wkpt-live-badge">LIVE</span>
       </div>
+
+      <div style={{ marginBottom: '12px', background: '#fff', border: '1px solid #e5e5ea', borderRadius: '12px', padding: '12px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+        <textarea
+          value={task}
+          onChange={e => setTask(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleRun(); }}
+          placeholder="Give the vision agent a task… e.g. Search OTP to MUC flights on 2026-03-09"
+          rows={2}
+          style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontSize: '13px', color: '#1a1a1a', background: 'transparent', fontFamily: 'inherit', lineHeight: '1.5' }}
+        />
+        <button onClick={handleRun} disabled={!task.trim() || running} style={{ background: task.trim() && !running ? '#1a1a1a' : '#e5e5ea', color: task.trim() && !running ? '#fff' : '#aaa', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: task.trim() && !running ? 'pointer' : 'default', fontSize: '12px', fontWeight: 600, flexShrink: 0, transition: 'all 0.15s' }}>
+          {running ? 'Starting…' : 'Run'}
+        </button>
+      </div>
+
       {desktop && (
-        <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e5ea', background: '#000', position: 'relative' }}>
+        <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e5ea', background: '#111', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '8px', left: '10px', zIndex: 2, fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
             XFCE Desktop · Vision Agent
           </div>
-          <iframe src={desktop.url} style={{ width: '100%', height: '500px', border: 'none', display: 'block' }} allow="fullscreen" title="GUI Agent Desktop" />
+          <iframe src={desktop.url} style={{ width: '100%', height: '520px', border: 'none', display: 'block' }} allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="GUI Agent Desktop" />
         </div>
       )}
       <div className="wkpt-grid-2">
@@ -1308,7 +1333,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
         <div className="wkp-main-body">
           {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} />}
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
-          {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} />}
+          {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
