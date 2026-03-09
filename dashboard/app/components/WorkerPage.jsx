@@ -789,7 +789,7 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   );
 }
 
-function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null }) {
+function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWorkflowSelect = null, channels = {} }) {
   const wfList = cfg.workflows?.list || [];
   const escalation = cfg.workflows?.escalation || [];
   const [expanded, setExpanded] = useState(() => {
@@ -816,7 +816,7 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
         // Real session worker — call actual run-steps endpoint
         const r = await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, mode, workflowId: wf.id }),
+          body: JSON.stringify({ sessionId, mode, workflowId: wf.id, channels }),
         });
         d = await r.json();
         if (d.error) throw new Error(d.error);
@@ -864,44 +864,6 @@ function WorkflowsTab({ cfg, sessionId, workerId, defaultExpandedId = null, onWo
 
   return (
     <div className="wkpt-page">
-      {activeWf && (
-        <Card title={`Active Workflow — ${activeWf.name}`} badge={`Step 3 of ${activeSteps.length}`} className="wkpt-card--full">
-          <div className="wkpt-wf-steps">
-            {activeSteps.map((s, i) => (
-              <div key={i} className={`wkpt-wf-step wkpt-wf-step--${s.status}`}>
-                <div className="wkpt-wf-node">
-                  {s.status === 'done' && <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  {s.status === 'active' && <div className="wkpt-wf-pulse" />}
-                </div>
-                {i < activeSteps.length - 1 && <div className="wkpt-wf-line" />}
-                <span className="wkpt-wf-label">{s.label}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-      <div className="wkpt-grid-2">
-        <Card title="Active SOPs" sub={`${wfList.length} procedures`}>
-          <div className="wkpt-sop-list">
-            {wfList.map((wf, i) => (
-              <div key={i} className="wkpt-sop">
-                <div className="wkpt-sop-info">
-                  <span className="wkpt-sop-name">{wf.name}</span>
-                  <span className="wkpt-sop-freq">{wf.trigger}</span>
-                </div>
-                <span className="wkpt-sop-last">{wf.lastRun}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-        {escalation.length > 0 && (
-          <Card title="Escalation Logic">
-            <div className="wkpt-kv-list">
-              {escalation.map((e, i) => <KV key={i} k={e.trigger} v={e.target} />)}
-            </div>
-          </Card>
-        )}
-      </div>
       <Card title="All Workflows" sub={`${wfList.length} automated workflows`} className="wkpt-card--full">
         {wfList.map((wf, i) => (
           <div key={wf.id || i} className={`wkpt-wf-row${expanded === i ? ' wkpt-wf-row--open' : ''}`}>
@@ -1071,7 +1033,7 @@ function Toggle({ on, onClick }) {
   );
 }
 
-function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissionsChange }) {
+function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissionsChange, channels = {}, onChannelsChange }) {
   const [data, setData] = useState(null);
   const [perms, setPerms] = useState(workerPermissions || { sandboxes: {}, keys: [] });
   const [saving, setSaving] = useState(false);
@@ -1123,38 +1085,69 @@ function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissions
   const statusColor = s => s === 'deployed' ? '#34c759' : s === 'error' ? '#ff3b30' : '#8e8e93';
   const sbPerms = perms.sandboxes || {};
 
+  function setChannel(key, val) {
+    onChannelsChange?.({ ...channels, [key]: val });
+  }
+
   return (
     <div className="wkpt-page">
-      <Card title="Data Access — Platforms" sub="Read / Write / Delete per sandbox">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {data.sandboxes.length === 0 && <span style={{ color: '#999', fontSize: '12px' }}>No platforms deployed yet</span>}
-          {data.sandboxes.map(sb => {
-            const ops = sbPerms[sb.id] || [];
-            const anyOn = ops.length > 0;
-            return (
-              <div key={sb.id} style={{ background: anyOn ? '#f9f9f9' : '#f2f2f2', borderRadius: '10px', padding: '10px 12px', opacity: sb.status === 'error' ? 0.6 : 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span className="wkpt-integration-icon"><IntegrationIcon name={sb.name} /></span>
-                  <div style={{ flex: 1 }}>
-                    <span className="wkpt-integration-name">{sb.name}</span>
-                    {sb.url && <span style={{ display: 'block', fontSize: '10px', color: '#999' }}>{sb.url}</span>}
-                  </div>
-                  <span style={{ fontSize: '10px', color: statusColor(sb.status), fontWeight: 600 }}>{sb.status}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '16px', paddingLeft: '28px' }}>
-                  {DB_OPS.map(op => (
-                    <label key={op} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 500, color: sb.status === 'error' ? '#ccc' : ops.includes(op) ? DB_OP_COLORS[op] : '#aaa' }}>
-                      <input type="checkbox" checked={ops.includes(op)} disabled={sb.status === 'error'} onChange={() => toggleOp(sb.id, op)}
-                        style={{ accentColor: DB_OP_COLORS[op], width: '13px', height: '13px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer' }} />
-                      {DB_OP_LABELS[op]}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+      <Card title="Communication Channels" sub="Used when running flows">
+        <div className="wkpt-channel-list">
+          <div className="wkpt-channel">
+            <span className="wkpt-channel-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M2 7l10 7 10-7" /></svg>
+            </span>
+            <span className="wkpt-channel-label">Email</span>
+            <input className="wkpt-channel-input" type="email" placeholder="contact@company.com" value={channels.email || ''} onChange={e => setChannel('email', e.target.value)} />
+          </div>
+          <div className="wkpt-channel">
+            <span className="wkpt-channel-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+            </span>
+            <span className="wkpt-channel-label">Phone</span>
+            <input className="wkpt-channel-input" type="tel" placeholder="+1 555 000 0000" value={channels.phone || ''} onChange={e => setChannel('phone', e.target.value)} />
+          </div>
+          <div className="wkpt-channel">
+            <span className="wkpt-channel-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7.5a2.25 2.25 0 0 0 .164 4.205l3.99 1.266 1.27 3.975a2.25 2.25 0 0 0 4.163.067L21.8 5.55a2.25 2.25 0 0 0-2.602-3.117z" /></svg>
+            </span>
+            <span className="wkpt-channel-label">Telegram</span>
+            <input className="wkpt-channel-input" type="text" placeholder="@channel or chat ID" value={channels.telegram || ''} onChange={e => setChannel('telegram', e.target.value)} />
+          </div>
         </div>
       </Card>
+      <div style={{ marginTop: '12px' }}>
+        <Card title="Data Access — Platforms" sub="Read / Write / Delete per sandbox">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {data.sandboxes.length === 0 && <span style={{ color: '#999', fontSize: '12px' }}>No platforms deployed yet</span>}
+            {data.sandboxes.map(sb => {
+              const ops = sbPerms[sb.id] || [];
+              const anyOn = ops.length > 0;
+              return (
+                <div key={sb.id} style={{ background: anyOn ? '#f9f9f9' : '#f2f2f2', borderRadius: '10px', padding: '10px 12px', opacity: sb.status === 'error' ? 0.6 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span className="wkpt-integration-icon"><IntegrationIcon name={sb.name} /></span>
+                    <div style={{ flex: 1 }}>
+                      <span className="wkpt-integration-name">{sb.name}</span>
+                      {sb.url && <span style={{ display: 'block', fontSize: '10px', color: '#999' }}>{sb.url}</span>}
+                    </div>
+                    <span style={{ fontSize: '10px', color: statusColor(sb.status), fontWeight: 600 }}>{sb.status}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', paddingLeft: '28px' }}>
+                    {DB_OPS.map(op => (
+                      <label key={op} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: 500, color: sb.status === 'error' ? '#ccc' : ops.includes(op) ? DB_OP_COLORS[op] : '#aaa' }}>
+                        <input type="checkbox" checked={ops.includes(op)} disabled={sb.status === 'error'} onChange={() => toggleOp(sb.id, op)}
+                          style={{ accentColor: DB_OP_COLORS[op], width: '13px', height: '13px', cursor: sb.status === 'error' ? 'not-allowed' : 'pointer' }} />
+                        {DB_OP_LABELS[op]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
       <div style={{ marginTop: '12px' }}>
         <Card title="Data Access — API Keys" sub={`${(perms.keys || []).length} of ${data.keys.length} enabled`}>
           <div className="wkpt-integrations">
@@ -1194,6 +1187,13 @@ function IntegrationsTab({ sessionId, workerId, workerPermissions, onPermissions
                 const k = data.keys.find(x => x.id === id);
                 return k ? <div key={id} className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M10 5l3 3-3 3" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg><span>{k.label}</span></div> : null;
               })}
+            </div>
+            <div className="wkpt-perm-section">
+              <span className="wkpt-perm-heading">Channels</span>
+              {!channels.email && !channels.phone && !channels.telegram && <div className="wkpt-perm-item" style={{ color: '#ff3b30' }}><span>No channels configured</span></div>}
+              {channels.email && <div className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34c759" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg><span>Email: {channels.email}</span></div>}
+              {channels.phone && <div className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34c759" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>Phone: {channels.phone}</span></div>}
+              {channels.telegram && <div className="wkpt-perm-item"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34c759" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.5 7.5a2.25 2.25 0 0 0 .164 4.205l3.99 1.266 1.27 3.975a2.25 2.25 0 0 0 4.163.067L21.8 5.55a2.25 2.25 0 0 0-2.602-3.117z"/></svg><span>Telegram: {channels.telegram}</span></div>}
             </div>
           </div>
         </Card>
@@ -1353,6 +1353,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [avatarMuted, setAvatarMuted] = useState(false);
   const [workerLoading, setWorkerLoading] = useState(false);
   const [workerPermissions, setWorkerPermissions] = useState(worker.permissions || null);
+  const [workerChannels, setWorkerChannels] = useState({ email: '', phone: '', telegram: '' });
   const [activeGuiTask, setActiveGuiTask] = useState(null);
 
   const anamClientRef = useRef(anamClient);
@@ -1694,9 +1695,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
-          {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} />}
+          {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
