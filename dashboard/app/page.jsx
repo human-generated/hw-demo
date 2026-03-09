@@ -107,7 +107,13 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
   const [deleting, setDeleting] = useState(null);
 
   function reload() {
-    fetch('/api/demo/sessions').then(r => r.json()).then(setSessions).catch(() => setSessions([]));
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    fetch('/api/demo/sessions', { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => setSessions(Array.isArray(d) ? d : []))
+      .catch(() => setSessions([]))
+      .finally(() => clearTimeout(t));
   }
   useEffect(() => { reload(); }, []);
 
@@ -215,7 +221,13 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
 function HubSessionPicker({ onSelect, onNew, onClose }) {
   const [sessions, setSessions] = useState(null);
   useEffect(() => {
-    fetch('/api/demo/sessions').then(r => r.json()).then(setSessions).catch(() => setSessions([]));
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    fetch('/api/demo/sessions', { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => setSessions(Array.isArray(d) ? d : []))
+      .catch(() => setSessions([]))
+      .finally(() => clearTimeout(t));
   }, []);
   const phaseColors = { start: '#8e8e93', research: '#3b82f6', building: '#f59e0b', platforms: '#34c759', workers: '#a855f7' };
   function timeAgo(iso) {
