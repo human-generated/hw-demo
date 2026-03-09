@@ -303,11 +303,27 @@ function LiveActivityTab({ cfg, sessionId, activeGuiTask, onRunGuiAgent }) {
 
       {desktop && (
         <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e5ea', background: '#111', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '8px', left: '10px', zIndex: 2, fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-            XFCE Desktop · Vision Agent
+          <div style={{ position: 'absolute', top: '8px', left: '10px', right: '10px', zIndex: 2, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }} />
+              XFCE Desktop · Vision Agent
+            </div>
+            <a href={desktop.url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 10px', borderRadius: '6px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Open in new tab
+            </a>
           </div>
-          <iframe src={desktop.url} style={{ width: '100%', height: '520px', border: 'none', display: 'block' }} allow="fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" title="GUI Agent Desktop" />
+          <div style={{ width: '100%', height: '520px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#666' }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#ccc', marginBottom: '4px' }}>Desktop running on port {desktop.novncPort}</div>
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '12px' }}>Browser blocks HTTP frames on HTTPS pages</div>
+              <a href={desktop.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', fontWeight: 600, color: '#fff', background: '#1a1a1a', padding: '8px 20px', borderRadius: '8px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                Open Desktop
+              </a>
+            </div>
+          </div>
         </div>
       )}
       <div className="wkpt-grid-2">
