@@ -240,6 +240,12 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
       await room.startAudio();
       setNeedsAudioResume(false);
     } catch {}
+    // Also try to directly play the audio element in case startAudio doesn't cover it
+    try {
+      if (audioElRef.current && audioElRef.current.paused) {
+        await audioElRef.current.play();
+      }
+    } catch {}
   }, []);
 
   const sendText = useCallback((text) => {

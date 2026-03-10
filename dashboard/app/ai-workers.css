@@ -4523,6 +4523,8 @@ body {
 .wkp-call-btn--mic-muted { background: #ff3b30; }
 .wkp-call-btn--phone { background: #34c759; }
 .wkp-call-btn--end { background: #ff3b30; }
+.wkp-call-btn--video { background: #1a1a1a; }
+.wkp-call-btn--video-on { background: #2DB563; }
 
 /* ---- Chat ---- */
 

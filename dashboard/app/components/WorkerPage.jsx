@@ -1636,12 +1636,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${photoUrl})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
-              <audio ref={audioElRef} autoPlay style={{ display: 'none' }} />
-              {needsAudioResume && (
-                <button onClick={resumeAudio} style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  ▶ Enable audio
-                </button>
-              )}
+              <audio ref={audioElRef} style={{ display: 'none' }} />
               <video ref={avatarVideoRef} autoPlay playsInline className="wkp-badge-video" style={{ display: (isConnected && videoEnabled && videoTrack) ? 'block' : 'none' }} />
               {isConnected && videoEnabled && videoTrack && <div className="wkp-badge-video-fade" />}
               <button className={`wkp-avatar-mute ${avatarMuted ? 'wkp-avatar-mute--on' : ''} ${isConnected ? '' : 'wkp-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
@@ -1663,6 +1658,11 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
               </div>
             </div>
             <div className="wkp-call-controls">
+              {needsAudioResume && (
+                <button onClick={resumeAudio} style={{ display: 'block', width: '100%', marginBottom: 6, background: '#2DB563', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 0', fontSize: 11, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.03em' }}>
+                  ▶ Tap to enable audio
+                </button>
+              )}
               <div className="wkp-call-info">
                 <span className={`wkp-call-dot ${isConnected ? 'wkp-call-dot--active' : ''}`} />
                 <span className="wkp-call-label">{isConnected ? 'In Call' : isConnecting ? 'Connecting...' : 'Idle'}</span>
@@ -1673,7 +1673,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
                 <button className={`wkp-call-btn wkp-call-btn--video ${videoEnabled ? 'wkp-call-btn--video-on' : ''}`} onClick={() => setVideoEnabled(v => !v)} disabled={!isConnected} title="Toggle avatar video">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="2" fill={videoEnabled ? '#2DB563' : '#fff'} /><path d="M15 10.5l5-3v9l-5-3v-3z" fill={videoEnabled ? '#2DB563' : '#fff'} /></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="2" fill="#fff" /><path d="M15 10.5l5-3v9l-5-3v-3z" fill="#fff" /></svg>
                 </button>
                 <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} disabled={!isConnected} title="End call">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
