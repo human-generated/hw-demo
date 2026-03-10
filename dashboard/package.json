@@ -11,6 +11,8 @@
     "@anam-ai/js-sdk": "^4.10.0",
     "@paper-design/shaders-react": "^0.0.71",
     "@xyflow/react": "^12.10.1",
+    "livekit-client": "^2.17.2",
+    "livekit-server-sdk": "^2.15.0",
     "motion": "^12.35.0",
     "next": "14.2.5",
     "react": "^18",

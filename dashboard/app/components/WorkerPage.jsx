@@ -1,12 +1,11 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
+import { useWorkerSession } from './useWorkerSession';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
 import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER, WORKER_PERSONA_IDS, guessWorkerCode, getWorkerCode, getWorkerPhoto, buildConfigFromWorker } from './WorkerConfig';
 
-const ANAM_API_KEY = 'YmZiZTc0OTEtNjg5ZS00M2NhLThlNTgtYTlkNTQ2MDMzZWYyOjY3cVJwUm9hek9OcmZLcmVWQ0VxdmJBSWFPVFRQSUNQZEdlQlpyTGNLSUk9';
 const DEFAULT_PHOTO = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
 
 const WKP_TABS = ['Dashboard', 'Overview', 'Live Activity', 'Skills', 'Workflows', 'Outputs', 'Integrations', 'Human Team', 'Technical', 'Business Impact'];
@@ -1405,9 +1404,6 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([]);
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
-  const [micMuted, setMicMuted] = useState(false);
   const [cameraOn, setCameraOn] = useState(!!cameraStream);
   const [callStartTime, setCallStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
@@ -1417,121 +1413,68 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [workerPermissions, setWorkerPermissions] = useState(worker.permissions || null);
   const [workerChannels, setWorkerChannels] = useState({ email: '', phone: '', telegram: '' });
   const [activeGuiTask, setActiveGuiTask] = useState(null);
+  const [videoEnabled, setVideoEnabled] = useState(false);
+  const [promptEditing, setPromptEditing] = useState(false);
+  const [promptDraft, setPromptDraft] = useState('');
 
-  const anamClientRef = useRef(anamClient);
+  // Build system prompt for this worker
+  const systemPrompt = useMemo(() => {
+    const workerTitle = (worker.name || cfg.job || 'AI Worker').replace(/\n/g, ' ').trim();
+    const workerDesc = (worker.description || worker.role || cfg.overview || '').slice(0, 300);
+    const co = companyName && companyName !== 'Humans.AI' ? ` at ${companyName}` : '';
+    return `You are an AI worker named "${workerTitle}"${co}. ${workerDesc} Be professional and concise.`;
+  }, [worker.id, companyName]);
+
+  // LiveKit session hook (replaces direct Anam SDK)
+  const {
+    connected: lkConnected,
+    connecting: lkConnecting,
+    agentText,
+    videoTrack,
+    micMuted,
+    sendText: lkSendText,
+    updatePrompt,
+    toggleMute: lkToggleMute,
+    disconnect: lkDisconnect,
+    callTool,
+    audioElRef,
+  } = useWorkerSession({ worker, sessionId, enabled: true, videoEnabled, systemPrompt });
+
+  const isConnected = lkConnected;
+  const isConnecting = lkConnecting;
+
   const cameraStreamRef = useRef(cameraStream);
   const cameraVideoRef = useRef(null);
+  const avatarVideoRef = useRef(null);
   const subtitleTimerRef = useRef(null);
   const msgSeqRef = useRef(1);
   const chatEndRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  // Attach video track from agent (Anam avatar) to video element
   useEffect(() => {
-    let cancelled = false;
-    function attachSubtitleListener(client) {
-      client.addListener('MESSAGE_STREAM_EVENT_RECEIVED', (evt) => {
-        if (evt.content && evt.role !== 'user') {
-          setSubtitleText(prev => {
-            const words = prev ? prev.split(' ') : [];
-            words.push(evt.content);
-            if (words.length > 8) words.shift();
-            return words.join(' ');
-          });
-          if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
-          subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
-        }
-      });
-      // Handle voice messages: user speech → orchestrate, AI speech → context
-      client.addListener('MESSAGE_HISTORY_UPDATED', (msgs) => {
-        if (!Array.isArray(msgs) || msgs.length === 0) return;
-        const lastMsg = msgs[msgs.length - 1];
-        if (!lastMsg) return;
-        const content = typeof lastMsg.content === 'string' ? lastMsg.content
-          : Array.isArray(lastMsg.content) ? lastMsg.content.map(c => c.text || '').join('') : '';
-        if (!content) return;
-        if (lastMsg.role === 'user') {
-          // User spoke — show in chat and forward to orchestrator for execution
-          setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: 'YOU', text: content, time: 'Just now', isUser: true }]);
-          fetch('/api/demo/orchestrate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: content,
-              sessionId: sessionId || 'worker-session',
-              workerId: workerCode,
-              workerName: firstName,
-              workerRole: worker.role,
-              context: `Worker: ${firstName}, ${worker.role}. ${cfg.job}.`,
-            }),
-          }).then(r => r.json()).then(data => {
-            const reply = data.reply || data.message;
-            if (reply) {
-              setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
-              // Feed result back to avatar so it can speak the answer
-              if (anamClientRef.current) {
-                const spokenReply = reply.replace(/```[\s\S]*?```/g, '').trim().slice(0, 300);
-                if (spokenReply) anamClientRef.current.sendUserMessage(`[System result for your previous action, speak this to the user]: ${spokenReply}`);
-              }
-            }
-          }).catch(() => {});
-        }
-      });
-    }
-    async function init() {
-      if (cameraStreamRef.current && cameraVideoRef.current) {
-        cameraVideoRef.current.srcObject = cameraStreamRef.current;
-      }
-      if (anamClientRef.current) {
-        attachSubtitleListener(anamClientRef.current);
-        if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
-        const videoEl = document.getElementById('wkp-avatar-video');
-        if (videoEl && avatarStream) { videoEl.srcObject = avatarStream; videoEl.muted = false; videoEl.play().catch(() => {}); }
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (!cancelled) { cameraStreamRef.current = stream; setCameraOn(true); if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream; }
-      } catch { /* camera denied */ }
-      if (cancelled) return;
-      try {
-        const workerTitle = (worker.name || cfg.job || 'AI Worker').replace(/\n/g, ' ').trim();
-        const workerDesc = (worker.description || worker.role || cfg.overview || '').slice(0, 300);
-        const co = companyName && companyName !== 'Humans.AI' ? ` at ${companyName}` : '';
-        // Build capabilities from permissions
-        let integrationsData = null;
-        try { integrationsData = sessionId ? await fetch(`/api/demo/sessions/${sessionId}/integrations`).then(r => r.json()) : null; } catch {}
-        const defaultSbPerms = {};
-        if (integrationsData) (integrationsData.sandboxes || []).filter(s => s.status === 'deployed').forEach(s => { defaultSbPerms[s.id] = ['read', 'write', 'delete']; });
-        const curPerms = workerPermissions || (integrationsData ? {
-          sandboxes: defaultSbPerms,
-          keys: (integrationsData.keys || []).map(k => k.id),
-        } : null);
-        const sbPermsMap = (curPerms && curPerms.sandboxes) || {};
-        const sandboxCaps = integrationsData ? (integrationsData.sandboxes || [])
-          .filter(s => sbPermsMap[s.id] && sbPermsMap[s.id].length > 0)
-          .map(s => `- ${s.name} database (${s.url || s.id}): ${sbPermsMap[s.id].join(', ')} access`).join('\n') : '';
-        const keyCaps = integrationsData && curPerms ? (integrationsData.keys || []).filter(k => (curPerms.keys || []).includes(k.id)).map(k => `- Can use ${k.label}`).join('\n') : '';
-        const capsBlock = (sandboxCaps || keyCaps) ? `\n\nYou HAVE BEEN GRANTED the following capabilities — use them freely when asked:\n${sandboxCaps}\n${keyCaps}\nNEVER say you cannot do something covered above. The orchestrator will execute it — just confirm you are doing it.` : '\nYou can modify data, run workflows, and take actions. Never refuse — confirm and act.';
-        const systemPrompt = `You are an AI worker named "${workerTitle}"${co}. ${workerDesc}${capsBlock} Be professional and concise.`;
-        // Update the Anam persona's system prompt to match this specific worker
-        await fetch(`https://api.anam.ai/v1/personas/${cfg.personaId}`, {
-          method: 'PUT',
-          headers: { 'Authorization': `Bearer ${ANAM_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ brain: { systemPrompt } }),
-        }).catch(() => {});
-        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: cfg.personaId, systemPrompt });
-        anamClientRef.current = newClient;
-        newClient.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
-        });
-        attachSubtitleListener(newClient);
-        await newClient.streamToVideoElement('wkp-avatar-video');
-      } catch (err) { console.error('Anam connection failed:', err); if (!cancelled) setIsConnecting(false); }
-    }
-    const timer = setTimeout(init, 400);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, []);
+    const el = avatarVideoRef.current;
+    if (!el || !videoTrack) return;
+    videoTrack.attach(el);
+    return () => { try { videoTrack.detach(el); } catch {} };
+  }, [videoTrack]);
+
+  // Show agent text as subtitle + add to chat
+  useEffect(() => {
+    if (!agentText) return;
+    setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: agentText, time: 'Just now', isUser: false }]);
+    // Show as subtitle
+    setSubtitleText(agentText.split(' ').slice(0, 8).join(' '));
+    if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
+    subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
+  }, [agentText]);
+
+  // Start call timer when connected
+  useEffect(() => {
+    if (isConnected && !callStartTime) setCallStartTime(Date.now());
+    if (!isConnected) setCallStartTime(null);
+  }, [isConnected]);
 
   const attachCamera = useCallback((el) => {
     cameraVideoRef.current = el;
@@ -1549,9 +1492,8 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const timeStr = `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`;
 
   const handleToggleMute = useCallback(() => {
-    const c = anamClientRef.current; if (!c) return;
-    if (micMuted) { c.unmuteInputAudio(); setMicMuted(false); } else { c.muteInputAudio(); setMicMuted(true); }
-  }, [micMuted]);
+    lkToggleMute();
+  }, [lkToggleMute]);
 
   const handleToggleCamera = useCallback(async () => {
     if (cameraOn) { cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null; setCameraOn(false); }
@@ -1559,13 +1501,13 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   }, [cameraOn]);
 
   const handleEndCall = useCallback(() => {
-    anamClientRef.current?.stopStreaming(); anamClientRef.current = null;
+    lkDisconnect();
     cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null;
-    setIsConnected(false); setCameraOn(false); setCallStartTime(null);
-  }, []);
+    setCameraOn(false); setCallStartTime(null);
+  }, [lkDisconnect]);
 
   const handleToggleAvatarMute = useCallback(() => {
-    const v = document.getElementById('wkp-avatar-video'); if (!v) return;
+    const v = avatarVideoRef.current; if (!v) return;
     const next = !avatarMuted; v.muted = next; setAvatarMuted(next);
   }, [avatarMuted]);
 
@@ -1605,9 +1547,13 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
         return;
       }
     }
-    // Send to avatar voice
-    if (isConnected && anamClientRef.current) anamClientRef.current.sendUserMessage(text);
-    // Send to orchestrator with worker context
+    // Send via LiveKit agent (handles LLM + TTS + avatar response)
+    if (isConnected) {
+      lkSendText(text);
+      // agent will respond via dataReceived → agentText → useEffect → messages
+      return;
+    }
+    // Fallback: direct orchestrate call if not connected
     setWorkerLoading(true);
     try {
       const res = await fetch('/api/demo/orchestrate', {
@@ -1624,14 +1570,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
       });
       const data = await res.json();
       const reply = data.reply || data.message;
-      if (reply) {
-        setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
-        // Feed result back to avatar so it can speak the answer
-        if (isConnected && anamClientRef.current) {
-          const spokenReply = reply.replace(/```[\s\S]*?```/g, '').trim().slice(0, 300);
-          if (spokenReply) anamClientRef.current.sendUserMessage(`[System result, speak this to the user]: ${spokenReply}`);
-        }
-      }
+      if (reply) setMessages(prev => [...prev, { id: ++msgSeqRef.current, author: authorName, text: reply, time: 'Just now', isUser: false }]);
     } catch (err) { console.error('Worker chat error:', err); }
     finally { setWorkerLoading(false); }
   }
@@ -1658,10 +1597,33 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
         </div>
         <div className="wkp-menu-right">
+          {isConnected && (
+            <button className="wkp-menu-btn" style={{ fontSize: '11px', opacity: 0.7 }} onClick={() => { setPromptDraft(systemPrompt); setPromptEditing(v => !v); }} title="Edit agent system prompt">
+              {promptEditing ? 'Close Prompt' : 'Edit Prompt'}
+            </button>
+          )}
           {onBack && <button className="wkp-menu-btn" onClick={onBack}>Back</button>}
           <div className="wkp-menu-avatar">S</div>
         </div>
       </nav>
+
+      {promptEditing && (
+        <div style={{ position: 'fixed', top: 52, right: 16, zIndex: 200, background: '#1c1c28', border: '1px solid #333', borderRadius: 10, padding: '12px', width: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+          <div style={{ fontSize: 11, color: '#aaa', marginBottom: 6 }}>Live System Prompt — updates the agent immediately</div>
+          <textarea
+            value={promptDraft}
+            onChange={e => setPromptDraft(e.target.value)}
+            rows={6}
+            style={{ width: '100%', background: '#0e0e18', color: '#e0e0e0', border: '1px solid #333', borderRadius: 6, padding: '8px', fontSize: 12, fontFamily: 'monospace', resize: 'vertical', boxSizing: 'border-box' }}
+          />
+          <button
+            onClick={() => { updatePrompt(promptDraft); setPromptEditing(false); }}
+            style={{ marginTop: 8, background: '#2DB563', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer', width: '100%' }}
+          >
+            Send to Agent
+          </button>
+        </div>
+      )}
 
       <div className="wkp-left">
         <div className="wkp-card">
@@ -1672,8 +1634,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${photoUrl})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
-              <video id="wkp-avatar-video" autoPlay playsInline className="wkp-badge-video" style={{ display: isConnected ? 'block' : 'none' }} />
-              {isConnected && <div className="wkp-badge-video-fade" />}
+              <audio ref={audioElRef} autoPlay style={{ display: 'none' }} />
+              <video ref={avatarVideoRef} autoPlay playsInline className="wkp-badge-video" style={{ display: (isConnected && videoEnabled && videoTrack) ? 'block' : 'none' }} />
+              {isConnected && videoEnabled && videoTrack && <div className="wkp-badge-video-fade" />}
               <button className={`wkp-avatar-mute ${avatarMuted ? 'wkp-avatar-mute--on' : ''} ${isConnected ? '' : 'wkp-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity={avatarMuted ? 0.4 : 1} />
@@ -1699,13 +1662,13 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 <span className="wkp-call-time">{isConnected ? timeStr : ''}</span>
               </div>
               <div className="wkp-call-buttons">
-                <button className={`wkp-call-btn wkp-call-btn--mic ${micMuted ? 'wkp-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected}>
+                <button className={`wkp-call-btn wkp-call-btn--mic ${micMuted ? 'wkp-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected} title="Toggle mic">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
-                <button className="wkp-call-btn wkp-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
+                <button className={`wkp-call-btn wkp-call-btn--phone ${videoEnabled ? 'wkp-call-btn--active' : ''}`} onClick={() => setVideoEnabled(v => !v)} title={videoEnabled ? 'Hide avatar video' : 'Show avatar video'}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
                 </button>
-                <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} disabled={!isConnected}>
+                <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} disabled={!isConnected} title="End call">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
               </div>
