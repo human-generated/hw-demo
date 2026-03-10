@@ -1432,6 +1432,8 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     agentText,
     videoTrack,
     micMuted,
+    needsAudioResume,
+    resumeAudio,
     sendText: lkSendText,
     updatePrompt,
     toggleMute: lkToggleMute,
@@ -1635,6 +1637,11 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
               <audio ref={audioElRef} autoPlay style={{ display: 'none' }} />
+              {needsAudioResume && (
+                <button onClick={resumeAudio} style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 10, background: 'rgba(0,0,0,0.75)', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  ▶ Enable audio
+                </button>
+              )}
               <video ref={avatarVideoRef} autoPlay playsInline className="wkp-badge-video" style={{ display: (isConnected && videoEnabled && videoTrack) ? 'block' : 'none' }} />
               {isConnected && videoEnabled && videoTrack && <div className="wkp-badge-video-fade" />}
               <button className={`wkp-avatar-mute ${avatarMuted ? 'wkp-avatar-mute--on' : ''} ${isConnected ? '' : 'wkp-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>

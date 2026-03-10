@@ -1,18 +1,23 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+const DEEPGRAM_API_KEY = '56e0caf0a2d27fc173409bb11929a0249005288b';
+
 /**
  * useWorkerSession — LiveKit-based real-time worker session hook.
  *
  * Architecture:
- *  - Browser: Web Speech API → STT text → data channel → LiveKit agent
+ *  - Browser: Deepgram WebSocket STT → text → data channel → LiveKit agent
  *  - Agent (server): receives text → Claude LLM → Inworld TTS → audio track
  *  - Anam: intercepts TTS audio → lip-synced video track (if videoEnabled)
  *  - Browser: subscribes to audio + video tracks from agent
  */
 export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, systemPrompt }) {
   const roomRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const dgWsRef = useRef(null);       // Deepgram WebSocket
+  const audioCtxRef = useRef(null);   // AudioContext for mic capture
+  const processorRef = useRef(null);  // ScriptProcessor node
+  const micStreamRef = useRef(null);  // MediaStream from getUserMedia
   const audioElRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(!!enabled);
@@ -20,6 +25,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
   const [videoTrack, setVideoTrack] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
+  const [needsAudioResume, setNeedsAudioResume] = useState(false);
 
   // Connect to LiveKit room when enabled
   useEffect(() => {
@@ -28,7 +34,6 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     let cancelled = false;
     setConnecting(true);
 
-    // Lazy-import livekit-client (client-only)
     let room;
     (async () => {
       try {
@@ -36,11 +41,21 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         room = new Room();
         roomRef.current = room;
 
-        room.on(RoomEvent.Connected, () => {
-          if (!cancelled) { setConnected(true); setConnecting(false); }
+        room.on(RoomEvent.Connected, async () => {
+          if (!cancelled) {
+            setConnected(true);
+            setConnecting(false);
+            // Attempt to unlock AudioContext after connection (user gesture already occurred)
+            try { await room.startAudio(); } catch {}
+          }
         });
         room.on(RoomEvent.Disconnected, () => {
           if (!cancelled) { setConnected(false); setConnecting(false); }
+        });
+
+        // Handle audio playback blocked by autoplay policy
+        room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+          setNeedsAudioResume(!room.canPlaybackAudio);
         });
 
         // Receive text responses + other data from agent
@@ -49,7 +64,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
             const msg = JSON.parse(new TextDecoder().decode(payload));
             if (msg.type === 'agent_text' && msg.text) {
               setAgentText(msg.text);
-              // Fallback: if no audio track from agent, use browser TTS
+              // Fallback to browser TTS if no audio track
               if (!room._agentAudioTrack) {
                 const synth = window.speechSynthesis;
                 if (synth) {
@@ -70,7 +85,6 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
           }
           if (track.kind === Track.Kind.Audio) {
             room._agentAudioTrack = track;
-            // Attach to hidden audio element for playback
             if (audioElRef.current) track.attach(audioElRef.current);
           }
         });
@@ -114,39 +128,82 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     };
   }, [enabled, worker?.id, sessionId]);
 
-  // Start Web Speech API after connection
+  // Start Deepgram STT after connection
   useEffect(() => {
     if (!connected) return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    let ws = null;
+    let audioCtx = null;
+    let processor = null;
+    let stream = null;
+    let cancelled = false;
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognitionRef.current = recognition;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
 
-    recognition.onresult = (event) => {
-      if (micMutedRef.current) return;
-      const transcript = event.results[event.results.length - 1][0].transcript.trim();
-      if (transcript) _publishText(transcript, 'user_speech');
-    };
-    recognition.onerror = (e) => { if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('[STT]', e.error); };
-    recognition.onend = () => { if (recognitionRef.current && !micMutedRef.current) { try { recognition.start(); } catch {} } };
+        micStreamRef.current = stream;
+        audioCtx = new AudioContext({ sampleRate: 16000 });
+        audioCtxRef.current = audioCtx;
 
-    try { recognition.start(); } catch {}
+        const source = audioCtx.createMediaStreamSource(stream);
+        processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        processorRef.current = processor;
+
+        // Connect to Deepgram (auth via subprotocol)
+        ws = new WebSocket(
+          'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500',
+          ['token', DEEPGRAM_API_KEY]
+        );
+        dgWsRef.current = ws;
+
+        ws.onopen = () => {
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+
+          processor.onaudioprocess = (e) => {
+            if (micMutedRef.current) return;
+            if (ws.readyState !== WebSocket.OPEN) return;
+            const float32 = e.inputBuffer.getChannelData(0);
+            const int16 = new Int16Array(float32.length);
+            for (let i = 0; i < float32.length; i++) {
+              int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
+            }
+            ws.send(int16.buffer);
+          };
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const transcript = data?.channel?.alternatives?.[0]?.transcript?.trim();
+            if (transcript && data.is_final) {
+              _publishText(transcript, 'user_speech');
+            }
+          } catch {}
+        };
+
+        ws.onerror = (e) => console.error('[Deepgram] WebSocket error:', e);
+        ws.onclose = (e) => { if (!cancelled) console.log('[Deepgram] closed:', e.code, e.reason); };
+      } catch (e) {
+        console.error('[Deepgram] setup failed:', e);
+      }
+    })();
 
     return () => {
-      recognitionRef.current = null;
-      try { recognition.stop(); } catch {}
+      cancelled = true;
+      dgWsRef.current = null;
+      if (processor) { try { processor.disconnect(); } catch {} processorRef.current = null; }
+      if (audioCtx) { try { audioCtx.close(); } catch {} audioCtxRef.current = null; }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
+      if (ws) { try { ws.close(); } catch {} }
     };
   }, [connected]);
 
   // Send prompt update when systemPrompt changes (after connection)
   useEffect(() => {
     if (!connected || !systemPrompt) return;
-    _publishText(systemPrompt, 'update_prompt_payload');
     const room = roomRef.current;
     if (room) {
       room.localParticipant?.publishData(
@@ -175,6 +232,16 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     );
   }
 
+  // Resume audio playback after user gesture (for autoplay policy)
+  const resumeAudio = useCallback(async () => {
+    const room = roomRef.current;
+    if (!room) return;
+    try {
+      await room.startAudio();
+      setNeedsAudioResume(false);
+    } catch {}
+  }, []);
+
   const sendText = useCallback((text) => {
     const room = roomRef.current;
     if (!room) return;
@@ -197,20 +264,26 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     const next = !micMutedRef.current;
     micMutedRef.current = next;
     setMicMuted(next);
-    const rec = recognitionRef.current;
-    if (rec) {
-      if (next) { try { rec.stop(); } catch {} }
-      else { try { rec.start(); } catch {} }
+    // Pause/resume the ScriptProcessor by stopping/starting audio tracks
+    const stream = micStreamRef.current;
+    if (stream) {
+      stream.getAudioTracks().forEach(t => { t.enabled = !next; });
     }
   }, []);
 
   const disconnect = useCallback(() => {
-    if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} recognitionRef.current = null; }
+    // Stop Deepgram
+    if (dgWsRef.current) { try { dgWsRef.current.close(); } catch {} dgWsRef.current = null; }
+    if (processorRef.current) { try { processorRef.current.disconnect(); } catch {} processorRef.current = null; }
+    if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch {} audioCtxRef.current = null; }
+    if (micStreamRef.current) { micStreamRef.current.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
+    // Stop LiveKit
     if (roomRef.current) { roomRef.current.disconnect(); roomRef.current = null; }
     window.speechSynthesis?.cancel();
     setConnected(false);
     setVideoTrack(null);
     setAgentText('');
+    setNeedsAudioResume(false);
   }, []);
 
   const callTool = useCallback(async (name, args) => {
@@ -237,6 +310,8 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     agentText,
     videoTrack,
     micMuted,
+    needsAudioResume,
+    resumeAudio,
     sendText,
     updatePrompt,
     toggleMute,
