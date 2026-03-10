@@ -1494,8 +1494,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const timeStr = `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`;
 
   const handleToggleMute = useCallback(() => {
+    resumeAudio();
     lkToggleMute();
-  }, [lkToggleMute]);
+  }, [lkToggleMute, resumeAudio]);
 
   const handleToggleCamera = useCallback(async () => {
     if (cameraOn) { cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null; setCameraOn(false); }
@@ -1551,6 +1552,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     }
     // Send via LiveKit agent (handles LLM + TTS + avatar response)
     if (isConnected) {
+      resumeAudio(); // unlock audio on user gesture
       lkSendText(text);
       // agent will respond via dataReceived → agentText → useEffect → messages
       return;
@@ -1636,7 +1638,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${photoUrl})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
-              <audio ref={audioElRef} style={{ display: 'none' }} />
+              <audio ref={audioElRef} autoPlay playsInline style={{ display: 'none' }} />
               <video ref={avatarVideoRef} autoPlay playsInline className="wkp-badge-video" style={{ display: (isConnected && videoEnabled && videoTrack) ? 'block' : 'none' }} />
               {isConnected && videoEnabled && videoTrack && <div className="wkp-badge-video-fade" />}
               <button className={`wkp-avatar-mute ${avatarMuted ? 'wkp-avatar-mute--on' : ''} ${isConnected ? '' : 'wkp-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
