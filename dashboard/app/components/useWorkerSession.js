@@ -15,7 +15,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
   const recognitionRef = useRef(null);
   const audioElRef = useRef(null);
   const [connected, setConnected] = useState(false);
-  const [connecting, setConnecting] = useState(false);
+  const [connecting, setConnecting] = useState(!!enabled);
   const [agentText, setAgentText] = useState('');
   const [videoTrack, setVideoTrack] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
