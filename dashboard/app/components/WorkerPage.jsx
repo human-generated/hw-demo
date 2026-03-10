@@ -1672,10 +1672,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 <button className={`wkp-call-btn wkp-call-btn--mic ${micMuted ? 'wkp-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected} title="Toggle mic">
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, color: '#fff', opacity: 0.85, userSelect: 'none' }} title="Toggle avatar video (requires Inworld TTS key)">
-                  <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} style={{ accentColor: '#2DB563', width: 13, height: 13 }} />
-                  Video
-                </label>
+                <button className={`wkp-call-btn wkp-call-btn--video ${videoEnabled ? 'wkp-call-btn--video-on' : ''}`} onClick={() => setVideoEnabled(v => !v)} disabled={!isConnected} title="Toggle avatar video">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="2" fill={videoEnabled ? '#2DB563' : '#fff'} /><path d="M15 10.5l5-3v9l-5-3v-3z" fill={videoEnabled ? '#2DB563' : '#fff'} /></svg>
+                </button>
                 <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} disabled={!isConnected} title="End call">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
