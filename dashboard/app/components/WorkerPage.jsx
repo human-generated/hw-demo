@@ -1441,7 +1441,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     disconnect: lkDisconnect,
     callTool,
     audioElRef,
-  } = useWorkerSession({ worker, sessionId, enabled: callEnabled, videoEnabled, systemPrompt });
+  } = useWorkerSession({ worker, sessionId, enabled: callEnabled, videoEnabled, systemPrompt, personaId: WORKER_PERSONA_IDS[workerCode] });
 
   const isConnected = lkConnected;
   const isConnecting = lkConnecting;

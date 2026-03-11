@@ -12,7 +12,7 @@ const DEEPGRAM_API_KEY = '56e0caf0a2d27fc173409bb11929a0249005288b';
  *  - Anam: intercepts TTS audio → lip-synced video track (if videoEnabled)
  *  - Browser: subscribes to audio + video tracks from agent
  */
-export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, systemPrompt }) {
+export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, systemPrompt, personaId }) {
   const roomRef = useRef(null);
   const dgWsRef = useRef(null);       // Deepgram WebSocket
   const audioCtxRef = useRef(null);   // AudioContext for mic capture
@@ -106,7 +106,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
             sessionId: sessionId || 'demo',
             workerId: worker.id,
             videoEnabled,
-            personaId: worker.personaId || '6ccddf38-aed1-4bbb-9809-fc92986eb436',
+            personaId: personaId || worker.personaId || '6ccddf38-aed1-4bbb-9809-fc92986eb436',
             systemPrompt,
           }),
         });
