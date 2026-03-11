@@ -145,7 +145,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
       setConnected(false);
       setConnecting(false);
     };
-  }, [enabled, worker?.id, sessionId]);
+  }, [enabled, worker?.id, sessionId, videoEnabled]);
 
   // Start Deepgram STT after connection
   useEffect(() => {
@@ -233,15 +233,6 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     }
   }, [connected, systemPrompt]);
 
-  // Notify agent when videoEnabled changes
-  useEffect(() => {
-    const room = roomRef.current;
-    if (!room || !connected) return;
-    room.localParticipant?.publishData(
-      new TextEncoder().encode(JSON.stringify({ type: 'toggle_video', enabled: videoEnabled })),
-      { reliable: true }
-    );
-  }, [videoEnabled, connected]);
 
   function _publishText(text, type) {
     const room = roomRef.current;
