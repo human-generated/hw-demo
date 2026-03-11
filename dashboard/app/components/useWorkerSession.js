@@ -171,7 +171,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         processorRef.current = processor;
 
         if (cancelled) return;
-        let dgToken = '56e0caf0a2d27fc173409bb11929a0249005288b';
+        let dgToken = '00b52181398adfe245237b0079ffa2a433622272';
         try {
           const r = await fetch('/api/deepgram-token', { method: 'POST' });
           const d = await r.json();
