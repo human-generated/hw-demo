@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  *  - Anam: intercepts TTS audio → lip-synced video track (if videoEnabled)
  *  - Browser: subscribes to audio + video tracks from agent
  */
-export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, systemPrompt, personaId }) {
+export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = true, videoEnabled, systemPrompt, personaId }) {
   const roomRef = useRef(null);
   const dgWsRef = useRef(null);       // Deepgram WebSocket
   const audioCtxRef = useRef(null);   // AudioContext for mic capture
@@ -147,9 +147,9 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     };
   }, [enabled, worker?.id, sessionId]);
 
-  // Start Deepgram STT after connection
+  // Start Deepgram STT after connection (only if audio is enabled)
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || !audioEnabled) return;
 
     let ws = null;
     let audioCtx = null;

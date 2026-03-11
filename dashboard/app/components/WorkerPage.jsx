@@ -1413,8 +1413,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [workerPermissions, setWorkerPermissions] = useState(worker.permissions || null);
   const [workerChannels, setWorkerChannels] = useState({ email: '', phone: '', telegram: '' });
   const [activeGuiTask, setActiveGuiTask] = useState(null);
-  const [videoEnabled, setVideoEnabled] = useState(false);
-  const [callEnabled, setCallEnabled] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [callEnabled, setCallEnabled] = useState(false);
   const [promptEditing, setPromptEditing] = useState(false);
   const [promptDraft, setPromptDraft] = useState('');
 
@@ -1441,7 +1442,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     disconnect: lkDisconnect,
     callTool,
     audioElRef,
-  } = useWorkerSession({ worker, sessionId, enabled: callEnabled, videoEnabled, systemPrompt, personaId: WORKER_PERSONA_IDS[workerCode] });
+  } = useWorkerSession({ worker, sessionId, enabled: callEnabled, audioEnabled, videoEnabled, systemPrompt, personaId: WORKER_PERSONA_IDS[workerCode] });
 
   const isConnected = lkConnected;
   const isConnecting = lkConnecting;
@@ -1602,6 +1603,18 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
         </div>
         <div className="wkp-menu-right">
+          {!isConnected && !isConnecting && (
+            <div className="wkp-nav-toggles">
+              <label className="wkp-nav-toggle">
+                <input type="checkbox" checked={audioEnabled} onChange={e => setAudioEnabled(e.target.checked)} />
+                <span>Audio</span>
+              </label>
+              <label className="wkp-nav-toggle">
+                <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
+                <span>Video</span>
+              </label>
+            </div>
+          )}
           {isConnected && (
             <button className="wkp-menu-btn" style={{ fontSize: '11px', opacity: 0.7 }} onClick={() => { setPromptDraft(systemPrompt); setPromptEditing(v => !v); }} title="Edit agent system prompt">
               {promptEditing ? 'Close Prompt' : 'Edit Prompt'}
@@ -1672,14 +1685,6 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 <span className="wkp-call-time">{isConnected ? timeStr : ''}</span>
               </div>
               <div className="wkp-call-buttons">
-                <label className="wkp-call-toggle" title="Toggle mic">
-                  <input type="checkbox" checked={!micMuted} onChange={handleToggleMute} disabled={!isConnected} />
-                  <span>Audio</span>
-                </label>
-                <label className="wkp-call-toggle" title="Toggle avatar video">
-                  <input type="checkbox" checked={videoEnabled} onChange={() => setVideoEnabled(v => !v)} disabled={!isConnected} />
-                  <span>Video</span>
-                </label>
                 {(isConnected || lkConnecting) ? (
                   <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} title="End call">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>

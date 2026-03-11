@@ -4526,6 +4526,29 @@ body {
 .wkp-call-btn--video { background: #1a1a1a; }
 .wkp-call-btn--video-on { background: #2DB563; }
 
+.wkp-nav-toggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 4px;
+}
+.wkp-nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+.wkp-nav-toggle input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: #2DB563;
+  cursor: pointer;
+}
+
 .wkp-call-toggle {
   display: flex;
   flex-direction: column;
