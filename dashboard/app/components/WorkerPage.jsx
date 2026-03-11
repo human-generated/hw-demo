@@ -1749,59 +1749,6 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
-          <div className="wkp-right">
-            <div className="wkp-flow-panel">
-              <div className="wkp-flow-header">
-                <WordsStagger className="wkp-section-label" delay={0.4} stagger={0.05} speed={0.35}>Flow</WordsStagger>
-                <span className="wkp-flow-count">{(cfg.workflows?.list || []).length} workflows</span>
-              </div>
-              {(cfg.workflows?.list || []).slice(0, 3).map((wf, i) => (
-                <div key={i} className="wkp-workflow">
-                  <div className="wkp-workflow-title-row">
-                    <span className="wkp-workflow-dot" style={{ background: ['#2DB563', '#D4A853', '#7B8FA8'][i % 3] }} />
-                    <span className="wkp-workflow-title">{wf.name}</span>
-                  </div>
-                  <span className="wkp-workflow-desc">{wf.description || (wf.steps || []).map(s => s.label).join(' → ')}</span>
-                  <div className="wkp-workflow-tools">
-                    {(wf.steps || []).slice(0, 3).map(s => (
-                      <span key={s.id} className="wkp-workflow-tag" style={{ background: ['#F2F8F4','#FFF8EC','#F0F3F6'][i%3], color: ['#2DB563','#D4A853','#7B8FA8'][i%3] }}>{s.tool || s.label}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {(cfg.workflows?.list || []).length > 0 && (() => {
-                const wf = cfg.workflows.list[0];
-                const steps = (wf.steps || []).map((s, idx) => ({
-                  label: s.label,
-                  status: idx === 0 ? 'done' : idx === 1 ? 'done' : idx === 2 ? 'active' : 'pending',
-                }));
-                return (
-                  <div className="wkp-diagram">
-                    <span className="wkp-diagram-label">Active workflow</span>
-                    <div className="wkp-diagram-steps">
-                      {steps.map((step, i) => (
-                        <div key={step.label} className="wkp-diagram-step-group">
-                          <div className={`wkp-diagram-node wkp-diagram-node--${step.status}`}>
-                            <StepDiagramIcon status={step.status} label={step.label} />
-                          </div>
-                          {i < steps.length - 1 && <div className={`wkp-diagram-line wkp-diagram-line--${step.status}`} />}
-                          <span className={`wkp-diagram-step-label wkp-diagram-step-label--${step.status}`}>{step.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-              <div style={{ flex: 1 }} />
-              <div className="wkp-run-btn" onClick={() => setActiveTab('Workflows')}>
-                <LiquidMetal className="wkp-run-shader" speed={1} softness={0.1} repetition={2} shiftRed={0.3} shiftBlue={0.3} distortion={0.07} contour={0.4} scale={10} rotation={0} shape="diamond" angle={70} colorBack="#00000000" colorTint="#FFFFFF" style={{ backgroundColor: '#AAAAAC', borderRadius: '12px', width: '100%', height: '100%', position: 'absolute', inset: 0 }} />
-                <div className="wkp-run-inner">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 2.5L13 8L4 13.5V2.5Z" fill="rgba(0,0,0,0.35)" /></svg>
-                  <span className="wkp-run-text">Run workflow</span>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
