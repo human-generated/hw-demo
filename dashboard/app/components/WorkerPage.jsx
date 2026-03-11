@@ -1505,11 +1505,10 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   }, [cameraOn]);
 
   const handleEndCall = useCallback(() => {
-    setCallEnabled(false);
-    lkDisconnect();
+    setCallEnabled(false); // triggers useEffect cleanup which handles disconnect
     cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null;
     setCameraOn(false); setCallStartTime(null);
-  }, [lkDisconnect]);
+  }, []);
 
   const handleToggleAvatarMute = useCallback(() => {
     const v = avatarVideoRef.current; if (!v) return;

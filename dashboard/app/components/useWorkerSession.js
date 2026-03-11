@@ -195,7 +195,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
       cancelled = true;
       dgWsRef.current = null;
       if (processor) { try { processor.disconnect(); } catch {} processorRef.current = null; }
-      if (audioCtx) { try { audioCtx.close(); } catch {} audioCtxRef.current = null; }
+      if (audioCtx) { audioCtx.close().catch(() => {}); audioCtxRef.current = null; }
       if (stream) { stream.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
       if (ws) { try { ws.close(); } catch {} }
     };
@@ -281,7 +281,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     // Stop Deepgram
     if (dgWsRef.current) { try { dgWsRef.current.close(); } catch {} dgWsRef.current = null; }
     if (processorRef.current) { try { processorRef.current.disconnect(); } catch {} processorRef.current = null; }
-    if (audioCtxRef.current) { try { audioCtxRef.current.close(); } catch {} audioCtxRef.current = null; }
+    if (audioCtxRef.current) { audioCtxRef.current.close().catch(() => {}); audioCtxRef.current = null; }
     if (micStreamRef.current) { micStreamRef.current.getTracks().forEach(t => t.stop()); micStreamRef.current = null; }
     // Stop LiveKit
     if (roomRef.current) { roomRef.current.disconnect(); roomRef.current = null; }
