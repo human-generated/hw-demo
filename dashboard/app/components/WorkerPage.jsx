@@ -1433,6 +1433,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     connecting: lkConnecting,
     agentText,
     videoTrack,
+    audioTrack,
     micMuted,
     needsAudioResume,
     resumeAudio,
@@ -1456,13 +1457,17 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // Attach video track from agent (Anam avatar) to video element
+  // Combine audio+video into one MediaStream on the video element for proper A/V sync
   useEffect(() => {
     const el = avatarVideoRef.current;
     if (!el || !videoTrack) return;
-    videoTrack.attach(el);
-    return () => { try { videoTrack.detach(el); } catch {} };
-  }, [videoTrack]);
+    const ms = new MediaStream();
+    if (videoTrack.mediaStreamTrack) ms.addTrack(videoTrack.mediaStreamTrack);
+    if (audioTrack?.mediaStreamTrack) ms.addTrack(audioTrack.mediaStreamTrack);
+    el.srcObject = ms;
+    el.play().catch(() => {});
+    return () => { el.srcObject = null; };
+  }, [videoTrack, audioTrack]);
 
   // Show agent text as subtitle + add to chat
   useEffect(() => {
