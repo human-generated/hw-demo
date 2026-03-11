@@ -4530,23 +4530,57 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-right: 4px;
+  padding: 0 2px;
 }
 .wkp-nav-toggle {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   cursor: pointer;
-  font-size: 11px;
-  color: rgba(255,255,255,0.75);
-  letter-spacing: 0.03em;
   user-select: none;
 }
 .wkp-nav-toggle input[type="checkbox"] {
-  width: 13px;
-  height: 13px;
-  accent-color: #2DB563;
-  cursor: pointer;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.wkp-nav-toggle-track {
+  position: relative;
+  width: 30px;
+  height: 17px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.13);
+  transition: background 0.22s ease;
+  flex-shrink: 0;
+}
+.wkp-nav-toggle input:checked ~ .wkp-nav-toggle-track {
+  background: #34c759;
+}
+.wkp-nav-toggle-thumb {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wkp-nav-toggle input:checked ~ .wkp-nav-toggle-track .wkp-nav-toggle-thumb {
+  transform: translateX(13px);
+}
+.wkp-nav-toggle-label {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.4);
+  transition: color 0.2s;
+  letter-spacing: 0.01em;
+}
+.wkp-nav-toggle:has(input:checked) .wkp-nav-toggle-label {
+  color: rgba(0, 0, 0, 0.65);
 }
 
 .wkp-call-toggle {

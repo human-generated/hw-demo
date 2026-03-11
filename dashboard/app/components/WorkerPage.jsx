@@ -1603,18 +1603,18 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
         </div>
         <div className="wkp-menu-right">
-          {!isConnected && !isConnecting && (
-            <div className="wkp-nav-toggles">
-              <label className="wkp-nav-toggle">
-                <input type="checkbox" checked={audioEnabled} onChange={e => setAudioEnabled(e.target.checked)} />
-                <span>Audio</span>
-              </label>
-              <label className="wkp-nav-toggle">
-                <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
-                <span>Video</span>
-              </label>
-            </div>
-          )}
+          <div className="wkp-nav-toggles">
+            <label className="wkp-nav-toggle">
+              <input type="checkbox" checked={audioEnabled} onChange={e => setAudioEnabled(e.target.checked)} />
+              <span className="wkp-nav-toggle-track"><span className="wkp-nav-toggle-thumb" /></span>
+              <span className="wkp-nav-toggle-label">Audio</span>
+            </label>
+            <label className="wkp-nav-toggle">
+              <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
+              <span className="wkp-nav-toggle-track"><span className="wkp-nav-toggle-thumb" /></span>
+              <span className="wkp-nav-toggle-label">Video</span>
+            </label>
+          </div>
           {isConnected && (
             <button className="wkp-menu-btn" style={{ fontSize: '11px', opacity: 0.7 }} onClick={() => { setPromptDraft(systemPrompt); setPromptEditing(v => !v); }} title="Edit agent system prompt">
               {promptEditing ? 'Close Prompt' : 'Edit Prompt'}
