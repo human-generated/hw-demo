@@ -173,7 +173,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         if (cancelled) return;
 
         ws = new WebSocket(
-          'wss://api.deepgram.com/v1/listen?token=56e0caf0a2d27fc173409bb11929a0249005288b&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500'
+          'wss://api.deepgram.com/v1/listen?token=00b52181398adfe245237b0079ffa2a433622272&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500'
         );
         dgWsRef.current = ws;
 
