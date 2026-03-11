@@ -4526,6 +4526,29 @@ body {
 .wkp-call-btn--video { background: #1a1a1a; }
 .wkp-call-btn--video-on { background: #2DB563; }
 
+.wkp-call-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  opacity: 1;
+}
+.wkp-call-toggle input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #2DB563;
+  cursor: pointer;
+}
+.wkp-call-toggle span {
+  font-size: 9px;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.wkp-call-toggle input:disabled { opacity: 0.35; cursor: not-allowed; }
+.wkp-call-toggle:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+
 /* ---- Chat ---- */
 
 .wkp-chat-messages {
