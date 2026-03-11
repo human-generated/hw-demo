@@ -1414,6 +1414,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [workerChannels, setWorkerChannels] = useState({ email: '', phone: '', telegram: '' });
   const [activeGuiTask, setActiveGuiTask] = useState(null);
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const [callEnabled, setCallEnabled] = useState(true);
   const [promptEditing, setPromptEditing] = useState(false);
   const [promptDraft, setPromptDraft] = useState('');
 
@@ -1440,7 +1441,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     disconnect: lkDisconnect,
     callTool,
     audioElRef,
-  } = useWorkerSession({ worker, sessionId, enabled: true, videoEnabled, systemPrompt });
+  } = useWorkerSession({ worker, sessionId, enabled: callEnabled, videoEnabled, systemPrompt });
 
   const isConnected = lkConnected;
   const isConnecting = lkConnecting;
@@ -1504,6 +1505,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   }, [cameraOn]);
 
   const handleEndCall = useCallback(() => {
+    setCallEnabled(false);
     lkDisconnect();
     cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null;
     setCameraOn(false); setCallStartTime(null);
@@ -1677,9 +1679,15 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                 <button className={`wkp-call-btn wkp-call-btn--video ${videoEnabled ? 'wkp-call-btn--video-on' : ''}`} onClick={() => setVideoEnabled(v => !v)} disabled={!isConnected} title="Toggle avatar video">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="13" height="10" rx="2" fill="#fff" /><path d="M15 10.5l5-3v9l-5-3v-3z" fill="#fff" /></svg>
                 </button>
-                <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} disabled={!isConnected} title="End call">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                </button>
+                {(isConnected || lkConnecting) ? (
+                  <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} title="End call">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                  </button>
+                ) : (
+                  <button className="wkp-call-btn wkp-call-btn--phone" onClick={() => setCallEnabled(true)} title="Start call">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" fill="#fff"/></svg>
+                  </button>
+                )}
               </div>
             </div>
             <div className="wkp-badge-top">
