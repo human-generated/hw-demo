@@ -171,15 +171,9 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         processorRef.current = processor;
 
         if (cancelled) return;
-        let dgToken = '00b52181398adfe245237b0079ffa2a433622272';
-        try {
-          const r = await fetch('/api/deepgram-token', { method: 'POST' });
-          const d = await r.json();
-          if (d.token) dgToken = d.token;
-        } catch {}
 
         ws = new WebSocket(
-          `wss://api.deepgram.com/v1/listen?token=${dgToken}&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500`
+          'wss://api.deepgram.com/v1/listen?token=00b52181398adfe245237b0079ffa2a433622272&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500'
         );
         dgWsRef.current = ws;
 
