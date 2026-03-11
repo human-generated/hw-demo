@@ -23,7 +23,6 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
   const [connecting, setConnecting] = useState(!!enabled);
   const [agentText, setAgentText] = useState('');
   const [videoTrack, setVideoTrack] = useState(null);
-  const [audioTrack, setAudioTrack] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
   const [needsAudioResume, setNeedsAudioResume] = useState(false);
@@ -100,8 +99,6 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
           }
           if (track.kind === Track.Kind.Audio) {
             room._agentAudioTrack = track;
-            setAudioTrack(track);
-            // Attach to audio element as fallback (overridden when video track also present)
             if (audioElRef.current) track.attach(audioElRef.current);
           }
         });
@@ -109,7 +106,6 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
           if (track.kind === Track.Kind.Video) setVideoTrack(null);
           if (track.kind === Track.Kind.Audio) {
             room._agentAudioTrack = null;
-            setAudioTrack(null);
             if (audioElRef.current) track.detach(audioElRef.current);
           }
         });
@@ -339,7 +335,6 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     connecting,
     agentText,
     videoTrack,
-    audioTrack,
     micMuted,
     needsAudioResume,
     resumeAudio,
