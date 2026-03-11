@@ -19,6 +19,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
   const processorRef = useRef(null);  // ScriptProcessor node
   const micStreamRef = useRef(null);  // MediaStream from getUserMedia
   const audioElRef = useRef(null);
+  const roomNameRef = useRef(null);   // Unique room name per call attempt
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(!!enabled);
   const [agentText, setAgentText] = useState('');
@@ -26,6 +27,20 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
   const [needsAudioResume, setNeedsAudioResume] = useState(false);
+
+  // Global click-to-unlock audio (fires once on first user interaction)
+  useEffect(() => {
+    const unlock = () => {
+      const room = roomRef.current;
+      if (room) room.startAudio().catch(() => {});
+    };
+    document.addEventListener('click', unlock);
+    document.addEventListener('touchstart', unlock);
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+  }, []);
 
   // Connect to LiveKit room when enabled
   useEffect(() => {
@@ -96,7 +111,11 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
           }
         });
 
-        const roomName = `worker-${worker.id}-${sessionId || 'demo'}`;
+        // Use a stable room name per call attempt (reset on disconnect/reconnect)
+        if (!roomNameRef.current) {
+          roomNameRef.current = `worker-${worker.id}-${sessionId || 'demo'}-${Date.now()}`;
+        }
+        const roomName = roomNameRef.current;
         const resp = await fetch('/api/livekit-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -123,6 +142,7 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
     return () => {
       cancelled = true;
       if (room) { room.disconnect(); roomRef.current = null; }
+      roomNameRef.current = null; // reset so next call gets a fresh room + fresh agent
       setConnected(false);
       setConnecting(false);
     };
