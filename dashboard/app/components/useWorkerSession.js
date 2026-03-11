@@ -171,10 +171,9 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         processor = audioCtx.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
 
-        // Connect to Deepgram (auth via subprotocol)
+        // Connect to Deepgram (auth via query param — works in all browsers)
         ws = new WebSocket(
-          'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500',
-          ['token', DEEPGRAM_API_KEY]
+          `wss://api.deepgram.com/v1/listen?token=${DEEPGRAM_API_KEY}&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500`
         );
         dgWsRef.current = ws;
 
