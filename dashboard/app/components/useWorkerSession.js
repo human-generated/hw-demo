@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const DEEPGRAM_API_KEY = '56e0caf0a2d27fc173409bb11929a0249005288b';
 
 /**
  * useWorkerSession — LiveKit-based real-time worker session hook.
@@ -171,9 +170,13 @@ export function useWorkerSession({ worker, sessionId, enabled, videoEnabled, sys
         processor = audioCtx.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
 
-        // Connect to Deepgram (auth via query param — works in all browsers)
+        // Fetch short-lived token from server (keeps master key out of browser)
+        const dgTokenRes = await fetch('/api/deepgram-token', { method: 'POST' });
+        const { token: dgToken } = await dgTokenRes.json();
+        if (!dgToken || cancelled) return;
+
         ws = new WebSocket(
-          `wss://api.deepgram.com/v1/listen?token=${DEEPGRAM_API_KEY}&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500`
+          `wss://api.deepgram.com/v1/listen?token=${dgToken}&encoding=linear16&sample_rate=16000&channels=1&language=en-US&model=nova-2&interim_results=false&endpointing=500`
         );
         dgWsRef.current = ws;
 
