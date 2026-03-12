@@ -6552,3 +6552,242 @@ body {
   font-weight: 400;
   margin-left: auto;
 }
+
+/* ─── Canvas Tab (cv-) ──────────────────────────────────────────────────────── */
+
+.cv-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.cv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.cv-toolbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cv-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  color: rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  line-height: 1;
+}
+.cv-btn:hover { background: rgba(255, 255, 255, 0.95); border-color: rgba(0, 0, 0, 0.16); }
+.cv-btn--primary { background: rgba(0, 0, 0, 0.82); color: #fff; border-color: transparent; }
+.cv-btn--primary:hover { background: rgba(0, 0, 0, 1); }
+.cv-btn--send { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.cv-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.cv-orch-bar {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.cv-orch-input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  color: #1a1a1a;
+  outline: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: border-color 0.15s, background 0.15s;
+}
+.cv-orch-input:focus { border-color: rgba(0, 0, 0, 0.22); background: rgba(255, 255, 255, 0.95); }
+.cv-orch-input::placeholder { color: rgba(0, 0, 0, 0.28); }
+
+.cv-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background-color: rgba(245, 245, 248, 0.6);
+  background-image:
+    radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  user-select: none;
+}
+.cv-canvas:active { cursor: grabbing; }
+
+.cv-canvas-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.cv-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(0, 0, 0, 0.28);
+  font-size: 13px;
+  pointer-events: none;
+  user-select: none;
+}
+.cv-empty-icon { font-size: 36px; opacity: 0.35; }
+.cv-empty-sub { font-size: 11px; color: rgba(0, 0, 0, 0.2); }
+
+/* Card */
+.cv-card-wrap {
+  position: absolute;
+  perspective: 1000px;
+}
+
+.cv-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 8px 28px rgba(0,0,0,0.1));
+}
+.cv-card--flipped { transform: rotateY(180deg); }
+
+.cv-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 2px 0 rgba(255,255,255,0.7) inset,
+    0 -1px 0 rgba(0,0,0,0.04) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cv-card-back {
+  transform: rotateY(180deg);
+  background: rgba(248, 248, 252, 0.85);
+}
+
+.cv-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 14px 14px 0 0;
+}
+.cv-card-header:active { cursor: grabbing; }
+
+.cv-card-type-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.055);
+  color: rgba(0, 0, 0, 0.38);
+  flex-shrink: 0;
+}
+
+.cv-card-title-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.72);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-card-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.cv-card-btn {
+  background: none;
+  border: none;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  line-height: 1;
+  font-family: inherit;
+}
+.cv-card-btn:hover { background: rgba(0, 0, 0, 0.06); color: rgba(0, 0, 0, 0.65); }
+.cv-card-btn--apply { color: rgba(34, 197, 94, 0.8); font-weight: 600; }
+.cv-card-btn--apply:hover { background: rgba(34, 197, 94, 0.08); color: rgb(22, 163, 74); }
+
+.cv-card-body {
+  flex: 1;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+.cv-card-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  pointer-events: none;
+}
+.cv-card-body:hover iframe { pointer-events: auto; }
+
+.cv-card-json {
+  flex: 1;
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: rgba(0, 0, 0, 0.68);
+  background: transparent;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}

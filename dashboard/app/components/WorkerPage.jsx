@@ -8,7 +8,7 @@ import { WORKER_CONFIG, WORKER_PHOTOS, DEFAULT_WORKER, WORKER_PERSONA_IDS, guess
 
 const DEFAULT_PHOTO = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
 
-const WKP_TABS = ['Dashboard', 'Overview', 'Live Activity', 'Skills', 'Workflows', 'Outputs', 'Integrations', 'Human Team', 'Technical', 'Business Impact'];
+const WKP_TABS = ['Dashboard', 'Overview', 'Live Activity', 'Skills', 'Workflows', 'Outputs', 'Integrations', 'Human Team', 'Technical', 'Business Impact', 'Canvas'];
 
 /* ─── Icons ─────────────────────────────────────────────────────────────────── */
 const sp = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' };
@@ -1389,6 +1389,226 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
   );
 }
 
+/* ─── Canvas Tab ─────────────────────────────────────────────────────────────── */
+function CanvasTab({ sessionId, workerId }) {
+  const [cards, setCards] = useState([]);
+  const [transform, setTransform] = useState({ x: 60, y: 60, scale: 1 });
+  const [flipped, setFlipped] = useState({});
+  const [jsonEdits, setJsonEdits] = useState({});
+  const [dragging, setDragging] = useState(null);
+  const [panning, setPanning] = useState(null);
+  const [orchInput, setOrchInput] = useState('');
+  const [orchLoading, setOrchLoading] = useState(false);
+  const canvasRef = useRef(null);
+  const draggingRef = useRef(null);
+  const panningRef = useRef(null);
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+
+  const CARD_W = 340, CARD_H = 280;
+
+  useEffect(() => { loadArtifacts(); }, [sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const es = new EventSource('/api/demo/events/stream');
+    es.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev.type === 'artifact:created' && ev.data?.sessionId === sessionId) loadArtifacts();
+      } catch {}
+    };
+    return () => es.close();
+  }, [sessionId]);
+
+  async function loadArtifacts() {
+    const results = [];
+    try {
+      if (sessionId) {
+        const r = await fetch(`/api/demo/artifacts/${sessionId}`);
+        if (r.ok) { const d = await r.json(); results.push(...(d.artifacts || [])); }
+      }
+    } catch {}
+    try {
+      const r = await fetch('/api/nfs?path=uploads');
+      if (r.ok) { const d = await r.json(); (d.entries || []).forEach(e => results.push({ ...e, type: 'upload', title: e.name })); }
+    } catch {}
+    setCards(prev => {
+      const pos = {};
+      prev.forEach(c => { pos[c.id] = { x: c.x, y: c.y }; });
+      return results.map((a, i) => {
+        const p = pos[a.id || a.name];
+        const col = i % 3, row = Math.floor(i / 3);
+        return { id: a.id || a.name || `card-${i}`, type: a.type || 'text', title: a.title || a.name || 'Artifact', content: a.content, imageUrl: a.imageUrl, url: a.url, imagePrompt: a.imagePrompt, resource: a.resource, createdAt: a.createdAt, json: JSON.stringify(a, null, 2), x: p ? p.x : 60 + col * (CARD_W + 24), y: p ? p.y : 60 + row * (CARD_H + 24) };
+      });
+    });
+  }
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setTransform(t => {
+        const ns = Math.max(0.15, Math.min(3, t.scale * delta));
+        return { x: mx - (mx - t.x) * (ns / t.scale), y: my - (my - t.y) * (ns / t.scale), scale: ns };
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      const d = draggingRef.current;
+      if (d) {
+        const dx = (e.clientX - d.startMX) / transformRef.current.scale;
+        const dy = (e.clientY - d.startMY) / transformRef.current.scale;
+        setCards(prev => prev.map(c => c.id === d.id ? { ...c, x: d.origX + dx, y: d.origY + dy } : c));
+      }
+      const p = panningRef.current;
+      if (p) {
+        setTransform(t => ({ ...t, x: p.origTX + e.clientX - p.startMX, y: p.origTY + e.clientY - p.startMY }));
+      }
+    };
+    const onUp = () => { draggingRef.current = null; panningRef.current = null; setDragging(null); setPanning(null); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  function startCardDrag(e, id) {
+    e.stopPropagation(); e.preventDefault();
+    const card = cards.find(c => c.id === id);
+    if (!card) return;
+    const d = { id, startMX: e.clientX, startMY: e.clientY, origX: card.x, origY: card.y };
+    draggingRef.current = d; setDragging(d);
+  }
+
+  function startPan(e) {
+    if (e.button !== 0) return;
+    if (e.target !== canvasRef.current) return;
+    const p = { startMX: e.clientX, startMY: e.clientY, origTX: transform.x, origTY: transform.y };
+    panningRef.current = p; setPanning(p);
+  }
+
+  function toggleFlip(id) { setFlipped(f => ({ ...f, [id]: !f[id] })); }
+
+  function autoArrange() {
+    const cols = Math.max(1, Math.ceil(Math.sqrt(cards.length)));
+    setCards(prev => prev.map((c, i) => ({ ...c, x: 60 + (i % cols) * (CARD_W + 24), y: 60 + Math.floor(i / cols) * (CARD_H + 24) })));
+    setTransform({ x: 40, y: 40, scale: 1 });
+  }
+
+  function addBlankCard() {
+    const id = `manual-${Date.now()}`;
+    const json = JSON.stringify({ type: 'html', title: 'New Card', content: '<div style="padding:20px;font-family:sans-serif"><h2>Hello 👋</h2><p>Edit the JSON on the back to change this card.</p></div>' }, null, 2);
+    const t = transformRef.current;
+    setCards(prev => [...prev, { id, type: 'html', title: 'New Card', content: '<div style="padding:20px;font-family:sans-serif"><h2>Hello 👋</h2><p>Edit the JSON on the back to change this card.</p></div>', json, x: -t.x / t.scale + 40, y: -t.y / t.scale + 40 }]);
+  }
+
+  function applyJson(id) {
+    const raw = jsonEdits[id]; if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      setCards(prev => prev.map(c => c.id === id ? { ...c, ...data, id, x: c.x, y: c.y, json: raw } : c));
+      setJsonEdits(j => { const n = { ...j }; delete n[id]; return n; });
+    } catch {}
+  }
+
+  function removeCard(id) { setCards(prev => prev.filter(c => c.id !== id)); }
+
+  async function runSkillAgent() {
+    if (!orchInput.trim() || orchLoading) return;
+    const task = orchInput.trim(); setOrchInput(''); setOrchLoading(true);
+    try {
+      await fetch('/api/demo/skill-agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, task, workerId }) });
+    } catch {}
+    setOrchLoading(false);
+  }
+
+  function renderPreview(card) {
+    const s = { width: '100%', height: '100%', border: 'none', display: 'block' };
+    const { type, content, imageUrl, url, imagePrompt, name } = card;
+    if (type === 'image') return <img src={imageUrl || url} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'rgba(0,0,0,0.03)' }} onError={e => { e.target.style.display='none'; }} />;
+    if (type === 'video') return <video src={url || content} controls style={s} />;
+    if (type === 'html') return <iframe srcDoc={content} sandbox="allow-scripts" style={s} title={card.title} />;
+    if (type === 'webpage') return <iframe src={url || content} style={s} title={card.title} />;
+    if (type === 'document') return <iframe src={url} style={s} title={card.title} />;
+    if (type === 'upload' && name) {
+      const ext = name.split('.').pop().toLowerCase();
+      if (['jpg','jpeg','png','gif','webp','svg'].includes(ext)) return <img src={`/api/nfs?path=uploads/${name}`} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+      if (['mp4','webm','ogg'].includes(ext)) return <video src={`/api/nfs?path=uploads/${name}`} controls style={s} />;
+      if (['pdf','html','htm'].includes(ext)) return <iframe src={`/api/nfs?path=uploads/${name}`} style={s} />;
+    }
+    const text = content || imagePrompt || '(empty)';
+    return <div style={{ padding: '14px 16px', fontFamily: '"IBM Plex Mono", monospace', fontSize: '11px', lineHeight: 1.6, color: 'rgba(0,0,0,0.65)', overflowY: 'auto', height: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 1200)}{text.length > 1200 ? '…' : ''}</div>;
+  }
+
+  return (
+    <div className="cv-root">
+      <div className="cv-toolbar">
+        <div className="cv-toolbar-actions">
+          <button className="cv-btn" onClick={autoArrange}>Auto-arrange</button>
+          <button className="cv-btn" onClick={loadArtifacts}>Refresh</button>
+          <button className="cv-btn cv-btn--primary" onClick={addBlankCard}>+ Card</button>
+        </div>
+        <div className="cv-orch-bar">
+          <input className="cv-orch-input" placeholder="Ask skill agent to generate an artifact…" value={orchInput} onChange={e => setOrchInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runSkillAgent(); } }} />
+          <button className="cv-btn cv-btn--send" onClick={runSkillAgent} disabled={orchLoading}>{orchLoading ? '…' : '↑'}</button>
+        </div>
+      </div>
+      <div ref={canvasRef} className="cv-canvas" onMouseDown={startPan}>
+        {cards.length === 0 && (
+          <div className="cv-empty">
+            <div className="cv-empty-icon">◈</div>
+            <div>No artifacts yet</div>
+            <div className="cv-empty-sub">Ask the skill agent or click + Card to add manually</div>
+          </div>
+        )}
+        <div className="cv-canvas-inner" style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})` }}>
+          {cards.map(card => {
+            const isFlipped = !!flipped[card.id];
+            return (
+              <div key={card.id} className="cv-card-wrap" style={{ left: card.x, top: card.y, width: CARD_W, height: CARD_H }}>
+                <div className={`cv-card${isFlipped ? ' cv-card--flipped' : ''}`}>
+                  <div className="cv-card-face cv-card-front">
+                    <div className="cv-card-header" onMouseDown={e => startCardDrag(e, card.id)}>
+                      <span className="cv-card-type-badge">{card.type}</span>
+                      <span className="cv-card-title-text">{card.title}</span>
+                      <div className="cv-card-actions">
+                        <button className="cv-card-btn" onClick={() => toggleFlip(card.id)} title="Edit JSON">{ '{ }' }</button>
+                        <button className="cv-card-btn" onClick={() => removeCard(card.id)} title="Remove">×</button>
+                      </div>
+                    </div>
+                    <div className="cv-card-body" onClick={() => toggleFlip(card.id)}>
+                      {renderPreview(card)}
+                    </div>
+                  </div>
+                  <div className="cv-card-face cv-card-back">
+                    <div className="cv-card-header" onMouseDown={e => startCardDrag(e, card.id)}>
+                      <span className="cv-card-type-badge">json</span>
+                      <span className="cv-card-title-text">Edit card</span>
+                      <div className="cv-card-actions">
+                        <button className="cv-card-btn cv-card-btn--apply" onClick={() => { applyJson(card.id); toggleFlip(card.id); }} title="Apply">✓ Apply</button>
+                        <button className="cv-card-btn" onClick={() => toggleFlip(card.id)} title="Cancel">×</button>
+                      </div>
+                    </div>
+                    <textarea className="cv-card-json" value={jsonEdits[card.id] !== undefined ? jsonEdits[card.id] : card.json} onChange={e => setJsonEdits(prev => ({ ...prev, [card.id]: e.target.value }))} spellCheck={false} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
 export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null, onBackToDashboard }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
@@ -1749,6 +1969,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
+          {activeTab === 'Canvas' && <CanvasTab sessionId={sessionId} workerId={workerId} />}
         </div>
       </div>
     </div>
