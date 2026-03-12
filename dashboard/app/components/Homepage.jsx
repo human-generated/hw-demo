@@ -56,7 +56,7 @@ function useCursorTracking(ref) {
   }, [ref]);
 }
 
-export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
+export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers, sessionId, onBackToDashboard }) {
   const [companyName, setCompanyName] = useState('');
   const [ready, setReady] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -382,7 +382,14 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoWorkers }) {
           <DockIcons active="home" onHome={() => {}} onCall={onGoCall} onWorkers={onGoWorkers} />
         </div>
         <div className="hp-menubar-right">
-          <button className="hp-menubar-btn">About</button>
+          {sessionId && (
+            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId}</span>
+          )}
+          {onBackToDashboard && (
+            <button onClick={onBackToDashboard} title="Back to Dashboard" className="hp-menubar-btn" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
           <div className="hp-menubar-avatar">S</div>
         </div>
       </nav>

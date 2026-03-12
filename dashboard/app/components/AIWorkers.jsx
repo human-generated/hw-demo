@@ -63,7 +63,7 @@ function sessionWorkerToCard(w, index, allWorkers) {
   };
 }
 
-export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, workers: sessionWorkers }) {
+export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, workers: sessionWorkers, sessionId, onBackToDashboard }) {
   // Use session workers if provided, otherwise use hardcoded WORKERS
   const displayWorkers = sessionWorkers && sessionWorkers.length > 0
     ? sessionWorkers.map((w, i) => sessionWorkerToCard(w, i, sessionWorkers))
@@ -97,6 +97,14 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
           <DockIcons active="workers" onHome={onGoHome} onCall={onGoCall} onWorkers={() => {}} />
         </div>
         <div className="aw-menu-right">
+          {sessionId && (
+            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId}</span>
+          )}
+          {onBackToDashboard && (
+            <button onClick={onBackToDashboard} title="Back to Dashboard" className="aw-menu-btn" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', background: 'none', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, cursor: 'pointer', color: 'inherit' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
           <div className="aw-menu-avatar">S</div>
         </div>
       </nav>

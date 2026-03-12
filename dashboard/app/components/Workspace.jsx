@@ -48,7 +48,7 @@ function parseCompanyMetrics(company) {
   };
 }
 
-export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoWorkers, sessionId }) {
+export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoWorkers, sessionId, onBackToDashboard }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
     { id: 1, author: 'ALEXANDRA', text: "I'm your orchestrator. What company should I research?", time: 'Just now', isUser: false },
@@ -236,7 +236,14 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
           <DockIcons active="home" onHome={onGoHome} onCall={onGoCall} onWorkers={onGoWorkers} />
         </div>
         <div className="ws-menu-right">
-          <button className="ws-menu-btn">About</button>
+          {sessionId && (
+            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId}</span>
+          )}
+          {onBackToDashboard && (
+            <button onClick={onBackToDashboard} title="Back to Dashboard" className="ws-menu-btn" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
           <div className="ws-menu-avatar">S</div>
         </div>
       </nav>

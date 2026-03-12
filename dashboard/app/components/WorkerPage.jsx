@@ -1390,7 +1390,7 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
-export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null }) {
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null, onBackToDashboard }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
@@ -1603,6 +1603,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
         </div>
         <div className="wkp-menu-right">
+          {sessionId && (
+            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId}</span>
+          )}
           <label className="wkp-nav-toggle">
             <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
             <span className="wkp-nav-toggle-track"><span className="wkp-nav-toggle-thumb" /></span>
@@ -1611,6 +1614,11 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {isConnected && (
             <button className="wkp-menu-btn" style={{ fontSize: '11px', opacity: 0.7 }} onClick={() => { setPromptDraft(systemPrompt); setPromptEditing(v => !v); }} title="Edit agent system prompt">
               {promptEditing ? 'Close Prompt' : 'Edit Prompt'}
+            </button>
+          )}
+          {onBackToDashboard && (
+            <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onBackToDashboard} title="Back to Dashboard">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           )}
           <div className="wkp-menu-avatar">S</div>
