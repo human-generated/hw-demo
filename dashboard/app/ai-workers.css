@@ -6646,6 +6646,9 @@ body {
   left: 0;
   transform-origin: 0 0;
   will-change: transform;
+  /* Force GPU layer so text stays crisp when scaling */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .cv-empty {
@@ -6676,7 +6679,7 @@ body {
   position: relative;
   transform-style: preserve-3d;
   transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: drop-shadow(0 8px 28px rgba(0,0,0,0.1));
+  /* NOTE: do NOT use filter here — it breaks preserve-3d and causes mirrored back face */
 }
 .cv-card--flipped { transform: rotateY(180deg); }
 
@@ -6691,6 +6694,7 @@ body {
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow:
+    0 8px 28px rgba(0,0,0,0.10),
     0 2px 0 rgba(255,255,255,0.7) inset,
     0 -1px 0 rgba(0,0,0,0.04) inset;
   display: flex;

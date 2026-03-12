@@ -1569,7 +1569,7 @@ function CanvasTab({ sessionId, workerId }) {
             <div className="cv-empty-sub">Ask the skill agent or click + Card to add manually</div>
           </div>
         )}
-        <div className="cv-canvas-inner" style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})` }}>
+        <div className="cv-canvas-inner" style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.scale})` }}>
           {cards.map(card => {
             const isFlipped = !!flipped[card.id];
             return (
