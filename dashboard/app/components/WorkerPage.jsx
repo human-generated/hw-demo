@@ -1400,7 +1400,8 @@ function CanvasTab({ sessionId, workerId }) {
   const [orchInput, setOrchInput] = useState('');
   const [orchLoading, setOrchLoading] = useState(false);
   const [arranging, setArranging] = useState(false);
-  const [hiddenTypes, setHiddenTypes] = useState(new Set());
+  // Hide orchestration by default — it's internal noise; user can toggle it back via filter chips
+  const [hiddenTypes, setHiddenTypes] = useState(new Set(['orchestration']));
   const [zooming, setZooming] = useState(false);
   const canvasRef = useRef(null);
   const draggingRef = useRef(null);
@@ -1680,8 +1681,10 @@ function CanvasTab({ sessionId, workerId }) {
         {visibleCards.length === 0 && (
           <div className="cv-empty">
             <div className="cv-empty-icon">◈</div>
-            <div>No artifacts yet</div>
-            <div className="cv-empty-sub">Ask the skill agent or click + Card to add manually</div>
+            {cards.length > 0 && hiddenTypes.size > 0
+              ? <><div>All artifact types are hidden</div><div className="cv-empty-sub">Enable types using the filter chips above</div></>
+              : <><div>No artifacts yet</div><div className="cv-empty-sub">Ask the skill agent or click + Card to add manually</div></>
+            }
           </div>
         )}
         <div className={`cv-canvas-inner${zooming ? ' cv-canvas-inner--zooming' : ''}`} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.scale})` }}>
