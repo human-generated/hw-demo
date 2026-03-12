@@ -1418,7 +1418,7 @@ function CanvasTab({ sessionId, workerId }) {
     es.onmessage = (e) => {
       try {
         const ev = JSON.parse(e.data);
-        if (ev.type === 'artifact:created' && ev.data?.sessionId === sessionId) loadArtifacts();
+        if (ev.type === 'artifact:created' && (!ev.data?.sessionId || ev.data.sessionId === sessionId)) loadArtifacts();
       } catch {}
     };
     return () => es.close();
@@ -1537,22 +1537,59 @@ function CanvasTab({ sessionId, workerId }) {
       await fetch('/api/demo/skill-agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, task, workerId }) });
     } catch {}
     setOrchLoading(false);
+    // Always reload after response — SSE may have raced or sessionId may differ
+    loadArtifacts();
   }
 
   function renderPreview(card) {
     const s = { width: '100%', height: '100%', border: 'none', display: 'block' };
-    const { type, content, imageUrl, url, imagePrompt, name } = card;
+    const { type, content, imageUrl, url, imagePrompt, name, docUrl, driveUrl, resource, rationale } = card;
+
+    // Images
     if (type === 'image') return <img src={imageUrl || url} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'rgba(0,0,0,0.03)' }} onError={e => { e.target.style.display='none'; }} />;
+
+    // Videos
     if (type === 'video') return <video src={url || content} controls style={s} />;
+
+    // Google Docs / Drive files → open in iframe or link card
+    if (type === 'google_doc' || type === 'drive_file') {
+      const link = docUrl || driveUrl || url;
+      const embedUrl = link && link.includes('docs.google.com') ? link.replace('/edit', '/preview').replace('/pub', '/preview') : link;
+      return embedUrl
+        ? <iframe src={embedUrl} style={s} title={card.title} allow="autoplay" />
+        : <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '28px' }}>📄</span>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>{card.title}</span>
+            <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.4)' }}>{type}</span>
+          </div>;
+    }
+
+    // Doc/drive drafts (creation failed — show info)
+    if (type === 'doc_draft' || type === 'drive_draft' || type === 'email_draft') {
+      const note = card.note || '';
+      return <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span style={{ fontSize: '22px' }}>{type === 'email_draft' ? '✉️' : '📋'}</span>
+        <span style={{ fontSize: '12px', fontWeight: 600 }}>{card.title}</span>
+        {note && <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.45)', lineHeight: 1.5 }}>{note}</span>}
+        {content && <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '10px', color: 'rgba(0,0,0,0.5)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{content.slice(0, 400)}</div>}
+      </div>;
+    }
+
+    // HTML srcDoc
     if (type === 'html') return <iframe srcDoc={content} sandbox="allow-scripts" style={s} title={card.title} />;
-    if (type === 'webpage') return <iframe src={url || content} style={s} title={card.title} />;
-    if (type === 'document') return <iframe src={url} style={s} title={card.title} />;
+
+    // Webpage / document iframes
+    if (type === 'webpage' || type === 'document') return <iframe src={url || content} style={s} title={card.title} />;
+
+    // NFS uploads — detect by extension
     if (type === 'upload' && name) {
       const ext = name.split('.').pop().toLowerCase();
       if (['jpg','jpeg','png','gif','webp','svg'].includes(ext)) return <img src={`/api/nfs?path=uploads/${name}`} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
       if (['mp4','webm','ogg'].includes(ext)) return <video src={`/api/nfs?path=uploads/${name}`} controls style={s} />;
       if (['pdf','html','htm'].includes(ext)) return <iframe src={`/api/nfs?path=uploads/${name}`} style={s} />;
     }
+
+    // Text / code / skill_output / orchestration / db_query
     const text = content || imagePrompt || '(empty)';
     return <div style={{ padding: '14px 16px', fontFamily: '"IBM Plex Mono", monospace', fontSize: '11px', lineHeight: 1.6, color: 'rgba(0,0,0,0.65)', overflowY: 'auto', height: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 1200)}{text.length > 1200 ? '…' : ''}</div>;
   }
