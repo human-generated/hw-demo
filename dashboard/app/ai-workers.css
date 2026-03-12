@@ -6603,11 +6603,94 @@ body {
 .cv-btn--send { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
 .cv-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+.cv-type-filters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.cv-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border-radius: 20px;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.4);
+  color: rgba(0,0,0,0.35);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cv-filter-chip--on {
+  background: rgba(255,255,255,0.85);
+  color: rgba(0,0,0,0.7);
+  border-color: rgba(0,0,0,0.15);
+}
+.cv-filter-chip:hover { background: rgba(255,255,255,0.7); color: rgba(0,0,0,0.6); }
+
+.cv-filter-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.18s, border-color 0.18s;
+  overflow: hidden;
+}
+.cv-filter-chip--on .cv-filter-check {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+}
+
+.cv-filter-tick {
+  width: 10px;
+  height: 8px;
+  color: #fff;
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+  transition: stroke-dashoffset 0s;
+}
+.cv-filter-chip--on .cv-filter-tick {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 0.22s cubic-bezier(0.4, 0, 0.2, 1) 0.02s;
+}
+
+.cv-filter-count {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: rgba(0,0,0,0.3);
+  margin-left: 1px;
+}
+.cv-filter-chip--on .cv-filter-count { color: rgba(0,0,0,0.45); }
+
+/* Spinner for skill agent loading */
+@keyframes cv-spin { to { transform: rotate(360deg); } }
+.cv-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: cv-spin 0.7s linear infinite;
+}
+.cv-btn--loading { opacity: 0.8; }
+
 .cv-orch-bar {
   display: flex;
   gap: 6px;
-  flex: 1;
-  min-width: 180px;
+  flex-shrink: 0;
+  min-width: 220px;
 }
 
 .cv-orch-input {

@@ -1400,6 +1400,7 @@ function CanvasTab({ sessionId, workerId }) {
   const [orchInput, setOrchInput] = useState('');
   const [orchLoading, setOrchLoading] = useState(false);
   const [arranging, setArranging] = useState(false);
+  const [hiddenTypes, setHiddenTypes] = useState(new Set());
   const [zooming, setZooming] = useState(false);
   const canvasRef = useRef(null);
   const draggingRef = useRef(null);
@@ -1432,11 +1433,7 @@ function CanvasTab({ sessionId, workerId }) {
         if (r.ok) { const d = await r.json(); raw = d.artifacts || []; }
       }
     } catch {}
-    // Skip internal orchestration logs — show only user-meaningful artifacts
-    const SKIP_TYPES = new Set(['orchestration', 'db_query']);
-    const results = raw
-      .filter(a => !SKIP_TYPES.has(a.type))
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // newest first
+    const results = raw.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
     setCards(prev => {
       const pos = {};
@@ -1613,21 +1610,56 @@ function CanvasTab({ sessionId, workerId }) {
     return <div style={{ padding: '14px 16px', fontFamily: '"IBM Plex Mono", monospace', fontSize: '11px', lineHeight: 1.6, color: 'rgba(0,0,0,0.65)', overflowY: 'auto', height: '100%', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text.slice(0, 1200)}{text.length > 1200 ? '…' : ''}</div>;
   }
 
+  // Derive unique types from loaded cards
+  const allTypes = [...new Set(cards.map(c => c.type))].sort();
+  const visibleCards = cards.filter(c => !hiddenTypes.has(c.type));
+
+  function toggleType(t) {
+    setHiddenTypes(prev => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+  }
+
+  const TYPE_ICONS = { image: '🖼', video: '🎬', html: '🌐', webpage: '🌐', google_doc: '📄', drive_file: '📁', email: '✉️', skill_output: '⚡', orchestration: '🔀', db_query: '🗄', upload: '📎', document: '📄', code: '💻' };
+
   return (
     <div className="cv-root">
       <div className="cv-toolbar">
         <div className="cv-toolbar-actions">
           <button className="cv-btn" onClick={autoArrange}>Auto-arrange</button>
-          <button className="cv-btn" onClick={loadArtifacts}>Refresh</button>
+          <button className="cv-btn" onClick={() => loadArtifacts().then(fitView)}>Refresh</button>
           <button className="cv-btn cv-btn--primary" onClick={addBlankCard}>+ Card</button>
         </div>
+        {allTypes.length > 0 && (
+          <div className="cv-type-filters">
+            {allTypes.map(t => {
+              const checked = !hiddenTypes.has(t);
+              const count = cards.filter(c => c.type === t).length;
+              return (
+                <label key={t} className={`cv-filter-chip${checked ? ' cv-filter-chip--on' : ''}`} onClick={() => toggleType(t)}>
+                  <span className="cv-filter-check">
+                    <svg className="cv-filter-tick" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </span>
+                  <span>{TYPE_ICONS[t] || '◈'} {t}</span>
+                  <span className="cv-filter-count">{count}</span>
+                </label>
+              );
+            })}
+          </div>
+        )}
         <div className="cv-orch-bar">
           <input className="cv-orch-input" placeholder="Ask skill agent to generate an artifact…" value={orchInput} onChange={e => setOrchInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runSkillAgent(); } }} />
-          <button className="cv-btn cv-btn--send" onClick={runSkillAgent} disabled={orchLoading}>{orchLoading ? '…' : '↑'}</button>
+          <button className={`cv-btn cv-btn--send${orchLoading ? ' cv-btn--loading' : ''}`} onClick={runSkillAgent} disabled={orchLoading}>
+            {orchLoading ? <span className="cv-spinner" /> : '↑'}
+          </button>
         </div>
       </div>
       <div ref={canvasRef} className="cv-canvas" onMouseDown={startPan}>
-        {cards.length === 0 && (
+        {visibleCards.length === 0 && (
           <div className="cv-empty">
             <div className="cv-empty-icon">◈</div>
             <div>No artifacts yet</div>
@@ -1635,7 +1667,7 @@ function CanvasTab({ sessionId, workerId }) {
           </div>
         )}
         <div className={`cv-canvas-inner${zooming ? ' cv-canvas-inner--zooming' : ''}`} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.scale})` }}>
-          {cards.map(card => {
+          {visibleCards.map(card => {
             const isFlipped = !!flipped[card.id];
             return (
               <div key={card.id} className={`cv-card-wrap${arranging ? ' cv-card-wrap--arranging' : ''}`} style={{ left: card.x, top: card.y, width: CARD_W, height: CARD_H }}>
