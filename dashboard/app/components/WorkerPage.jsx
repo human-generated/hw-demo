@@ -1410,7 +1410,7 @@ function CanvasTab({ sessionId, workerId }) {
 
   const CARD_W = 340, CARD_H = 280;
 
-  useEffect(() => { loadArtifacts(); }, [sessionId]);
+  useEffect(() => { loadArtifacts().then(fitView); }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -1425,24 +1425,26 @@ function CanvasTab({ sessionId, workerId }) {
   }, [sessionId]);
 
   async function loadArtifacts() {
-    const results = [];
+    let raw = [];
     try {
       if (sessionId) {
         const r = await fetch(`/api/demo/artifacts/${sessionId}`);
-        if (r.ok) { const d = await r.json(); results.push(...(d.artifacts || [])); }
+        if (r.ok) { const d = await r.json(); raw = d.artifacts || []; }
       }
     } catch {}
-    try {
-      const r = await fetch('/api/nfs?path=uploads');
-      if (r.ok) { const d = await r.json(); (d.entries || []).forEach(e => results.push({ ...e, type: 'upload', title: e.name })); }
-    } catch {}
+    // Skip internal orchestration logs — show only user-meaningful artifacts
+    const SKIP_TYPES = new Set(['orchestration', 'db_query']);
+    const results = raw
+      .filter(a => !SKIP_TYPES.has(a.type))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // newest first
+
     setCards(prev => {
       const pos = {};
       prev.forEach(c => { pos[c.id] = { x: c.x, y: c.y }; });
       return results.map((a, i) => {
         const p = pos[a.id || a.name];
         const col = i % 3, row = Math.floor(i / 3);
-        return { id: a.id || a.name || `card-${i}`, type: a.type || 'text', title: a.title || a.name || 'Artifact', content: a.content, imageUrl: a.imageUrl, url: a.url, imagePrompt: a.imagePrompt, resource: a.resource, createdAt: a.createdAt, json: JSON.stringify(a, null, 2), x: p ? p.x : 60 + col * (CARD_W + 24), y: p ? p.y : 60 + row * (CARD_H + 24) };
+        return { id: a.id || a.name || `card-${i}`, type: a.type || 'text', title: a.title || a.name || 'Artifact', content: a.content, imageUrl: a.imageUrl, url: a.url, imagePrompt: a.imagePrompt, resource: a.resource, createdAt: a.createdAt, docUrl: a.docUrl, driveUrl: a.driveUrl, note: a.note, json: JSON.stringify(a, null, 2), x: p ? p.x : 60 + col * (CARD_W + 24), y: p ? p.y : 60 + row * (CARD_H + 24) };
       });
     });
   }
@@ -1504,12 +1506,29 @@ function CanvasTab({ sessionId, workerId }) {
 
   function toggleFlip(id) { setFlipped(f => ({ ...f, [id]: !f[id] })); }
 
+  function fitView() {
+    // Called after cards load — zoom/pan so all cards are visible
+    const el = canvasRef.current;
+    if (!el) return;
+    setCards(prev => {
+      if (!prev.length) return prev;
+      const vw = el.clientWidth || 800, vh = el.clientHeight || 600;
+      const PAD = 40;
+      const maxX = Math.max(...prev.map(c => c.x + CARD_W));
+      const maxY = Math.max(...prev.map(c => c.y + CARD_H));
+      const scaleX = (vw - PAD * 2) / maxX;
+      const scaleY = (vh - PAD * 2) / maxY;
+      const scale = Math.min(1, Math.max(0.15, Math.min(scaleX, scaleY)));
+      setTransform({ x: PAD, y: PAD, scale });
+      return prev;
+    });
+  }
+
   function autoArrange() {
     const cols = Math.max(1, Math.ceil(Math.sqrt(cards.length)));
     setArranging(true);
     setCards(prev => prev.map((c, i) => ({ ...c, x: 60 + (i % cols) * (CARD_W + 24), y: 60 + Math.floor(i / cols) * (CARD_H + 24) })));
-    setTransform({ x: 40, y: 40, scale: 1 });
-    setTimeout(() => setArranging(false), 600);
+    setTimeout(() => { setArranging(false); fitView(); }, 520);
   }
 
   function addBlankCard() {
