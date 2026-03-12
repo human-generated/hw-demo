@@ -1407,7 +1407,9 @@ function CanvasTab({ sessionId, workerId }) {
   const panningRef = useRef(null);
   const transformRef = useRef(transform);
   const zoomTimerRef = useRef(null);
+  const hiddenTypesRef = useRef(hiddenTypes);
   transformRef.current = transform;
+  hiddenTypesRef.current = hiddenTypes;
 
   const CARD_W = 340, CARD_H = 280;
 
@@ -1504,29 +1506,45 @@ function CanvasTab({ sessionId, workerId }) {
   function toggleFlip(id) { setFlipped(f => ({ ...f, [id]: !f[id] })); }
 
   function fitView() {
-    // Called after cards load — zoom/pan so all cards are visible
     const el = canvasRef.current;
     if (!el) return;
     setCards(prev => {
-      if (!prev.length) return prev;
+      const visible = prev.filter(c => !hiddenTypesRef.current.has(c.type));
+      if (!visible.length) return prev;
       const vw = el.clientWidth || 800, vh = el.clientHeight || 600;
       const PAD = 40;
-      const maxX = Math.max(...prev.map(c => c.x + CARD_W));
-      const maxY = Math.max(...prev.map(c => c.y + CARD_H));
-      const scaleX = (vw - PAD * 2) / maxX;
-      const scaleY = (vh - PAD * 2) / maxY;
-      const scale = Math.min(1, Math.max(0.15, Math.min(scaleX, scaleY)));
+      const maxX = Math.max(...visible.map(c => c.x + CARD_W));
+      const maxY = Math.max(...visible.map(c => c.y + CARD_H));
+      const scale = Math.min(1, Math.max(0.15, Math.min((vw - PAD * 2) / maxX, (vh - PAD * 2) / maxY)));
       setTransform({ x: PAD, y: PAD, scale });
       return prev;
     });
   }
 
-  function autoArrange() {
-    const cols = Math.max(1, Math.ceil(Math.sqrt(cards.length)));
+  function arrangeVisible(hidden) {
+    const h = hidden ?? hiddenTypesRef.current;
     setArranging(true);
-    setCards(prev => prev.map((c, i) => ({ ...c, x: 60 + (i % cols) * (CARD_W + 24), y: 60 + Math.floor(i / cols) * (CARD_H + 24) })));
+    setCards(prev => {
+      const visible = prev.filter(c => !h.has(c.type));
+      const cols = Math.max(1, Math.ceil(Math.sqrt(visible.length)));
+      const visibleIds = new Set(visible.map(c => c.id));
+      let vi = 0;
+      return prev.map(c => {
+        if (!visibleIds.has(c.id)) return c;
+        const i = vi++;
+        return { ...c, x: 60 + (i % cols) * (CARD_W + 24), y: 60 + Math.floor(i / cols) * (CARD_H + 24) };
+      });
+    });
     setTimeout(() => { setArranging(false); fitView(); }, 520);
   }
+
+  // Rearrange whenever filter changes
+  useEffect(() => {
+    if (cards.length === 0) return;
+    arrangeVisible(hiddenTypes);
+  }, [hiddenTypes]);
+
+  function autoArrange() { arrangeVisible(); }
 
   function addBlankCard() {
     const id = `manual-${Date.now()}`;
