@@ -6645,10 +6645,10 @@ body {
   top: 0;
   left: 0;
   transform-origin: 0 0;
+}
+/* GPU layer only while wheel is spinning — removed after ~120ms so browser re-rasterizes text at new scale */
+.cv-canvas-inner--zooming {
   will-change: transform;
-  /* Force GPU layer so text stays crisp when scaling */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 .cv-empty {
@@ -6671,6 +6671,9 @@ body {
 .cv-card-wrap {
   position: absolute;
   perspective: 1000px;
+}
+.cv-card-wrap--arranging {
+  transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cv-card {

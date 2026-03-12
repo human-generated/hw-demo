@@ -1399,10 +1399,13 @@ function CanvasTab({ sessionId, workerId }) {
   const [panning, setPanning] = useState(null);
   const [orchInput, setOrchInput] = useState('');
   const [orchLoading, setOrchLoading] = useState(false);
+  const [arranging, setArranging] = useState(false);
+  const [zooming, setZooming] = useState(false);
   const canvasRef = useRef(null);
   const draggingRef = useRef(null);
   const panningRef = useRef(null);
   const transformRef = useRef(transform);
+  const zoomTimerRef = useRef(null);
   transformRef.current = transform;
 
   const CARD_W = 340, CARD_H = 280;
@@ -1452,10 +1455,14 @@ function CanvasTab({ sessionId, workerId }) {
       const rect = el.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      setZooming(true);
       setTransform(t => {
         const ns = Math.max(0.15, Math.min(3, t.scale * delta));
         return { x: mx - (mx - t.x) * (ns / t.scale), y: my - (my - t.y) * (ns / t.scale), scale: ns };
       });
+      // Remove GPU layer hint after zoom stops so browser re-rasterizes text at new scale
+      clearTimeout(zoomTimerRef.current);
+      zoomTimerRef.current = setTimeout(() => setZooming(false), 120);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -1499,8 +1506,10 @@ function CanvasTab({ sessionId, workerId }) {
 
   function autoArrange() {
     const cols = Math.max(1, Math.ceil(Math.sqrt(cards.length)));
+    setArranging(true);
     setCards(prev => prev.map((c, i) => ({ ...c, x: 60 + (i % cols) * (CARD_W + 24), y: 60 + Math.floor(i / cols) * (CARD_H + 24) })));
     setTransform({ x: 40, y: 40, scale: 1 });
+    setTimeout(() => setArranging(false), 600);
   }
 
   function addBlankCard() {
@@ -1569,11 +1578,11 @@ function CanvasTab({ sessionId, workerId }) {
             <div className="cv-empty-sub">Ask the skill agent or click + Card to add manually</div>
           </div>
         )}
-        <div className="cv-canvas-inner" style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.scale})` }}>
+        <div className={`cv-canvas-inner${zooming ? ' cv-canvas-inner--zooming' : ''}`} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.scale})` }}>
           {cards.map(card => {
             const isFlipped = !!flipped[card.id];
             return (
-              <div key={card.id} className="cv-card-wrap" style={{ left: card.x, top: card.y, width: CARD_W, height: CARD_H }}>
+              <div key={card.id} className={`cv-card-wrap${arranging ? ' cv-card-wrap--arranging' : ''}`} style={{ left: card.x, top: card.y, width: CARD_W, height: CARD_H }}>
                 <div className={`cv-card${isFlipped ? ' cv-card--flipped' : ''}`}>
                   <div className="cv-card-face cv-card-front">
                     <div className="cv-card-header" onMouseDown={e => startCardDrag(e, card.id)}>
