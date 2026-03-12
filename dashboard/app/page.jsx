@@ -1215,21 +1215,23 @@ function AppInner() {
             />
           )}
           <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 9001, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => setShowHubPicker(true)} style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '5px 12px', fontFamily: 'monospace', fontSize: '0.62rem', cursor: 'pointer', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s' }}
+            <button onClick={() => { if (hubSessionId) { navigator.clipboard?.writeText(hubSessionId).catch(() => {}); } setShowHubPicker(true); }} style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '5px 12px', fontFamily: 'monospace', fontSize: '0.62rem', cursor: 'pointer', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s', maxWidth: 260 }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34c759', display: 'inline-block', boxShadow: '0 0 6px rgba(52,199,89,0.8)' }} />
-              {hubSessionId ? hubSessionId.slice(0, 16) : 'Select Session'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}
+              title={hubSessionId ? 'Click to copy session ID' : 'Select session'}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34c759', display: 'inline-block', flexShrink: 0, boxShadow: '0 0 6px rgba(52,199,89,0.8)' }} />
+              {hubSessionId || 'Select Session'}
             </button>
             <button
               onClick={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
+              title="Back to Dashboard"
               style={{
                 background: 'rgba(0,0,0,0.55)', color: '#fff',
-                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 14px',
-                fontFamily: 'monospace', fontSize: '0.75rem',
+                border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 10px',
                 cursor: 'pointer', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            >✕ Back to Dashboard</button>
+            ><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
           </div>
         </div>
       )}

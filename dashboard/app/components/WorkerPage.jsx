@@ -1603,7 +1603,6 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
         </div>
         <div className="wkp-menu-right">
-          {sessionId && <span className="wkp-menu-session-id">{sessionId}</span>}
           <label className="wkp-nav-toggle">
             <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
             <span className="wkp-nav-toggle-track"><span className="wkp-nav-toggle-thumb" /></span>
@@ -1612,11 +1611,6 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {isConnected && (
             <button className="wkp-menu-btn" style={{ fontSize: '11px', opacity: 0.7 }} onClick={() => { setPromptDraft(systemPrompt); setPromptEditing(v => !v); }} title="Edit agent system prompt">
               {promptEditing ? 'Close Prompt' : 'Edit Prompt'}
-            </button>
-          )}
-          {onBack && (
-            <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onBack} title="Back to Dashboard">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           )}
           <div className="wkp-menu-avatar">S</div>
