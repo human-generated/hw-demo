@@ -4196,6 +4196,18 @@ body {
   gap: 10px;
 }
 
+.wkp-menu-session-id {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(0, 0, 0, 0.3);
+  text-transform: lowercase;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wkp-menu-btn {
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: 13px;
@@ -4204,9 +4216,26 @@ body {
   background: none;
   border: none;
   transition: color 0.2s;
+  padding: 0;
+  display: flex;
+  align-items: center;
 }
 
 .wkp-menu-btn:hover { color: #1a1a1a; }
+
+.wkp-menu-btn--back {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.wkp-menu-btn--back:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #1a1a1a;
+}
 
 .wkp-menu-avatar {
   width: 28px;
