@@ -6,7 +6,7 @@ import '@xyflow/react/dist/style.css';
 import { Homepage } from './components/Homepage';
 import { Workspace } from './components/Workspace';
 import { AIWorkers } from './components/AIWorkers';
-import { WorkerPage } from './components/WorkerPage';
+import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
@@ -367,63 +367,15 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 }
 
 // ── PlatformsView ──────────────────────────────────────────────────────────────
-const PLAT_GRADIENTS = [
-  'linear-gradient(135deg,#6366f1,#8b5cf6)',
-  'linear-gradient(135deg,#ec4899,#f43f5e)',
-  'linear-gradient(135deg,#14b8a6,#0ea5e9)',
-  'linear-gradient(135deg,#f59e0b,#ef4444)',
-  'linear-gradient(135deg,#84cc16,#10b981)',
-  'linear-gradient(135deg,#f97316,#eab308)',
-  'linear-gradient(135deg,#a78bfa,#06b6d4)',
-  'linear-gradient(135deg,#fb7185,#fbbf24)',
-];
-
-function PlatformsView({ sessionId, platforms = [], onClose }) {
-  const [selIdx, setSelIdx] = useState(0);
-  const [activeTab, setActiveTab] = useState('Overview');
-  const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState([]);
-  const [sending, setSending] = useState(false);
-  const chatEndRef = useRef(null);
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-  // reset chat when platform changes
-  useEffect(() => { setMessages([]); setChatInput(''); }, [selIdx]);
-
-  const p = platforms[selIdx] || null;
-  const pName = p ? (p.actual_software || p.name || 'Platform') : 'Platform';
-  const grad = PLAT_GRADIENTS[selIdx % PLAT_GRADIENTS.length];
-  const STATUS_COLOR = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
-
-  async function sendChat(e) {
-    e.preventDefault();
-    const text = chatInput.trim();
-    if (!text || sending || !p) return;
-    setChatInput('');
-    setMessages(prev => [...prev, { role: 'user', text }]);
-    setSending(true);
-    try {
-      const r = await fetch('/api/demo/orchestrate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message: text, context: `Platform: ${pName}\nDescription: ${p.reason || ''}\nURL: ${p.url || ''}` }),
-      });
-      const d = await r.json();
-      setMessages(prev => [...prev, { role: 'assistant', text: d.response || d.message || 'No response' }]);
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Error: ' + err.message }]);
-    }
-    setSending(false);
-  }
-
+function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
   return (
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)', zIndex: 0 }} />
-
       <nav className="wkp-menu" style={{ position: 'relative', zIndex: 1 }}>
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
-          <span className="wkp-menu-label">Platforms · {pName}</span>
+          <span className="wkp-menu-label">Platforms</span>
         </div>
         <div className="wkp-menu-right">
           <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
@@ -432,125 +384,19 @@ function PlatformsView({ sessionId, platforms = [], onClose }) {
           <div className="wkp-menu-avatar">P</div>
         </div>
       </nav>
-
-      {platforms.length === 0 ? (
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', height: 'calc(100% - 48px)', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
-          No platforms detected yet. Run the onboarding wizard first.
-        </div>
-      ) : (
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', height: 'calc(100% - 48px)', overflow: 'hidden' }}>
-          {/* Left panel — mirrors wkp-left */}
-          <div className="wkp-left">
-            <div className="wkp-card">
-              <div className="wkp-badge">
-                <div className="wkp-badge-green-bg" style={{ background: grad }} />
-                <div className="wkp-badge-photo-wrap">
-                  <div className="wkp-badge-photo" style={{ background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: '3.5rem', fontWeight: 800, color: 'rgba(255,255,255,0.92)', userSelect: 'none', lineHeight: 1 }}>{pName[0].toUpperCase()}</span>
-                  </div>
-                </div>
-                <div className="wkp-badge-info">
-                  <div className="wkp-badge-name-row">
-                    <div className="wkp-badge-name-col">
-                      <span className="wkp-badge-name">{pName}</span>
-                      <span className="wkp-badge-role">{p?.category || p?.name || 'Platform'}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="wkp-call-controls">
-                  <div className="wkp-call-info">
-                    <span className="wkp-call-dot" style={{ background: STATUS_COLOR[p?.status] || '#8e8e93' }} />
-                    <span className="wkp-call-label">{p?.status || 'active'}</span>
-                  </div>
-                  {p?.url && (
-                    <div className="wkp-call-buttons">
-                      <a href={p.url} target="_blank" rel="noopener noreferrer" className="wkp-call-btn wkp-call-btn--phone" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} title="Open platform">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </a>
-                    </div>
-                  )}
-                </div>
-                <div className="wkp-badge-top">
-                  <div className="wkp-badge-verif"><span>PLATFORM{'<<<<<'}</span><span>{pName.toUpperCase().slice(0,9).replace(/\s/g,'')}{'<<<<<<<<<<<'}</span></div>
-                </div>
-              </div>
-
-              {/* Platform list picker */}
-              <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                {platforms.map((pl, i) => {
-                  const n = pl.actual_software || pl.name || 'Platform';
-                  return (
-                    <div key={i} onClick={() => setSelIdx(i)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', background: selIdx === i ? 'rgba(0,0,0,0.06)' : 'transparent', marginBottom: 2 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: PLAT_GRADIENTS[i % PLAT_GRADIENTS.length], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>{n[0].toUpperCase()}</span>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n}</div>
-                        <div style={{ fontSize: '0.62rem', color: 'rgba(0,0,0,0.4)' }}>{pl.status || 'active'}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+      <div style={{ position: 'relative', zIndex: 1, height: 'calc(100% - 48px)', overflowY: 'auto', padding: '1.5rem' }}>
+        {platforms.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
+            No platforms detected yet. Run the onboarding wizard first.
           </div>
-
-          {/* Right panel — mirrors wkp-main */}
-          <div className="wkp-main">
-            <div className="wkp-tabs">
-              {['Overview', 'Chat'].map(t => (
-                <button key={t} className={`wkp-tab ${activeTab === t ? 'wkp-tab--active' : ''}`} onClick={() => setActiveTab(t)}>{t}</button>
-              ))}
-            </div>
-            <div className="wkp-main-body">
-              {activeTab === 'Overview' && p && (
-                <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div className="wkpt-card">
-                    <div className="wkpt-card-head"><span className="wkpt-card-title">Details</span></div>
-                    <div className="wkpt-kv"><span className="wkpt-kv-k">Name</span><span className="wkpt-kv-v">{pName}</span></div>
-                    {p.category && <div className="wkpt-kv"><span className="wkpt-kv-k">Category</span><span className="wkpt-kv-v">{p.category}</span></div>}
-                    {p.status && <div className="wkpt-kv"><span className="wkpt-kv-k">Status</span><span className="wkpt-kv-v" style={{ color: STATUS_COLOR[p.status] || '#8e8e93', fontWeight: 600 }}>{p.status}</span></div>}
-                    {p.url && <div className="wkpt-kv"><span className="wkpt-kv-k">URL</span><a href={p.url} target="_blank" rel="noopener noreferrer" className="wkpt-kv-v" style={{ color: '#6366f1', textDecoration: 'none' }}>{p.url}</a></div>}
-                  </div>
-                  {p.reason && (
-                    <div className="wkpt-card">
-                      <div className="wkpt-card-head"><span className="wkpt-card-title">Why this platform</span></div>
-                      <p style={{ margin: 0, fontSize: '0.82rem', color: 'rgba(0,0,0,0.65)', lineHeight: 1.6 }}>{p.reason}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-              {activeTab === 'Chat' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {messages.length === 0 && (
-                      <div style={{ color: 'rgba(0,0,0,0.3)', fontSize: '0.78rem', marginTop: '2rem', textAlign: 'center' }}>Ask anything about {pName}…</div>
-                    )}
-                    {messages.map((m, i) => (
-                      <div key={i} className={`wkp-msg ${m.role === 'user' ? 'wkp-msg--right' : ''}`}>
-                        <div className="wkp-msg-bubble">{m.text}</div>
-                      </div>
-                    ))}
-                    {sending && <div className="wkp-msg"><div className="wkp-msg-bubble" style={{ opacity: 0.6 }}>Thinking…</div></div>}
-                    <div ref={chatEndRef} />
-                  </div>
-                  <form className="wkp-chat-input" onSubmit={sendChat}>
-                    <div className="wkp-chat-input-wrap">
-                      <input className="wkp-chat-input-field" placeholder={`Ask about ${pName}…`} value={chatInput} onChange={e => setChatInput(e.target.value)} />
-                      <div className="wkp-send-wrap">
-                        <button type="submit" className="wkp-chat-send" disabled={!chatInput.trim() || sending}>
-                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
+        ) : (
+          <div className="wkp-office-row">
+            {platforms.map(p => (
+              <PlatformPreviewCard key={p.id || p.name} platform={p} sessionId={sessionId} companyName={companyName} />
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -1734,6 +1580,7 @@ function AppInner() {
         <PlatformsView
           sessionId={hubSessionId}
           platforms={hubPlatforms}
+          companyName={hubCompanyName}
           onClose={() => setShowPlatforms(false)}
         />
       )}

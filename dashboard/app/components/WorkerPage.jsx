@@ -212,7 +212,7 @@ function TiltCard({ children, className }) {
 
 /* ─── Tab Components (all data-driven) ──────────────────────────────────────── */
 
-function PlatformPreviewCard({ platform, sessionId, companyName }) {
+export function PlatformPreviewCard({ platform, sessionId, companyName }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
