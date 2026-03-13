@@ -384,19 +384,20 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
           <div className="wkp-menu-avatar">P</div>
         </div>
       </nav>
-      <div style={{ position: 'relative', zIndex: 1, height: 'calc(100% - 48px)', overflowY: 'auto', padding: '1.5rem' }}>
+      <div style={{ position: 'relative', zIndex: 1, height: 'calc(100% - 48px)', display: 'flex', padding: '12px', gap: 12, overflow: 'hidden' }}>
         {platforms.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
             No platforms detected yet. Run the onboarding wizard first.
           </div>
         ) : (
-          <div className="wkp-office-row">
-            {platforms.map(p => (
-              <PlatformPreviewCard key={p.id || p.name} platform={p} sessionId={sessionId} companyName={companyName} />
-            ))}
-          </div>
+          platforms.map(p => (
+            <div key={p.id || p.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
+            </div>
+          ))
         )}
       </div>
+      <style>{`.wkp-platform-card { flex: 1; display: flex; flex-direction: column; } .wkp-platform-frame { flex: 1; max-height: none !important; min-height: 0 !important; } .wkp-platform-iframe { height: 100%; }`}</style>
     </div>
   );
 }
