@@ -440,7 +440,7 @@ function PlatformsView({ sessionId, platforms = [], onClose }) {
   const STATUS_DOT = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
 
   return (
-    <div className="aw" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
+    <div className="aw" style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       {/* reuse MeshGradient bg via inline import — fallback to white */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff,#ffffff,#aee8e2,#d4eaed)', zIndex: 0 }} />
       <nav className="aw-menu" style={{ position: 'relative', zIndex: 1 }}>
@@ -1594,20 +1594,6 @@ function AppInner() {
           onCancel={() => { setShowWizard(false); setAiView('home'); }}
         />
       )}
-      {showPlatforms && (
-        <PlatformsView
-          sessionId={hubSessionId}
-          platforms={hubPlatforms}
-          onClose={() => setShowPlatforms(false)}
-        />
-      )}
-      {showAbout && (
-        <AboutView
-          sessionId={hubSessionId}
-          companyName={hubCompanyName}
-          onClose={() => setShowAbout(false)}
-        />
-      )}
       {/* AI Workers Hub overlay */}
       {aiView && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
@@ -1710,6 +1696,20 @@ function AppInner() {
             />
           )}
         </div>
+      )}
+      {showPlatforms && (
+        <PlatformsView
+          sessionId={hubSessionId}
+          platforms={hubPlatforms}
+          onClose={() => setShowPlatforms(false)}
+        />
+      )}
+      {showAbout && (
+        <AboutView
+          sessionId={hubSessionId}
+          companyName={hubCompanyName}
+          onClose={() => setShowAbout(false)}
+        />
       )}
       {showSessions && (
         <SessionListPanel
