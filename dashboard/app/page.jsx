@@ -371,7 +371,7 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
   return (
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)', zIndex: 0 }} />
-      <nav className="wkp-menu" style={{ position: 'relative', zIndex: 1 }}>
+      <nav className="wkp-menu">
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
@@ -384,7 +384,7 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
           <div className="wkp-menu-avatar">P</div>
         </div>
       </nav>
-      <div style={{ position: 'relative', zIndex: 1, height: 'calc(100% - 48px)', display: 'flex', padding: '12px', gap: 12, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 48, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflow: 'hidden' }}>
         {platforms.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
             No platforms detected yet. Run the onboarding wizard first.
