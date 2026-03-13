@@ -63,7 +63,7 @@ function sessionWorkerToCard(w, index, allWorkers) {
   };
 }
 
-export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, workers: sessionWorkers, sessionId, onBackToDashboard }) {
+export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, onGoHub, onGoPlatforms, onGoAbout, workers: sessionWorkers, sessionId, onBackToDashboard }) {
   // Use session workers if provided, otherwise use hardcoded WORKERS
   const displayWorkers = sessionWorkers && sessionWorkers.length > 0
     ? sessionWorkers.map((w, i) => sessionWorkerToCard(w, i, sessionWorkers))
@@ -94,7 +94,7 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
           <span className="aw-menu-label">{companyName}</span>
         </div>
         <div className="aw-menu-center">
-          <DockIcons active="workers" onHome={onGoHome} onCall={onGoCall} onWorkers={() => {}} />
+          <DockIcons active="workers" onHome={onGoHome} onHub={onGoHub || onGoCall} onWorkers={() => {}} onPlatforms={onGoPlatforms} onAbout={onGoAbout} />
         </div>
         <div className="aw-menu-right">
           {sessionId && (

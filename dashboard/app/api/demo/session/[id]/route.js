@@ -10,6 +10,16 @@ export async function GET(req, { params }) {
   }
 }
 
+export async function PATCH(req, { params }) {
+  try {
+    const body = await req.json();
+    const r = await fetch(`${MASTER}/demo/session/${(await params).id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return Response.json(await r.json());
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(req, { params }) {
   try {
     const r = await fetch(`${MASTER}/demo/session/${(await params).id}`, { method: 'DELETE' });

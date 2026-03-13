@@ -217,6 +217,264 @@ function SessionListPanel({ currentId, onSelect, onDelete, onClose }) {
   );
 }
 
+// ── Shared overlay shell ───────────────────────────────────────────────────────
+function HubOverlay({ onClose, children, title, subtitle }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <MeshGradient style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} speed={0.19} scale={1.51} distortion={0.88} swirl={1} colors={['#E0EAFF', '#FFFFFF', '#AEE8E2', '#D4EAED']} />
+      <div style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.78)', backdropFilter: 'blur(28px) saturate(1.5)', WebkitBackdropFilter: 'blur(28px) saturate(1.5)', borderRadius: 20, padding: '2rem', width: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.9) inset', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+          <div style={{ flex: 1 }}>
+            {title && <div style={{ fontFamily: "'Space Grotesk','Inter',sans-serif", fontSize: '1.05rem', fontWeight: 700, color: '#1a1a1a' }}>{title}</div>}
+            {subtitle && <div style={{ fontFamily: 'system-ui', fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginTop: 3 }}>{subtitle}</div>}
+          </div>
+          {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', fontSize: '1.2rem', lineHeight: 1, padding: '0 0 0 12px' }}>✕</button>}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── NewHubWizard ───────────────────────────────────────────────────────────────
+function NewHubWizard({ sessionId, onDone, onCancel }) {
+  const [step, setStep] = useState(0); // 0=company, 1=researching, 2=confirm, 3=building, 4=done
+  const [companyInput, setCompanyInput] = useState('');
+  const [research, setResearch] = useState(null);
+  const [platforms, setPlatforms] = useState([]);
+  const [feedback, setFeedback] = useState('');
+  const [screenshots, setScreenshots] = useState([]);
+  const [building, setBuilding] = useState(false);
+  const [buildMsg, setBuildMsg] = useState('');
+
+  async function doResearch(e) {
+    e.preventDefault();
+    if (!companyInput.trim()) return;
+    setStep(1);
+    try {
+      const r = await fetch('/api/demo/research', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ company: companyInput.trim(), sessionId }) });
+      const d = await r.json();
+      setResearch(d);
+      setPlatforms((d.platforms || []).map(p => ({ ...p })));
+      setStep(2);
+    } catch { setStep(2); setResearch(null); }
+  }
+
+  async function doBuild() {
+    setStep(3); setBuilding(true);
+    setBuildMsg('Discovering platform APIs…');
+    const selected = platforms.filter(p => p.selected);
+    try {
+      setTimeout(() => setBuildMsg('Cloning synthetic environment…'), 1800);
+      setTimeout(() => setBuildMsg('Spinning up sandboxes…'), 4000);
+      const r = await fetch('/api/demo/build-platforms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, platforms: selected, feedback }) });
+      await r.json();
+    } catch {}
+    setBuilding(false);
+    setStep(4);
+    setTimeout(() => onDone?.(), 1200);
+  }
+
+  function handleFiles(e) {
+    const files = Array.from(e.target.files || []);
+    const readers = files.map(f => new Promise(res => { const fr = new FileReader(); fr.onload = () => res({ name: f.name, url: fr.result }); fr.readAsDataURL(f); }));
+    Promise.all(readers).then(imgs => setScreenshots(prev => [...prev, ...imgs]));
+  }
+
+  return (
+    <HubOverlay onClose={step < 3 ? onCancel : undefined}
+      title={['Set up new Hub session', 'Researching company…', 'Confirm setup', 'Building platforms…', 'Done!'][step]}
+      subtitle={['Enter the company name or website', '', 'Review what we found and adjust platforms', '', ''][step]}>
+
+      {step === 0 && (
+        <form onSubmit={doResearch} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <input autoFocus value={companyInput} onChange={e => setCompanyInput(e.target.value)} placeholder="e.g. Altex Romania or altex.ro" style={{ padding: '0.7rem 1rem', borderRadius: 12, border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.8)', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} />
+          <button type="submit" style={{ padding: '0.75rem', background: 'linear-gradient(135deg,#34c759,#30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Research company →</button>
+        </form>
+      )}
+
+      {step === 1 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '2rem 0' }}>
+          <div style={{ width: 36, height: 36, border: '3px solid rgba(52,199,89,0.25)', borderTopColor: '#34c759', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+          <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)' }}>Searching the web for {companyInput}…</div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {research ? (
+            <>
+              <div style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 12, padding: '0.875rem 1rem', border: '1px solid rgba(0,0,0,0.07)' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{research.company?.name || companyInput}</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.55)', lineHeight: 1.5 }}>{research.company?.description || ''}</div>
+                {research.summary && <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginTop: 8, fontStyle: 'italic' }}>{research.summary}</div>}
+              </div>
+
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Detected platforms — tick to build</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {platforms.map((p, i) => (
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0.625rem 0.875rem', borderRadius: 10, background: p.selected ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.5)', border: `1px solid ${p.selected ? 'rgba(52,199,89,0.25)' : 'rgba(0,0,0,0.07)'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <input type="checkbox" checked={!!p.selected} onChange={() => setPlatforms(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))} style={{ marginTop: 2, accentColor: '#34c759' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1a1a1a' }}>{p.actual_software || p.name}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>{p.reason}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: '0.8rem', padding: '1rem 0' }}>Could not research company. You can still proceed and add platforms manually.</div>
+          )}
+
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Upload screenshots or clips (optional)</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+              {screenshots.map((s, i) => <img key={i} src={s.url} alt={s.name} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)' }} />)}
+              <label style={{ width: 60, height: 60, borderRadius: 8, border: '1.5px dashed rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.4rem', color: 'rgba(0,0,0,0.3)' }}>
+                +<input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={handleFiles} />
+              </label>
+            </div>
+            <textarea value={feedback} onChange={e => setFeedback(e.target.value)} placeholder="Additional notes about their setup…" rows={2} style={{ width: '100%', padding: '0.6rem 0.875rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', outline: 'none' }} />
+          </div>
+
+          <button onClick={doBuild} style={{ padding: '0.75rem', background: 'linear-gradient(135deg,#34c759,#30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Build {platforms.filter(p => p.selected).length} platform{platforms.filter(p => p.selected).length !== 1 ? 's' : ''} →
+          </button>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '2rem 0' }}>
+          <div style={{ width: 36, height: 36, border: '3px solid rgba(52,199,89,0.25)', borderTopColor: '#34c759', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+          <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)' }}>{buildMsg}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {platforms.filter(p => p.selected).map(p => (
+              <div key={p.id} style={{ padding: '4px 10px', background: 'rgba(52,199,89,0.1)', borderRadius: 8, fontSize: '0.7rem', color: '#1a1a1a', border: '1px solid rgba(52,199,89,0.2)' }}>{p.name}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 4 && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '2rem 0' }}>
+          <div style={{ fontSize: '2.5rem' }}>✓</div>
+          <div style={{ fontSize: '0.875rem', color: '#1a1a1a', fontWeight: 600 }}>Hub ready!</div>
+        </div>
+      )}
+    </HubOverlay>
+  );
+}
+
+// ── PlatformsView ──────────────────────────────────────────────────────────────
+function PlatformsView({ sessionId, platforms = [], onClose, onBuild }) {
+  const [localPlats, setLocalPlats] = useState(platforms);
+  const [building, setBuilding] = useState(false);
+  useEffect(() => { setLocalPlats(platforms); }, [platforms]);
+
+  async function rebuild() {
+    setBuilding(true);
+    try {
+      await fetch('/api/demo/build-platforms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, platforms: localPlats.filter(p => p.selected) }) });
+      onBuild?.();
+    } catch {}
+    setBuilding(false);
+  }
+
+  const STATUS_COLOR = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
+
+  return (
+    <HubOverlay onClose={onClose} title="Platforms" subtitle="Synthetic environments for this session">
+      {localPlats.length === 0 && <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: '0.8rem', padding: '1.5rem 0' }}>No platforms detected yet. Use the onboarding wizard to research the company.</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {localPlats.map((p, i) => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)' }}>
+            <input type="checkbox" checked={!!p.selected} onChange={() => setLocalPlats(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))} style={{ accentColor: '#34c759' }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.actual_software || p.name}</div>
+              <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)' }}>{p.reason}</div>
+            </div>
+            {p.status && <span style={{ fontSize: '0.65rem', fontWeight: 700, color: STATUS_COLOR[p.status] || '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.status}</span>}
+          </div>
+        ))}
+      </div>
+      <button onClick={rebuild} disabled={building} style={{ width: '100%', padding: '0.75rem', background: building ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#34c759,#30a74f)', color: building ? '#999' : '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: building ? 'not-allowed' : 'pointer' }}>
+        {building ? 'Building…' : 'Rebuild selected'}
+      </button>
+    </HubOverlay>
+  );
+}
+
+// ── AboutView ──────────────────────────────────────────────────────────────────
+function AboutView({ sessionId, companyName, onClose }) {
+  const [data, setData] = useState(null);
+  const [agenda, setAgenda] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [telegram, setTelegram] = useState('');
+
+  useEffect(() => {
+    if (!sessionId) return;
+    fetch(`/api/demo/session/${sessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
+      setData(d);
+      setAgenda(d.agenda || '');
+      setPhone(d.settings?.phone || '');
+      setEmail(d.settings?.email || '');
+      setTelegram(d.settings?.telegram || '');
+    }).catch(() => {});
+  }, [sessionId]);
+
+  async function saveSettings() {
+    if (!sessionId) return;
+    await fetch(`/api/demo/session/${sessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: { phone, email, telegram }, agenda } ) }).catch(() => {});
+  }
+
+  function importAgenda(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { setAgenda(ev.target.result); };
+    reader.readAsText(file);
+  }
+
+  const co = data?.company;
+
+  return (
+    <HubOverlay onClose={onClose} title={co?.name || companyName || 'About Company'} subtitle={co ? `${co.industry || ''} · ${co.size || ''}` : 'Company information & session settings'}>
+      {co && (
+        <div style={{ marginBottom: 16, padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
+          <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.6)', lineHeight: 1.6 }}>{co.description}</div>
+          {data?.researchSummary && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'rgba(0,0,0,0.45)', fontStyle: 'italic' }}>{data.researchSummary}</div>}
+          {data?.researchFindings?.length > 0 && (
+            <ul style={{ marginTop: 8, paddingLeft: 16, fontSize: '0.68rem', color: 'rgba(0,0,0,0.5)', lineHeight: 1.6 }}>
+              {data.researchFindings.slice(0, 4).map((f, i) => <li key={i}>{f}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Session settings</div>
+        {[['Email', 'email', email, setEmail, 'contact@company.com'], ['Phone', 'tel', phone, setPhone, '+1 555 000 0000'], ['Telegram', 'text', telegram, setTelegram, '@channel or chat ID']].map(([label, type, val, setter, ph]) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.6rem 0.875rem', borderRadius: 10, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.08)' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', width: 64, flexShrink: 0 }}>{label}</span>
+            <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph} onBlur={saveSettings} style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.8rem', outline: 'none', fontFamily: 'inherit' }} />
+          </div>
+        ))}
+
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 6 }}>Demo agenda</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ padding: '5px 12px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.6)' }}>
+            Import CSV/XLS<input type="file" accept=".csv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={importAgenda} />
+          </label>
+          <span style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.35)' }}>or paste below</span>
+        </div>
+        <textarea value={agenda} onChange={e => setAgenda(e.target.value)} onBlur={saveSettings} placeholder={"Agenda items, one per line:\n1. Introduction & company overview\n2. Platform demo: CRM\n3. Q&A"} rows={5} style={{ width: '100%', padding: '0.7rem 0.875rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', fontFamily: "'IBM Plex Mono', monospace", resize: 'vertical', boxSizing: 'border-box', outline: 'none', lineHeight: 1.6 }} />
+      </div>
+    </HubOverlay>
+  );
+}
+
 // ── HubSessionPicker ──────────────────────────────────────────────────────────
 function HubSessionPicker({ onSelect, onNew, onClose }) {
   const [sessions, setSessions] = useState(null);
@@ -293,6 +551,9 @@ function AppInner() {
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
   const [showHubPicker, setShowHubPicker] = useState(true); // hub is the default view
+  const [showWizard, setShowWizard] = useState(false);
+  const [showPlatforms, setShowPlatforms] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [hubWorkers, setHubWorkers] = useState([]);
   const [hubWorkerIdParam, setHubWorkerIdParam] = useState(null);
   const [hubWorkflowIdParam, setHubWorkflowIdParam] = useState(null);
@@ -1117,9 +1378,44 @@ function AppInner() {
               }
             } catch {}
             setShowHubPicker(false);
-            setAiView('home');
+            setShowWizard(true); // show onboarding wizard instead of going directly to home
           }}
           onClose={() => setShowHubPicker(false)}
+        />
+      )}
+      {showWizard && (
+        <NewHubWizard
+          sessionId={hubSessionId}
+          onDone={() => {
+            setShowWizard(false);
+            // Reload session data to get updated platforms/company
+            if (hubSessionId) {
+              fetch(`/api/demo/session/${hubSessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
+                if (d.workers?.length) setHubWorkers(d.workers);
+                if (d.company) setHubCompanyName(d.company?.name || d.company || null);
+                if (d.platforms?.length) setHubPlatforms(d.platforms);
+              }).catch(() => {});
+            }
+            setAiView('workers');
+          }}
+          onCancel={() => { setShowWizard(false); setAiView('home'); }}
+        />
+      )}
+      {showPlatforms && (
+        <PlatformsView
+          sessionId={hubSessionId}
+          platforms={hubPlatforms}
+          onClose={() => setShowPlatforms(false)}
+          onBuild={() => {
+            if (hubSessionId) fetch(`/api/demo/session/${hubSessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (d.platforms?.length) setHubPlatforms(d.platforms); }).catch(() => {});
+          }}
+        />
+      )}
+      {showAbout && (
+        <AboutView
+          sessionId={hubSessionId}
+          companyName={hubCompanyName}
+          onClose={() => setShowAbout(false)}
         />
       )}
       {/* AI Workers Hub overlay */}
@@ -1133,13 +1429,10 @@ function AppInner() {
                 if (avatarStream) setHubAvatarStream(avatarStream);
                 setAiView('workspace');
               }}
-              onGoCall={(client, camera, avatarStream) => {
-                if (client) setHubAnamClient(client);
-                if (camera) setHubCameraStream(camera);
-                if (avatarStream) setHubAvatarStream(avatarStream);
-                setAiView('workspace');
-              }}
+              onGoHub={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
+              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoAbout={() => setShowAbout(true)}
               sessionId={hubSessionId}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
             />
@@ -1156,8 +1449,10 @@ function AppInner() {
               sessionId={hubSessionId}
               onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
-              onGoCall={() => setAiView('workspace')}
+              onGoHub={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
+              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
             />
           )}
@@ -1176,7 +1471,9 @@ function AppInner() {
                 }
               }}
               onGoHome={() => setAiView('home')}
-              onGoCall={() => setAiView('workspace')}
+              onGoHub={() => setAiView('workspace')}
+              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoAbout={() => setShowAbout(true)}
               sessionId={hubSessionId}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
             />
@@ -1217,6 +1514,8 @@ function AppInner() {
                   window.history.replaceState(null, '', url.toString());
                 }
               }}
+              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
             />
           )}

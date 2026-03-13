@@ -48,7 +48,7 @@ function parseCompanyMetrics(company) {
   };
 }
 
-export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoWorkers, sessionId, onBackToDashboard }) {
+export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
     { id: 1, author: 'ALEXANDRA', text: "I'm your orchestrator. What company should I research?", time: 'Just now', isUser: false },
@@ -233,7 +233,7 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
           <span className="ws-menu-label">Workspace</span>
         </div>
         <div className="ws-menu-center">
-          <DockIcons active="home" onHome={onGoHome} onCall={onGoCall} onWorkers={onGoWorkers} />
+          <DockIcons active="hub" onHome={onGoHome} onHub={onGoHub || onGoCall} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={onGoAbout} />
         </div>
         <div className="ws-menu-right">
           {sessionId && (

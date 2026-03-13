@@ -1728,7 +1728,7 @@ function CanvasTab({ sessionId, workerId }) {
 }
 
 /* ─── Main WorkerPage component ──────────────────────────────────────────────── */
-export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null, onBackToDashboard }) {
+export function WorkerPage({ worker: workerProp = null, anamClient = null, cameraStream = null, avatarStream = null, onBack, onGoHome, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, companyName = 'Humans.AI', allWorkers = [], defaultExpandedWorkflow = null, onWorkflowSelect = null, platforms = [], onWorkerUpdate = null, onBackToDashboard }) {
   // Support both hub workers ({ code, name, role }) and session workers ({ id, name, description, workflows, steps })
   const worker = workerProp || DEFAULT_WORKER;
   const workerIndex = allWorkers.length > 0 ? Math.max(0, allWorkers.findIndex(w => w.id === worker.id)) : 0;
@@ -1938,7 +1938,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           <span className="wkp-menu-label">{firstName} · {(worker.role || worker.description || cfg.job || 'AI Worker').split(' at ')[0].slice(0, 40)}</span>
         </div>
         <div className="wkp-menu-center">
-          <DockIcons active="call" onHome={onGoHome} onCall={() => {}} onWorkers={onGoWorkers} />
+          <DockIcons active="workers" onHome={onGoHome} onHub={() => {}} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={onGoAbout} />
         </div>
         <div className="wkp-menu-right">
           {sessionId && (
