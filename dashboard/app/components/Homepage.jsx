@@ -63,6 +63,14 @@ function buildSystemPrompt(session, companyName) {
   if (platforms.length) prompt += `\nTheir platforms: ${platforms.join(', ')}.`;
   const workers = (session?.workers || []).map(w => w.name).filter(Boolean);
   if (workers.length) prompt += `\nAI workers deployed for them: ${workers.slice(0, 5).join(', ')}.`;
+  const contacts = (session?.contacts || []).filter(c => c.name);
+  if (contacts.length) {
+    prompt += `\nDemo attendees (people you are speaking with today):\n`;
+    contacts.forEach(c => {
+      prompt += `- ${c.name}${c.role ? ` (${c.role})` : ''}${c.email ? ` <${c.email}>` : ''}${c.phone ? ` · ${c.phone}` : ''}${c.note ? ` — ${c.note}` : ''}\n`;
+    });
+    prompt += `Address them by name when appropriate.`;
+  }
   prompt += `\n\nBe warm, professional, and concise. Help them understand how Humans.AI can assist their team.`;
   return prompt;
 }

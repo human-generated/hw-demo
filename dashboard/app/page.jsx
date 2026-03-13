@@ -406,9 +406,66 @@ function PlatformsView({ sessionId, platforms = [], onClose, onBuild }) {
 }
 
 // ── AboutView ──────────────────────────────────────────────────────────────────
+function parseContactsCsv(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (!lines.length) return [];
+  // Detect header row vs. data-only
+  const first = lines[0].toLowerCase();
+  const hasHeader = /name|email|phone|role|title|company/.test(first);
+  const rows = hasHeader ? lines.slice(1) : lines;
+  const headers = hasHeader
+    ? lines[0].split(/,|\t/).map(h => h.trim().toLowerCase())
+    : ['name', 'role', 'email', 'phone'];
+  return rows.map((row, i) => {
+    const cells = row.split(/,|\t/).map(c => c.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = cells[j] || ''; });
+    // Normalise key aliases
+    return {
+      id: `c-${Date.now()}-${i}`,
+      name: obj.name || obj['full name'] || obj['contact name'] || cells[0] || '',
+      role: obj.role || obj.title || obj.position || obj.job || '',
+      email: obj.email || obj['e-mail'] || '',
+      phone: obj.phone || obj.mobile || obj.tel || '',
+      note: obj.note || obj.notes || obj.comment || '',
+    };
+  }).filter(c => c.name);
+}
+
+function ContactCard({ contact, onRemove, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const initials = contact.name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const avatarColor = ['#d97706','#3b82f6','#34c759','#a855f7','#ef4444','#f59e0b','#06b6d4'][contact.name.charCodeAt(0) % 7];
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0.65rem 0.875rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)', position: 'relative' }}>
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.72rem', fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>{initials}</div>
+      {editing ? (
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
+          {[['name','Name'],['role','Role / Title'],['email','Email'],['phone','Phone'],['note','Note']].map(([k, ph]) => (
+            <input key={k} value={contact[k] || ''} onChange={e => onChange({ ...contact, [k]: e.target.value })} placeholder={ph}
+              style={{ border: 'none', borderBottom: '1px solid rgba(0,0,0,0.12)', background: 'none', fontSize: '0.75rem', padding: '2px 0', outline: 'none', fontFamily: 'inherit', gridColumn: k === 'note' ? '1 / -1' : undefined }} />
+          ))}
+          <button onClick={() => setEditing(false)} style={{ gridColumn: '1 / -1', marginTop: 4, padding: '3px 8px', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 6, fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+        </div>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0 }} onClick={() => setEditing(true)}>
+          <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1a1a1a', lineHeight: 1.3 }}>{contact.name}</div>
+          {contact.role && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.45)', marginTop: 1 }}>{contact.role}</div>}
+          <div style={{ display: 'flex', gap: 10, marginTop: 3, flexWrap: 'wrap' }}>
+            {contact.email && <span style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'monospace' }}>{contact.email}</span>}
+            {contact.phone && <span style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'monospace' }}>{contact.phone}</span>}
+          </div>
+          {contact.note && <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.35)', fontStyle: 'italic', marginTop: 3 }}>{contact.note}</div>}
+        </div>
+      )}
+      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.22)', fontSize: '1rem', lineHeight: 1, padding: 2, flexShrink: 0 }}>×</button>
+    </div>
+  );
+}
+
 function AboutView({ sessionId, companyName, onClose }) {
   const [data, setData] = useState(null);
-  const [agenda, setAgenda] = useState('');
+  const [contacts, setContacts] = useState([]);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [telegram, setTelegram] = useState('');
@@ -417,39 +474,46 @@ function AboutView({ sessionId, companyName, onClose }) {
     if (!sessionId) return;
     fetch(`/api/demo/session/${sessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
       setData(d);
-      setAgenda(d.agenda || '');
+      setContacts(d.contacts || []);
       setPhone(d.settings?.phone || '');
       setEmail(d.settings?.email || '');
       setTelegram(d.settings?.telegram || '');
     }).catch(() => {});
   }, [sessionId]);
 
-  async function saveSettings() {
-    if (!sessionId) return;
-    await fetch(`/api/demo/session/${sessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: { phone, email, telegram }, agenda } ) }).catch(() => {});
+  function save(nextContacts, nextSettings) {
+    const s = nextSettings || { phone, email, telegram };
+    fetch(`/api/demo/session/${sessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: s, contacts: nextContacts ?? contacts }) }).catch(() => {});
   }
 
-  function importAgenda(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function importCsv(e) {
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => { setAgenda(ev.target.result); };
+    reader.onload = ev => {
+      const parsed = parseContactsCsv(ev.target.result);
+      const next = [...contacts, ...parsed.filter(p => !contacts.some(c => c.email && c.email === p.email))];
+      setContacts(next); save(next);
+    };
     reader.readAsText(file);
+    e.target.value = '';
   }
+
+  function addBlank() {
+    const next = [...contacts, { id: `c-${Date.now()}`, name: 'New Contact', role: '', email: '', phone: '', note: '' }];
+    setContacts(next); save(next);
+  }
+
+  function removeContact(id) { const next = contacts.filter(c => c.id !== id); setContacts(next); save(next); }
+  function updateContact(updated) { const next = contacts.map(c => c.id === updated.id ? updated : c); setContacts(next); save(next); }
 
   const co = data?.company;
 
   return (
-    <HubOverlay onClose={onClose} title={co?.name || companyName || 'About Company'} subtitle={co ? `${co.industry || ''} · ${co.size || ''}` : 'Company information & session settings'}>
+    <HubOverlay onClose={onClose} title={co?.name || companyName || 'About Company'} subtitle={co ? `${co.industry || ''} · ${co.size || ''}` : 'Company info & session settings'}>
       {co && (
-        <div style={{ marginBottom: 16, padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
+        <div style={{ marginBottom: 14, padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
           <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.6)', lineHeight: 1.6 }}>{co.description}</div>
-          {data?.researchSummary && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'rgba(0,0,0,0.45)', fontStyle: 'italic' }}>{data.researchSummary}</div>}
-          {data?.researchFindings?.length > 0 && (
-            <ul style={{ marginTop: 8, paddingLeft: 16, fontSize: '0.68rem', color: 'rgba(0,0,0,0.5)', lineHeight: 1.6 }}>
-              {data.researchFindings.slice(0, 4).map((f, i) => <li key={i}>{f}</li>)}
-            </ul>
-          )}
+          {data?.researchSummary && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>{data.researchSummary}</div>}
         </div>
       )}
 
@@ -458,18 +522,30 @@ function AboutView({ sessionId, companyName, onClose }) {
         {[['Email', 'email', email, setEmail, 'contact@company.com'], ['Phone', 'tel', phone, setPhone, '+1 555 000 0000'], ['Telegram', 'text', telegram, setTelegram, '@channel or chat ID']].map(([label, type, val, setter, ph]) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.6rem 0.875rem', borderRadius: 10, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.08)' }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', width: 64, flexShrink: 0 }}>{label}</span>
-            <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph} onBlur={saveSettings} style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.8rem', outline: 'none', fontFamily: 'inherit' }} />
+            <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph} onBlur={() => save(contacts, { phone, email, telegram })} style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.8rem', outline: 'none', fontFamily: 'inherit' }} />
           </div>
         ))}
 
-        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 6 }}>Demo agenda</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ padding: '5px 12px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.6)' }}>
-            Import CSV/XLS<input type="file" accept=".csv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={importAgenda} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
+            Contacts <span style={{ fontWeight: 400, opacity: 0.6 }}>({contacts.length})</span>
+          </div>
+          <label style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)' }}>
+            Import CSV<input type="file" accept=".csv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={importCsv} />
           </label>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.35)' }}>or paste below</span>
+          <button onClick={addBlank} style={{ padding: '4px 10px', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontFamily: 'inherit' }}>+ Add</button>
         </div>
-        <textarea value={agenda} onChange={e => setAgenda(e.target.value)} onBlur={saveSettings} placeholder={"Agenda items, one per line:\n1. Introduction & company overview\n2. Platform demo: CRM\n3. Q&A"} rows={5} style={{ width: '100%', padding: '0.7rem 0.875rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.7)', fontSize: '0.78rem', fontFamily: "'IBM Plex Mono', monospace", resize: 'vertical', boxSizing: 'border-box', outline: 'none', lineHeight: 1.6 }} />
+        {contacts.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '1.2rem 0', fontSize: '0.75rem', color: 'rgba(0,0,0,0.32)', fontStyle: 'italic' }}>
+            No contacts yet — import a CSV or add manually.<br/>
+            <span style={{ fontSize: '0.68rem' }}>Agents will know who is attending the demo.</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {contacts.map(c => (
+            <ContactCard key={c.id} contact={c} onRemove={() => removeContact(c.id)} onChange={updateContact} />
+          ))}
+        </div>
       </div>
     </HubOverlay>
   );
