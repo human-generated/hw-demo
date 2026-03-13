@@ -367,40 +367,75 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 }
 
 // ── PlatformsView ──────────────────────────────────────────────────────────────
-function PlatformsView({ sessionId, platforms = [], onClose, onBuild }) {
-  const [localPlats, setLocalPlats] = useState(platforms);
-  const [building, setBuilding] = useState(false);
-  useEffect(() => { setLocalPlats(platforms); }, [platforms]);
+function PlatformsView({ sessionId, platforms = [], onClose }) {
+  const [chatInput, setChatInput] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [sending, setSending] = useState(false);
+  const chatEndRef = useRef(null);
 
-  async function rebuild() {
-    setBuilding(true);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  async function sendChat(e) {
+    e.preventDefault();
+    const text = chatInput.trim();
+    if (!text || sending) return;
+    setChatInput('');
+    setMessages(prev => [...prev, { role: 'user', text }]);
+    setSending(true);
     try {
-      await fetch('/api/demo/build-platforms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, platforms: localPlats.filter(p => p.selected) }) });
-      onBuild?.();
-    } catch {}
-    setBuilding(false);
+      const platformContext = platforms.map(p => `${p.actual_software || p.name}: ${p.reason || ''}`).join('\n');
+      const r = await fetch('/api/demo/orchestrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text, context: `Platforms for this session:\n${platformContext}` }),
+      });
+      const d = await r.json();
+      setMessages(prev => [...prev, { role: 'assistant', text: d.response || d.message || 'No response' }]);
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Error: ' + err.message }]);
+    }
+    setSending(false);
   }
 
   const STATUS_COLOR = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
 
   return (
     <HubOverlay onClose={onClose} title="Platforms" subtitle="Synthetic environments for this session">
-      {localPlats.length === 0 && <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: '0.8rem', padding: '1.5rem 0' }}>No platforms detected yet. Use the onboarding wizard to research the company.</div>}
+      {platforms.length === 0 && <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: '0.8rem', padding: '1.5rem 0' }}>No platforms detected yet. Use the onboarding wizard to research the company.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {localPlats.map((p, i) => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)' }}>
-            <input type="checkbox" checked={!!p.selected} onChange={() => setLocalPlats(prev => prev.map((x, j) => j === i ? { ...x, selected: !x.selected } : x))} style={{ accentColor: '#34c759' }} />
+        {platforms.map((p) => (
+          <div key={p.id || p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.actual_software || p.name}</div>
-              <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)' }}>{p.reason}</div>
+              {p.reason && <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>{p.reason}</div>}
             </div>
             {p.status && <span style={{ fontSize: '0.65rem', fontWeight: 700, color: STATUS_COLOR[p.status] || '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.status}</span>}
           </div>
         ))}
       </div>
-      <button onClick={rebuild} disabled={building} style={{ width: '100%', padding: '0.75rem', background: building ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#34c759,#30a74f)', color: building ? '#999' : '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: building ? 'not-allowed' : 'pointer' }}>
-        {building ? 'Building…' : 'Rebuild selected'}
-      </button>
+      {/* Chat */}
+      {messages.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, maxHeight: 220, overflowY: 'auto' }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '0.5rem 0.8rem', borderRadius: 12, background: m.role === 'user' ? 'linear-gradient(135deg,#c4b5fd,#a78bfa)' : 'rgba(255,255,255,0.75)', fontSize: '0.78rem', color: m.role === 'user' ? '#fff' : '#1a1a1a', border: '1px solid rgba(0,0,0,0.07)' }}>
+              {m.text}
+            </div>
+          ))}
+          {sending && <div style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'rgba(0,0,0,0.35)', padding: '0.25rem 0.5rem' }}>thinking…</div>}
+          <div ref={chatEndRef} />
+        </div>
+      )}
+      <form onSubmit={sendChat} style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={chatInput}
+          onChange={e => setChatInput(e.target.value)}
+          placeholder="Ask about these platforms…"
+          style={{ flex: 1, padding: '0.65rem 0.9rem', borderRadius: 12, border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.75)', fontSize: '0.82rem', outline: 'none' }}
+        />
+        <button type="submit" disabled={!chatInput.trim() || sending} style={{ padding: '0.65rem 1rem', borderRadius: 12, background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', color: '#fff', border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: chatInput.trim() && !sending ? 'pointer' : 'not-allowed', opacity: chatInput.trim() && !sending ? 1 : 0.5 }}>
+          Send
+        </button>
+      </form>
     </HubOverlay>
   );
 }
@@ -1482,9 +1517,6 @@ function AppInner() {
           sessionId={hubSessionId}
           platforms={hubPlatforms}
           onClose={() => setShowPlatforms(false)}
-          onBuild={() => {
-            if (hubSessionId) fetch(`/api/demo/session/${hubSessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => { if (d.platforms?.length) setHubPlatforms(d.platforms); }).catch(() => {});
-          }}
         />
       )}
       {showAbout && (
