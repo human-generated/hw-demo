@@ -367,12 +367,23 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 }
 
 // ── PlatformsView ──────────────────────────────────────────────────────────────
-function PlatformsView({ sessionId, platforms = [], onClose }) {
+const PLAT_GRADIENTS = [
+  'linear-gradient(135deg,#6366f1,#8b5cf6)',
+  'linear-gradient(135deg,#ec4899,#f43f5e)',
+  'linear-gradient(135deg,#14b8a6,#0ea5e9)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#84cc16,#10b981)',
+  'linear-gradient(135deg,#f97316,#eab308)',
+  'linear-gradient(135deg,#a78bfa,#06b6d4)',
+  'linear-gradient(135deg,#fb7185,#fbbf24)',
+];
+const PLAT_TILTS = [-10, 7, -5, 14, -16, 9, -8, 18];
+
+function PlatformChat({ sessionId, platform }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const chatEndRef = useRef(null);
-
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   async function sendChat(e) {
@@ -383,11 +394,9 @@ function PlatformsView({ sessionId, platforms = [], onClose }) {
     setMessages(prev => [...prev, { role: 'user', text }]);
     setSending(true);
     try {
-      const platformContext = platforms.map(p => `${p.actual_software || p.name}: ${p.reason || ''}`).join('\n');
       const r = await fetch('/api/demo/orchestrate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message: text, context: `Platforms for this session:\n${platformContext}` }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: text, context: `Platform: ${platform.actual_software || platform.name}\nDescription: ${platform.reason || ''}\nURL: ${platform.url || ''}` }),
       });
       const d = await r.json();
       setMessages(prev => [...prev, { role: 'assistant', text: d.response || d.message || 'No response' }]);
@@ -397,46 +406,119 @@ function PlatformsView({ sessionId, platforms = [], onClose }) {
     setSending(false);
   }
 
-  const STATUS_COLOR = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
-
   return (
-    <HubOverlay onClose={onClose} title="Platforms" subtitle="Synthetic environments for this session">
-      {platforms.length === 0 && <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: '0.8rem', padding: '1.5rem 0' }}>No platforms detected yet. Use the onboarding wizard to research the company.</div>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {platforms.map((p) => (
-          <div key={p.id || p.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.actual_software || p.name}</div>
-              {p.reason && <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>{p.reason}</div>}
-            </div>
-            {p.status && <span style={{ fontSize: '0.65rem', fontWeight: 700, color: STATUS_COLOR[p.status] || '#8e8e93', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.status}</span>}
-          </div>
-        ))}
-      </div>
-      {/* Chat */}
+    <div style={{ padding: '0 1rem 1rem' }}>
+      {platform.url && (
+        <a href={platform.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: '#6366f1', fontWeight: 600, textDecoration: 'none', marginBottom: 10, padding: '0.3rem 0.7rem', background: 'rgba(99,102,241,0.08)', borderRadius: 8, border: '1px solid rgba(99,102,241,0.2)' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {platform.url}
+        </a>
+      )}
       {messages.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, maxHeight: 220, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10, maxHeight: 160, overflowY: 'auto' }}>
           {messages.map((m, i) => (
-            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%', padding: '0.5rem 0.8rem', borderRadius: 12, background: m.role === 'user' ? 'linear-gradient(135deg,#c4b5fd,#a78bfa)' : 'rgba(255,255,255,0.75)', fontSize: '0.78rem', color: m.role === 'user' ? '#fff' : '#1a1a1a', border: '1px solid rgba(0,0,0,0.07)' }}>
+            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '88%', padding: '0.45rem 0.75rem', borderRadius: 10, background: m.role === 'user' ? 'linear-gradient(135deg,#c4b5fd,#a78bfa)' : 'rgba(255,255,255,0.8)', fontSize: '0.75rem', color: m.role === 'user' ? '#fff' : '#1a1a1a', border: '1px solid rgba(0,0,0,0.06)' }}>
               {m.text}
             </div>
           ))}
-          {sending && <div style={{ alignSelf: 'flex-start', fontSize: '0.72rem', color: 'rgba(0,0,0,0.35)', padding: '0.25rem 0.5rem' }}>thinking…</div>}
+          {sending && <div style={{ alignSelf: 'flex-start', fontSize: '0.68rem', color: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.4rem' }}>thinking…</div>}
           <div ref={chatEndRef} />
         </div>
       )}
-      <form onSubmit={sendChat} style={{ display: 'flex', gap: 8 }}>
-        <input
-          value={chatInput}
-          onChange={e => setChatInput(e.target.value)}
-          placeholder="Ask about these platforms…"
-          style={{ flex: 1, padding: '0.65rem 0.9rem', borderRadius: 12, border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.75)', fontSize: '0.82rem', outline: 'none' }}
-        />
-        <button type="submit" disabled={!chatInput.trim() || sending} style={{ padding: '0.65rem 1rem', borderRadius: 12, background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', color: '#fff', border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: chatInput.trim() && !sending ? 'pointer' : 'not-allowed', opacity: chatInput.trim() && !sending ? 1 : 0.5 }}>
-          Send
-        </button>
+      <form onSubmit={sendChat} style={{ display: 'flex', gap: 6 }}>
+        <input value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder={`Ask about ${platform.actual_software || platform.name}…`}
+          style={{ flex: 1, padding: '0.5rem 0.75rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', fontSize: '0.75rem', outline: 'none' }} />
+        <button type="submit" disabled={!chatInput.trim() || sending}
+          style={{ padding: '0.5rem 0.9rem', borderRadius: 10, background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', color: '#fff', border: 'none', fontSize: '0.75rem', fontWeight: 600, cursor: chatInput.trim() && !sending ? 'pointer' : 'not-allowed', opacity: chatInput.trim() && !sending ? 1 : 0.5 }}>↑</button>
       </form>
-    </HubOverlay>
+    </div>
+  );
+}
+
+function PlatformsView({ sessionId, platforms = [], onClose }) {
+  const [selected, setSelected] = useState(null);
+  const STATUS_DOT = { deployed: '#34c759', building: '#f59e0b', error: '#ff3b30', pending: '#8e8e93' };
+
+  return (
+    <div className="aw" style={{ position: 'fixed', inset: 0, zIndex: 1000 }}>
+      {/* reuse MeshGradient bg via inline import — fallback to white */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff,#ffffff,#aee8e2,#d4eaed)', zIndex: 0 }} />
+      <nav className="aw-menu" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="aw-menu-left">
+          <span className="aw-menu-logo">h</span>
+          <div className="aw-menu-sep" />
+          <span className="aw-menu-label">Platforms</span>
+        </div>
+        <div className="aw-menu-right">
+          <button onClick={onClose} style={{ background: 'none', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: '4px 12px', fontSize: '0.78rem', cursor: 'pointer', color: 'rgba(0,0,0,0.6)' }}>✕ Close</button>
+        </div>
+      </nav>
+
+      <div className="aw-content" style={{ position: 'relative', zIndex: 1, overflowY: 'auto' }}>
+        {platforms.length === 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
+            No platforms detected yet. Run the onboarding wizard first.
+          </div>
+        )}
+        <div className="aw-tab-workers">
+          <div className="aw-grid">
+            {platforms.map((p, i) => {
+              const name = p.actual_software || p.name || 'Platform';
+              const initial = name[0].toUpperCase();
+              const tilt = PLAT_TILTS[i % PLAT_TILTS.length];
+              const grad = PLAT_GRADIENTS[i % PLAT_GRADIENTS.length];
+              const dotColor = STATUS_DOT[p.status] || '#8e8e93';
+              const isSelected = selected === i;
+              return (
+                <div key={p.id || i} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div className="aw-worker" style={{ '--tilt': `${tilt}deg`, cursor: 'pointer' }} onClick={() => setSelected(isSelected ? null : i)}>
+                    <div className="aw-photo-wrap">
+                      <div className="aw-photo" style={{ background: grad, transform: `rotate(calc(-1 * var(--tilt)))`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: '2.8rem', fontWeight: 800, color: 'rgba(255,255,255,0.9)', letterSpacing: '-0.02em', userSelect: 'none' }}>{initial}</span>
+                      </div>
+                    </div>
+                    <div className="aw-badge-overlay">
+                      <div className="aw-badge-inner">
+                        <div className="aw-badge-green" style={{ background: grad }} />
+                        <div className="aw-badge-status">
+                          <span className="aw-status-dot" style={{ background: dotColor }} />
+                          <span>{p.status || 'active'}</span>
+                        </div>
+                        <div className="aw-badge-photo" style={{ background: grad, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'rgba(255,255,255,0.9)' }}>{initial}</span>
+                        </div>
+                        <div className="aw-badge-info">
+                          <span className="aw-badge-name">{name}</span>
+                          <span className="aw-badge-role">{p.category || p.name || ''}</span>
+                        </div>
+                        {p.reason && <div style={{ fontSize: '0.62rem', color: 'rgba(0,0,0,0.45)', padding: '0 0.75rem', lineHeight: 1.4, marginBottom: 4 }}>{p.reason.slice(0, 80)}{p.reason.length > 80 ? '…' : ''}</div>}
+                        <div className="aw-badge-actions">
+                          <button className="aw-btn aw-btn--view" onClick={e => { e.stopPropagation(); setSelected(isSelected ? null : i); }}>
+                            {isSelected ? 'Collapse' : 'Chat'}
+                          </button>
+                          {p.url && (
+                            <a href={p.url} target="_blank" rel="noopener noreferrer" className="aw-btn aw-btn--call" onClick={e => e.stopPropagation()} style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              Open
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div style={{ marginTop: 8, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: 16, border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                      <div style={{ padding: '0.75rem 1rem 0.5rem', fontWeight: 600, fontSize: '0.78rem', color: '#1a1a1a', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>{name}</div>
+                      <PlatformChat sessionId={sessionId} platform={p} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
