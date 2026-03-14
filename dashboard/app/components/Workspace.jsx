@@ -26,27 +26,6 @@ function BarcodeSvg() {
   );
 }
 
-function parseCompanyMetrics(company) {
-  if (!company) return { revenue: '$--', employees: '--', marketCap: '$--', sectorRank: '--', sector: '--', domain: '', siteName: 'COMPANY' };
-  const size = company.size || '';
-  const empMatch = size.match(/~?([\d,]+(?:\.\d+)?[Kk]?)\s*(?:000\s*)?employees/i);
-  const revMatch = size.match(/~?([€$£]\s*[\d,]+(?:\.\d+)?[MBKmb]+)\b/i);
-  const employees = empMatch ? empMatch[1].replace(/,/g, '') : '--';
-  const revenue = revMatch ? revMatch[1].replace(/\s+/g, '') : '--';
-  const domainRaw = company.domain || '';
-  const domain = domainRaw.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-  const words = company.name ? company.name.split(/\s+/) : [];
-  const siteName = (words[0] || 'COMPANY').toUpperCase().slice(0, 10);
-  return {
-    revenue: revenue !== '--' ? revenue : '$--',
-    employees: employees !== '--' ? employees : '--',
-    marketCap: '$--',
-    sectorRank: '--',
-    sector: company.industry || '--',
-    domain,
-    siteName,
-  };
-}
 
 export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard }) {
   const [chatInput, setChatInput] = useState('');
@@ -62,7 +41,8 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
-  const metrics = parseCompanyMetrics(company);
+  const [tilesData, setTilesData] = useState(null);
+  const [tilesLoading, setTilesLoading] = useState(false);
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -134,6 +114,16 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
     const timer = setTimeout(init, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    setTilesLoading(true);
+    fetch(`/api/demo/research/${sessionId}/tiles`)
+      .then(r => r.json())
+      .then(d => { if (!d.error) setTilesData(d); })
+      .catch(() => {})
+      .finally(() => setTilesLoading(false));
+  }, [sessionId, companyName]);
 
   const attachCamera = useCallback(el => {
     cameraVideoRef.current = el;
@@ -348,176 +338,53 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
           <div className="ws-research-title-row">
             <WordsStagger className="ws-research-prefix" delay={0.3} stagger={0.06} speed={0.4}>Company Research</WordsStagger>
             <span style={{ color: 'rgba(0,0,0,0.15)', fontSize: 20 }}>|</span>
-            <WordsStagger className="ws-research-company" delay={0.5} stagger={0.08} speed={0.5}>{companyName}</WordsStagger>
-            <div className="ws-live-badge">
-              <span className="ws-live-dot" />
-              <span className="ws-live-text">Live Data</span>
-            </div>
+            <WordsStagger className="ws-research-company" delay={0.5} stagger={0.08} speed={0.5}>{tilesData?.companyName || companyName}</WordsStagger>
+            {!tilesLoading && tilesData && (
+              <div className="ws-live-badge"><span className="ws-live-dot" /><span className="ws-live-text">Live Data</span></div>
+            )}
+            {tilesLoading && <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', fontFamily: 'monospace' }}>loading…</span>}
           </div>
-          <WordsStagger className="ws-updated" delay={0.7} stagger={0.06} speed={0.4}>Updated 2m ago</WordsStagger>
+          {tilesData?.lastUpdated && <div className="ws-updated">Updated {new Date(tilesData.lastUpdated).toLocaleDateString()}</div>}
         </div>
 
+        {/* Fixed metric tiles — always shown, data from API */}
         <div className="ws-metrics">
           {[
-            { label: 'Annual Revenue', value: metrics.revenue, change: company?.industry || 'Enterprise', delay: 0.6 },
-            { label: 'Employees', value: metrics.employees, change: company?.size?.match(/([A-Za-z]+\s*enterprise|[A-Za-z]+\s*company)/i)?.[0] || 'Global operations', delay: 0.7 },
-            { label: 'Market Cap', value: metrics.marketCap, change: company?.country || '--', delay: 0.8 },
-            { label: 'Sector', value: (company?.industry || '--').split(/[,/]/)[0].trim(), change: company?.size?.split(',').slice(-1)[0]?.trim() || '--', delay: 0.9 },
-          ].map(m => (
+            { label: 'Annual Revenue', value: tilesData?.fixed?.revenue ?? '--' },
+            { label: 'Employees', value: tilesData?.fixed?.employees ?? '--' },
+            { label: 'Market Cap', value: tilesData?.fixed?.marketCap ?? '--' },
+            { label: 'Sector', value: tilesData?.fixed?.sector ?? '--' },
+          ].map((m, i) => (
             <div key={m.label} className="ws-metric">
-              <WordsStagger className="ws-metric-label" delay={m.delay} stagger={0.05} speed={0.35}>{m.label}</WordsStagger>
-              <WordsStagger className="ws-metric-value" delay={m.delay + 0.2} stagger={0.08} speed={0.4}>{m.value}</WordsStagger>
-              <WordsStagger className="ws-metric-change" delay={m.delay + 0.4} stagger={0.06} speed={0.35}>{m.change}</WordsStagger>
+              <WordsStagger className="ws-metric-label" delay={0.6 + i * 0.1} stagger={0.05} speed={0.35}>{m.label}</WordsStagger>
+              <WordsStagger className="ws-metric-value" delay={0.8 + i * 0.1} stagger={0.08} speed={0.4}>{m.value}</WordsStagger>
             </div>
           ))}
         </div>
 
-        <div className="ws-charts-row">
-          <div className="ws-chart-card" style={{ flex: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <WordsStagger className="ws-chart-title" delay={1.2} stagger={0.06} speed={0.4}>Revenue Trend</WordsStagger>
-              <div style={{ display: 'flex', gap: 12 }}>
-                {['1M', '6M', '1Y', 'ALL'].map(p => (
-                  <span key={p} style={{ fontFamily: "'DM Sans', system-ui", fontSize: 11, color: p === '1Y' ? '#1a1a1a' : 'rgba(0,0,0,0.3)', fontWeight: p === '1Y' ? 600 : 400, cursor: 'pointer' }}>{p}</span>
-                ))}
+        {/* Dynamic tiles from research */}
+        {tilesLoading && (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '0 1.5rem 1rem' }}>
+            {[1,2,3,4].map(i => (
+              <div key={i} style={{ height: 80, borderRadius: 12, background: 'rgba(0,0,0,0.05)', flex: '1 1 160px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        )}
+        {!tilesLoading && tilesData?.tiles?.length > 0 && (
+          <div style={{ padding: '0 1.5rem 1rem', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {tilesData.tiles.map(tile => (
+              <div key={tile.id} style={{ flex: tile.wide ? '1 1 100%' : '1 1 160px', minWidth: tile.wide ? '100%' : 140, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.07)', padding: '0.85rem 1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <div style={{ fontSize: '0.6rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.35)', marginBottom: 6 }}>{tile.label}</div>
+                <div style={{ fontSize: tile.wide ? '0.78rem' : '0.88rem', fontWeight: tile.wide ? 400 : 600, color: '#1a1a1a', lineHeight: 1.45 }}>{tile.value}</div>
               </div>
-            </div>
-            <svg className="ws-chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#34c759" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#34c759" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M0,85 C50,80 100,70 150,55 C200,40 250,35 300,25 C340,18 380,15 400,12 L400,100 L0,100 Z" fill="url(#chartGrad)" />
-              <path d="M0,85 C50,80 100,70 150,55 C200,40 250,35 300,25 C340,18 380,15 400,12" fill="none" stroke="#34c759" strokeWidth="2" />
-            </svg>
-            <div className="ws-chart-footer">
-              <WordsStagger className="ws-chart-value" delay={1.4} stagger={0.08} speed={0.4}>{metrics.revenue}</WordsStagger>
-              <WordsStagger className="ws-metric-change" delay={1.5} stagger={0.06} speed={0.35}>{company?.industry || 'Revenue'}</WordsStagger>
-            </div>
+            ))}
           </div>
-
-          <div className="ws-chart-card" style={{ flex: 1 }}>
-            <WordsStagger className="ws-chart-title" delay={1.3} stagger={0.06} speed={0.4}>Competitive Landscape</WordsStagger>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { name: companyName, pct: 34, color: '#34c759' },
-                { name: 'Industry Leader', pct: 28, color: 'rgba(0,0,0,0.12)' },
-                { name: 'Peer Co.', pct: 22, color: 'rgba(0,0,0,0.08)' },
-                { name: 'Others', pct: 16, color: 'rgba(0,0,0,0.05)' },
-              ].map(c => (
-                <div key={c.name}>
-                  <div className="ws-competitor-row">
-                    <span className="ws-competitor-name">{c.name}</span>
-                    <span className="ws-competitor-pct" style={{ color: c.name === companyName ? '#34c759' : 'rgba(0,0,0,0.35)' }}>{c.pct}%</span>
-                  </div>
-                  <div className="ws-competitor-bar" style={{ width: `${c.pct * 2.5}%`, background: c.color }} />
-                </div>
-              ))}
-            </div>
+        )}
+        {!tilesLoading && !tilesData && (
+          <div style={{ padding: '1rem 1.5rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.8rem' }}>
+            Research a company to see insights here.
           </div>
-        </div>
-
-        <div className="ws-signals-row">
-          <div className="ws-signals-card">
-            <WordsStagger className="ws-signals-title" delay={1.5} stagger={0.06} speed={0.4}>Key Signals</WordsStagger>
-            <div className="ws-signals-tags">
-              {(researchFindings && researchFindings.length > 0
-                ? researchFindings.slice(0, 5).map(f => (typeof f === 'string' ? f : (f.title || f.text || '')).replace(/^[-•*]\s*/, '').slice(0, 35))
-                : ['Research Pending', 'AI Analysis', 'Data Collection', 'Market Scan', 'Report Ready']
-              ).map(s => (
-                <span key={s} className="ws-signal-tag">{s}</span>
-              ))}
-            </div>
-          </div>
-          <div className="ws-ai-score">
-            <WordsStagger className="ws-ai-score-label" delay={1.6} stagger={0.06} speed={0.35}>AI Score</WordsStagger>
-            <WordsStagger className="ws-ai-score-value" delay={1.8} stagger={0.1} speed={0.5}>87</WordsStagger>
-            <WordsStagger className="ws-ai-score-sub" delay={2.0} stagger={0.06} speed={0.35}>out of 100</WordsStagger>
-          </div>
-        </div>
-
-        <div className="ws-sandbox-section">
-          <div className="ws-sandbox-header">
-            <WordsStagger className="ws-sandbox-label" delay={1.8} stagger={0.06} speed={0.4}>Virtual Sandbox</WordsStagger>
-            <div className="ws-sandbox-env-badge">
-              <span>2 environments running</span>
-              <span className="ws-sandbox-env-dot" />
-            </div>
-          </div>
-          <div className="ws-sandbox-container">
-            <div className="ws-sandbox-browser">
-              <div className="ws-sandbox-toolbar">
-                <div className="ws-sandbox-dots">
-                  <span className="ws-sandbox-dot ws-sandbox-dot--red" />
-                  <span className="ws-sandbox-dot ws-sandbox-dot--yellow" />
-                  <span className="ws-sandbox-dot ws-sandbox-dot--green" />
-                </div>
-                <div className="ws-sandbox-nav-arrows">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </div>
-                <div className="ws-sandbox-url"><span>{metrics.domain ? `${metrics.domain}/investor-relations` : 'investor-relations'}</span></div>
-              </div>
-              <div className="ws-sandbox-page">
-                <div className="ws-sandbox-app-nav">
-                  <span className="ws-sandbox-site-name">{metrics.siteName}</span>
-                  <div className="ws-sandbox-app-links"><span>Products</span><span>Investors</span><span>About</span></div>
-                </div>
-                <div className="ws-sandbox-results-section">
-                  <span className="ws-sandbox-results-title">{company?.industry || 'Company'} Overview</span>
-                  <span className="ws-sandbox-results-subtitle">{company?.description ? company.description.split('.')[0] + '.' : `${companyName} — AI back-office simulation.`}</span>
-                </div>
-                <div className="ws-sandbox-dash-metrics">
-                  <div className="ws-sandbox-dash-metric ws-sandbox-dash-metric--highlight">
-                    <span className="ws-sandbox-dash-metric-label">REVENUE</span>
-                    <span className="ws-sandbox-dash-metric-value">{metrics.revenue}</span>
-                  </div>
-                  <div className="ws-sandbox-dash-metric">
-                    <span className="ws-sandbox-dash-metric-label">EMPLOYEES</span>
-                    <span className="ws-sandbox-dash-metric-value">{metrics.employees}</span>
-                  </div>
-                  <div className="ws-sandbox-dash-metric">
-                    <span className="ws-sandbox-dash-metric-label">SECTOR</span>
-                    <span className="ws-sandbox-dash-metric-value ws-sandbox-dash-metric-value--green">{(company?.industry || '--').split(/[,/]/)[0].slice(0, 8)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="ws-sandbox-phone">
-              <div className="ws-sandbox-phone-notch" />
-              <div className="ws-sandbox-phone-screen">
-                <div className="ws-sandbox-phone-status">
-                  <span className="ws-sandbox-phone-time">9:41</span>
-                </div>
-                <div className="ws-sandbox-stock-name">{companyName.split(' ')[0]}</div>
-                <div className="ws-sandbox-stock-price-row">
-                  <span className="ws-sandbox-stock-price">$68.42</span>
-                  <span className="ws-sandbox-stock-change">+2.4%</span>
-                </div>
-                <svg className="ws-sandbox-stock-chart" width="100%" height="24" viewBox="0 0 90 24" fill="none" preserveAspectRatio="none">
-                  <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3" stroke="#34C759" strokeWidth="1.5" fill="none" />
-                  <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3 L90 24 L0 24 Z" fill="#34C759" style={{ opacity: 0.08 }} />
-                </svg>
-                <div className="ws-sandbox-stock-buttons">
-                  <div className="ws-sandbox-stock-btn ws-sandbox-stock-btn--buy">Buy</div>
-                  <div className="ws-sandbox-stock-btn ws-sandbox-stock-btn--sell">Sell</div>
-                </div>
-                <div className="ws-sandbox-stock-stats">
-                  {[{ l: 'Mkt Cap', v: metrics.marketCap }, { l: 'Country', v: company?.country?.slice(0, 5) || '--' }, { l: 'Staff', v: metrics.employees }].map(s => (
-                    <div key={s.l} className="ws-sandbox-stock-stat">
-                      <span className="ws-sandbox-stock-stat-label">{s.l}</span>
-                      <span className="ws-sandbox-stock-stat-value">{s.v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="ws-sandbox-phone-home" />
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
