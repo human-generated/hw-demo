@@ -7,6 +7,7 @@ import { Homepage } from './components/Homepage';
 import { Workspace } from './components/Workspace';
 import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
+import { OnboardingFlow } from './components/OnboardingFlow';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
@@ -1457,11 +1458,10 @@ function AppInner() {
         />
       )}
       {showWizard && (
-        <NewHubWizard
+        <OnboardingFlow
           sessionId={hubSessionId}
           onDone={() => {
             setShowWizard(false);
-            // Reload session data to get updated platforms/company
             if (hubSessionId) {
               fetch(`/api/demo/session/${hubSessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
                 if (d.workers?.length) setHubWorkers(d.workers);
