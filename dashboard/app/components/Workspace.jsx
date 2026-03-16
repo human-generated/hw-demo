@@ -4,6 +4,8 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
+import { PlatformPreviewCard } from './WorkerPage';
+import { getWorkerPhoto, getWorkerCode } from './WorkerConfig';
 
 const ANAM_API_KEY = "NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9";
 const ANAM_PERSONA_ID = "6ccddf38-aed1-4bbb-9809-fc92986eb436";
@@ -26,12 +28,126 @@ function BarcodeSvg() {
   );
 }
 
+// Hub phase constants
+const P = {
+  RESEARCH: 'research',
+  TILES_READY: 'tiles-ready',
+  PLATFORMS_PROPOSED: 'platforms-proposed',
+  PLATFORMS_BUILDING: 'platforms-building',
+  PLATFORMS_BUILT: 'platforms-built',
+  WORKERS_PROPOSED: 'workers-proposed',
+  WORKERS_DEPLOYING: 'workers-deploying',
+  WORKERS_BUILT: 'workers-built',
+};
 
-export function Workspace({ companyName = 'Meridian Corp.', company = null, researchSummary = '', researchFindings = [], anamClient = null, cameraStream = null, avatarStream = null, onOpenWorkerProfile, onGoHome, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard }) {
+function Spinner({ size = 28, msg }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '1.25rem 1.5rem' }}>
+      <div style={{ width: size, height: size, border: `2.5px solid rgba(52,199,89,0.2)`, borderTopColor: '#34c759', borderRadius: '50%', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
+      {msg && <span style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'monospace' }}>{msg}</span>}
+    </div>
+  );
+}
+
+function SectionHead({ label, badge, sub }) {
+  return (
+    <div style={{ padding: '1rem 1.5rem 0.5rem', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+      {badge && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#34c759', background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.25)', borderRadius: 6, padding: '2px 7px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{badge}</span>}
+      {sub && <span style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.3)', marginLeft: 'auto' }}>{sub}</span>}
+    </div>
+  );
+}
+
+function WorkerProposalCard({ worker, selected, onToggle, onEditWorkflow }) {
+  const photo = getWorkerPhoto(worker, 0);
+  const wfs = worker.workflows || [];
+  return (
+    <div onClick={onToggle} style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0.875rem 1rem',
+      background: selected ? 'rgba(52,199,89,0.06)' : 'rgba(255,255,255,0.5)',
+      border: `1px solid ${selected ? 'rgba(52,199,89,0.25)' : 'rgba(0,0,0,0.07)'}`,
+      borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+    }}>
+      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f4f5f7', backgroundImage: photo ? `url(${photo})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0, border: '1px solid rgba(0,0,0,0.07)' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: 2 }}>{worker.name}</div>
+        <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.45)', marginBottom: 6 }}>{worker.role || worker.description}</div>
+        {wfs.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {wfs.slice(0, 3).map((wf, i) => (
+              <span key={i} onClick={e => { e.stopPropagation(); onEditWorkflow?.(wf, worker); }} style={{
+                fontSize: '0.62rem', fontWeight: 500, color: 'rgba(0,0,0,0.5)',
+                background: 'rgba(0,0,0,0.05)', borderRadius: 6, padding: '2px 7px',
+                cursor: 'pointer', transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => (e.target.style.background = 'rgba(0,0,0,0.1)')}
+              onMouseLeave={e => (e.target.style.background = 'rgba(0,0,0,0.05)')}
+              >{wf.name || wf.trigger}</span>
+            ))}
+            {wfs.length > 3 && <span style={{ fontSize: '0.62rem', color: 'rgba(0,0,0,0.3)', padding: '2px 4px' }}>+{wfs.length - 3}</span>}
+          </div>
+        )}
+      </div>
+      <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${selected ? '#34c759' : 'rgba(0,0,0,0.15)'}`, background: selected ? '#34c759' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+        {selected && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+      </div>
+    </div>
+  );
+}
+
+function BuiltWorkerCard({ worker, onOpen }) {
+  const photo = getWorkerPhoto(worker, 0);
+  const statusColor = worker.status === 'deployed' || worker.status === 'running' ? '#34c759' : '#ff9500';
+  return (
+    <div onClick={() => onOpen?.(worker)} style={{
+      display: 'flex', alignItems: 'center', gap: 12, padding: '0.75rem 1rem',
+      background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.07)',
+      borderRadius: 12, cursor: 'pointer', transition: 'box-shadow 0.15s',
+    }}
+    onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)')}
+    onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+    >
+      <div style={{ width: 36, height: 36, borderRadius: 9, background: '#f4f5f7', backgroundImage: photo ? `url(${photo})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0, border: '1px solid rgba(0,0,0,0.07)' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{worker.name}</div>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', marginTop: 1 }}>{(worker.workflows || []).length} workflow{(worker.workflows || []).length !== 1 ? 's' : ''}</div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor }} />
+        <span style={{ fontSize: '0.68rem', fontWeight: 500, color: statusColor, textTransform: 'capitalize' }}>{worker.status || 'Active'}</span>
+      </div>
+    </div>
+  );
+}
+
+export function Workspace({
+  companyName = 'Meridian Corp.',
+  company = null,
+  researchSummary = '',
+  researchFindings = [],
+  anamClient = null,
+  cameraStream = null,
+  avatarStream = null,
+  onOpenWorkerProfile,
+  onGoHome,
+  onGoCall,
+  onGoHub,
+  onGoWorkers,
+  onGoPlatforms,
+  onGoAbout,
+  sessionId,
+  onBackToDashboard,
+  onWorkersBuilt,
+}) {
+  // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
-    { id: 1, author: 'ALEXANDRA', text: "I'm your orchestrator. What company should I research?", time: 'Just now', isUser: false },
+    { id: 1, author: 'ALEXANDRA', text: `Starting research on ${companyName}…`, time: 'Just now', isUser: false },
   ]);
+  const [orchestratorLoading, setOrchestratorLoading] = useState(false);
+
+  // ── Anam/call state ────────────────────────────────────────────────────────
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
@@ -40,9 +156,21 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
   const [elapsed, setElapsed] = useState(0);
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
-  const [orchestratorLoading, setOrchestratorLoading] = useState(false);
+
+  // ── Hub flow state ─────────────────────────────────────────────────────────
+  const [hubPhase, setHubPhase] = useState(P.RESEARCH);
   const [tilesData, setTilesData] = useState(null);
   const [tilesLoading, setTilesLoading] = useState(false);
+  const [proposedPlatforms, setProposedPlatforms] = useState([]);
+  const [builtPlatforms, setBuiltPlatforms] = useState([]);
+  const [platformFeedback, setPlatformFeedback] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [proposedWorkers, setProposedWorkers] = useState([]);
+  const [builtWorkers, setBuiltWorkers] = useState([]);
+  const [workerFeedback, setWorkerFeedback] = useState('');
+  const [buildingMsg, setBuildingMsg] = useState('');
+  const [editingWorkflow, setEditingWorkflow] = useState(null); // { wf, worker }
+  const [wfEditText, setWfEditText] = useState('');
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -50,11 +178,12 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
   const subtitleTimerRef = useRef(null);
   const msgSeqRef = useRef(2);
   const chatEndRef = useRef(null);
+  const researchTriggered = useRef(false);
+  const rightPanelRef = useRef(null);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  // ── Anam connection ────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     function attachSubtitleListener(client) {
@@ -76,30 +205,23 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         cameraVideoRef.current.srcObject = cameraStreamRef.current;
       }
       if (anamClientRef.current) {
-        // Existing client handed off from Homepage — already connected, just re-attach stream
         attachSubtitleListener(anamClientRef.current);
-        // VIDEO_PLAY_STARTED already fired; mark connected immediately
         if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
-        // Attach the media stream directly to the Workspace video element
         const videoEl = document.getElementById('ws-avatar-video');
         if (videoEl && avatarStream) {
           videoEl.srcObject = avatarStream;
           videoEl.muted = false;
           videoEl.play().catch(() => {});
         } else if (videoEl) {
-          // No stream captured — try re-streaming (may not fire VIDEO_PLAY_STARTED again)
           try { await anamClientRef.current.streamToVideoElement('ws-avatar-video'); } catch {}
         }
         return;
       }
-      await createFreshSession();
-    }
-    async function createFreshSession() {
       if (cancelled) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (!cancelled) { cameraStreamRef.current = stream; setCameraOn(true); if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream; }
-      } catch { console.warn('Camera denied'); }
+      } catch {}
       if (cancelled) return;
       try {
         const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: ANAM_PERSONA_ID });
@@ -116,21 +238,6 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
   }, []);
 
   useEffect(() => {
-    if (!sessionId) return;
-    setTilesLoading(true);
-    fetch(`/api/demo/research/${sessionId}/tiles`)
-      .then(r => r.json())
-      .then(d => { if (!d.error) setTilesData(d); })
-      .catch(() => {})
-      .finally(() => setTilesLoading(false));
-  }, [sessionId, companyName]);
-
-  const attachCamera = useCallback(el => {
-    cameraVideoRef.current = el;
-    if (el && cameraStreamRef.current) el.srcObject = cameraStreamRef.current;
-  }, []);
-
-  useEffect(() => {
     if (!isConnected || !callStartTime) return;
     const tick = () => setElapsed(Math.floor((Date.now() - callStartTime) / 1000));
     tick();
@@ -138,7 +245,187 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
     return () => clearInterval(id);
   }, [isConnected, callStartTime]);
 
-  const timeStr = `${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`;
+  // ── Research trigger ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!sessionId || !companyName || researchTriggered.current) return;
+    researchTriggered.current = true;
+    startResearch();
+  }, [sessionId, companyName]);
+
+  async function startResearch() {
+    setTilesLoading(true);
+    // Check if tiles already exist
+    try {
+      const r = await fetch(`/api/demo/research/${sessionId}/tiles`);
+      const d = await r.json();
+      if (!d.error && d.tiles?.length > 0) {
+        setTilesData(d);
+        setTilesLoading(false);
+        addMsg('ALEXANDRA', `Research on **${d.companyName || companyName}** loaded. ${d.tiles.length} insights found.`);
+        await fetchSessionPlatforms();
+        return;
+      }
+    } catch {}
+
+    // Trigger fresh research
+    addMsg('ALEXANDRA', `Researching ${companyName}. I'll share findings as they come in…`);
+    try {
+      const r = await fetch('/api/demo/research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company: companyName, sessionId }),
+      });
+      const d = await r.json();
+      if (d.company) {
+        const plats = d.platforms || [];
+        setProposedPlatforms(plats.map(p => ({ ...p, _selected: p.selected !== false })));
+        addMsg('ALEXANDRA', [
+          `Research complete on **${d.company.name}**.`,
+          d.summary || '',
+          plats.length ? `Detected ${plats.length} platforms in their stack.` : '',
+        ].filter(Boolean).join(' '));
+      }
+      // Fetch tiles
+      try {
+        const tr = await fetch(`/api/demo/research/${sessionId}/tiles`);
+        const td = await tr.json();
+        if (!td.error) setTilesData(td);
+      } catch {}
+      setHubPhase(P.PLATFORMS_PROPOSED);
+      // scroll right panel
+      setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+    } catch (e) {
+      addMsg('ALEXANDRA', 'Research encountered an error. Please try again.');
+      console.error('Research error:', e);
+    }
+    setTilesLoading(false);
+  }
+
+  async function fetchSessionPlatforms() {
+    try {
+      const r = await fetch(`/api/demo/session/${sessionId}`);
+      const d = await r.json();
+      const deployed = (d.platforms || []).filter(p => p.status === 'deployed');
+      if (deployed.length > 0) {
+        setBuiltPlatforms(deployed);
+        const workers = d.workers || [];
+        if (workers.length > 0) {
+          setBuiltWorkers(workers);
+          setHubPhase(P.WORKERS_BUILT);
+        } else {
+          setHubPhase(P.PLATFORMS_BUILT);
+          proposeWorkers();
+        }
+      } else {
+        const proposed = (d.platforms || []);
+        setProposedPlatforms(proposed.map(p => ({ ...p, _selected: p.selected !== false })));
+        setHubPhase(P.PLATFORMS_PROPOSED);
+      }
+    } catch {}
+  }
+
+  async function handleBuildPlatforms() {
+    const selected = proposedPlatforms.filter(p => p._selected !== false);
+    if (!selected.length) return;
+    setHubPhase(P.PLATFORMS_BUILDING);
+    setBuildingMsg('Discovering platform APIs…');
+    const t1 = setTimeout(() => setBuildingMsg('Cloning synthetic environment…'), 2000);
+    const t2 = setTimeout(() => setBuildingMsg('Spinning up platform sandboxes…'), 4500);
+    try {
+      await fetch('/api/demo/build-platforms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, platforms: selected, feedback: platformFeedback }),
+      });
+      clearTimeout(t1); clearTimeout(t2);
+      const sr = await fetch(`/api/demo/session/${sessionId}`);
+      const sd = await sr.json();
+      const deployed = (sd.platforms || []).filter(p => p.status === 'deployed');
+      setBuiltPlatforms(deployed.length > 0 ? deployed : selected.map(p => ({ ...p, status: 'deployed' })));
+      setHubPhase(P.PLATFORMS_BUILT);
+      addMsg('ALEXANDRA', `Platforms are live. ${deployed.length || selected.length} environments ready. Proposing AI workers for your team now…`);
+      setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+      proposeWorkers();
+    } catch (e) {
+      clearTimeout(t1); clearTimeout(t2);
+      console.error('Build error:', e);
+      addMsg('ALEXANDRA', 'Platform build encountered an error. Please try again.');
+      setHubPhase(P.PLATFORMS_PROPOSED);
+    }
+  }
+
+  async function proposeWorkers() {
+    try {
+      const r = await fetch('/api/demo/workers/propose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, feedback: workerFeedback }),
+      });
+      const d = await r.json();
+      const workers = (d.workers || []).map(w => ({ ...w, _selected: true }));
+      setProposedWorkers(workers);
+      setHubPhase(P.WORKERS_PROPOSED);
+      setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+    } catch (e) {
+      console.error('Propose workers error:', e);
+    }
+  }
+
+  async function handleDeployWorkers() {
+    const selected = proposedWorkers.filter(w => w._selected !== false);
+    if (!selected.length) return;
+    setHubPhase(P.WORKERS_DEPLOYING);
+    setBuildingMsg('Deploying AI workers…');
+    try {
+      await Promise.allSettled(selected.map(w =>
+        fetch('/api/demo/workers/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, worker: w }),
+        })
+      ));
+      const sr = await fetch(`/api/demo/session/${sessionId}`);
+      const sd = await sr.json();
+      const workers = sd.workers?.length > 0 ? sd.workers : selected.map(w => ({ ...w, status: 'deployed' }));
+      setBuiltWorkers(workers);
+      setHubPhase(P.WORKERS_BUILT);
+      addMsg('ALEXANDRA', `${workers.length} AI workers are now deployed and active. You can scroll down to see them, or open any worker for details.`);
+      onWorkersBuilt?.(workers);
+      setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+    } catch (e) {
+      console.error('Deploy workers error:', e);
+      setHubPhase(P.WORKERS_PROPOSED);
+    }
+  }
+
+  async function handleSaveWorkflow() {
+    if (!editingWorkflow) return;
+    const { wf, worker } = editingWorkflow;
+    // Update the workflow in proposedWorkers
+    setProposedWorkers(prev => prev.map(w => {
+      if (w.id !== worker.id) return w;
+      const updatedWfs = (w.workflows || []).map(x => x.name === wf.name || x.id === wf.id ? { ...x, name: wfEditText || x.name } : x);
+      return { ...w, workflows: updatedWfs };
+    }));
+    // Persist via API
+    try {
+      await fetch(`/api/demo/workers/${worker.id}/flow`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, workflowId: wf.id, changes: { name: wfEditText } }),
+      });
+    } catch {}
+    setEditingWorkflow(null);
+  }
+
+  function addMsg(author, text) {
+    setMessages(prev => [...prev, { id: ++msgSeqRef.current, author, text, time: 'Just now', isUser: author === 'YOU' }]);
+  }
+
+  const attachCamera = useCallback(el => {
+    cameraVideoRef.current = el;
+    if (el && cameraStreamRef.current) el.srcObject = cameraStreamRef.current;
+  }, []);
 
   const handleToggleMute = useCallback(() => {
     const client = anamClientRef.current;
@@ -155,7 +442,7 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         cameraStreamRef.current = stream; setCameraOn(true);
         if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
-      } catch { /* */ }
+      } catch {}
     }
   }, [cameraOn]);
 
@@ -171,19 +458,24 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
     const next = !avatarMuted; videoEl.muted = next; setAvatarMuted(next);
   }, [avatarMuted]);
 
+  function handleInterrupt() {
+    // Mute + unmute rapidly to signal interruption to Anam
+    const client = anamClientRef.current;
+    if (!client) return;
+    client.muteOutputAudio?.();
+    setTimeout(() => client.unmuteOutputAudio?.(), 200);
+    window.speechSynthesis?.cancel();
+  }
+
   async function handleChatSubmit(e) {
     e.preventDefault();
     const text = chatInput.trim();
     if (!text || orchestratorLoading) return;
-    const userMsg = { id: ++msgSeqRef.current, author: 'YOU', text, time: 'Just now', isUser: true };
-    setMessages(prev => [...prev, userMsg]);
+    addMsg('YOU', text);
     setChatInput('');
-
     if (isConnected && anamClientRef.current) {
       anamClientRef.current.sendUserMessage(text);
     }
-
-    // Send to real orchestrator
     setOrchestratorLoading(true);
     try {
       const res = await fetch('/api/demo/orchestrate', {
@@ -193,20 +485,24 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
       });
       const data = await res.json();
       if (data.reply || data.message) {
-        setMessages(prev => [...prev, {
-          id: ++msgSeqRef.current,
-          author: 'ALEXANDRA',
-          text: data.reply || data.message,
-          time: 'Just now',
-          isUser: false,
-        }]);
+        addMsg('ALEXANDRA', data.reply || data.message);
       }
-    } catch (err) {
-      console.error('Orchestrate error:', err);
-    } finally {
-      setOrchestratorLoading(false);
-    }
+    } catch {}
+    setOrchestratorLoading(false);
   }
+
+  function handleFileUpload(e) {
+    const files = Array.from(e.target.files || []);
+    const readers = files.map(f => new Promise(res => {
+      const fr = new FileReader();
+      fr.onload = () => res({ name: f.name, url: fr.result, type: f.type });
+      fr.readAsDataURL(f);
+    }));
+    Promise.all(readers).then(imgs => setUploadedFiles(prev => [...prev, ...imgs]));
+  }
+
+  const timeStr = `${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`;
+  const phaseAfter = (...phases) => phases.some(ph => [P.PLATFORMS_BUILT, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) || hubPhase === ph);
 
   return (
     <div className="ws">
@@ -220,14 +516,15 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         <div className="ws-menu-left">
           <span className="ws-menu-logo">h</span>
           <div className="ws-menu-sep" />
-          <span className="ws-menu-label">Workspace</span>
+          <span className="ws-menu-label">Hub</span>
+          {tilesData?.companyName && <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginLeft: 6 }}>· {tilesData.companyName}</span>}
         </div>
         <div className="ws-menu-center">
           <DockIcons active="hub" onHome={onGoHome} onHub={onGoHub || onGoCall} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={onGoAbout} />
         </div>
         <div className="ws-menu-right">
           {sessionId && (
-            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId}</span>
+            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId.slice(0, 16)}</span>
           )}
           {onBackToDashboard && (
             <button onClick={onBackToDashboard} title="Back to Dashboard" className="ws-menu-btn" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
@@ -238,6 +535,7 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         </div>
       </nav>
 
+      {/* Left: Alexandra badge + chat */}
       <div className="ws-left">
         <div className="ws-card">
           <div className="ws-badge">
@@ -282,6 +580,10 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
                 <button className={`ws-call-btn ws-call-btn--mic ${micMuted ? 'ws-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
+                {/* Interrupt button */}
+                <button className="ws-call-btn" onClick={handleInterrupt} disabled={!isConnected} title="Interrupt agent" style={{ background: 'rgba(255,149,0,0.9)' }}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="#fff" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="#fff" /></svg>
+                </button>
                 <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
                 </button>
@@ -313,7 +615,7 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
             {orchestratorLoading && (
               <div className="ws-msg">
                 <div className="ws-msg-meta"><span className="ws-msg-author">ALEXANDRA</span></div>
-                <div className="ws-msg-bubble" style={{ opacity: 0.5 }}>Thinking...</div>
+                <div className="ws-msg-bubble" style={{ opacity: 0.5 }}>Thinking…</div>
               </div>
             )}
             <div ref={chatEndRef} />
@@ -321,7 +623,7 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
 
           <form className="ws-chat-input" onSubmit={handleChatSubmit}>
             <div className="ws-chat-input-wrap">
-              <input className="ws-chat-input-field" placeholder="Message the orchestrator..." value={chatInput} onChange={e => setChatInput(e.target.value)} />
+              <input className="ws-chat-input-field" placeholder="Message the orchestrator…" value={chatInput} onChange={e => setChatInput(e.target.value)} />
               <div className="ws-send-wrap">
                 <LiquidMetal className="ws-send-ring" speed={1} softness={0.1} repetition={2} shiftRed={0.3} shiftBlue={0.3} distortion={0.07} contour={0.4} scale={1.87} rotation={0} shape="diamond" angle={70} colorBack="#00000000" colorTint="#FFFFFF" style={{ backgroundColor: '#AAAAAC', borderRadius: '999px', height: '44px', width: '44px' }} />
                 <button type="submit" className="ws-chat-send" aria-label="Send">
@@ -333,7 +635,10 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
         </div>
       </div>
 
-      <div className="ws-right">
+      {/* Right: Hub content — scrollable */}
+      <div className="ws-right" ref={rightPanelRef} style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+        {/* ── Research section ── */}
         <div className="ws-research-header">
           <div className="ws-research-title-row">
             <WordsStagger className="ws-research-prefix" delay={0.3} stagger={0.06} speed={0.4}>Company Research</WordsStagger>
@@ -342,47 +647,192 @@ export function Workspace({ companyName = 'Meridian Corp.', company = null, rese
             {!tilesLoading && tilesData && (
               <div className="ws-live-badge"><span className="ws-live-dot" /><span className="ws-live-text">Live Data</span></div>
             )}
-            {tilesLoading && <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', fontFamily: 'monospace' }}>loading…</span>}
+            {tilesLoading && <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', fontFamily: 'monospace' }}>researching…</span>}
           </div>
           {tilesData?.lastUpdated && <div className="ws-updated">Updated {new Date(tilesData.lastUpdated).toLocaleDateString()}</div>}
         </div>
 
-        {/* Fixed metric tiles — always shown, data from API */}
-        <div className="ws-metrics">
-          {[
-            { label: 'Annual Revenue', value: tilesData?.fixed?.revenue ?? '--' },
-            { label: 'Employees', value: tilesData?.fixed?.employees ?? '--' },
-            { label: 'Market Cap', value: tilesData?.fixed?.marketCap ?? '--' },
-            { label: 'Sector', value: tilesData?.fixed?.sector ?? '--' },
-          ].map((m, i) => (
-            <div key={m.label} className="ws-metric">
-              <WordsStagger className="ws-metric-label" delay={0.6 + i * 0.1} stagger={0.05} speed={0.35}>{m.label}</WordsStagger>
-              <WordsStagger className="ws-metric-value" delay={0.8 + i * 0.1} stagger={0.08} speed={0.4}>{m.value}</WordsStagger>
-            </div>
-          ))}
-        </div>
+        {tilesLoading && <Spinner msg={`Researching ${companyName}…`} />}
 
-        {/* Dynamic tiles from research */}
-        {tilesLoading && (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '0 1.5rem 1rem' }}>
-            {[1,2,3,4].map(i => (
-              <div key={i} style={{ height: 80, borderRadius: 12, background: 'rgba(0,0,0,0.05)', flex: '1 1 160px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            ))}
-          </div>
-        )}
-        {!tilesLoading && tilesData?.tiles?.length > 0 && (
-          <div style={{ padding: '0 1.5rem 1rem', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            {tilesData.tiles.map(tile => (
-              <div key={tile.id} style={{ flex: tile.wide ? '1 1 100%' : '1 1 160px', minWidth: tile.wide ? '100%' : 140, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.07)', padding: '0.85rem 1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                <div style={{ fontSize: '0.6rem', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.35)', marginBottom: 6 }}>{tile.label}</div>
-                <div style={{ fontSize: tile.wide ? '0.78rem' : '0.88rem', fontWeight: tile.wide ? 400 : 600, color: '#1a1a1a', lineHeight: 1.45 }}>{tile.value}</div>
+        {tilesData && (
+          <>
+            <div className="ws-metrics">
+              {[
+                { label: 'Annual Revenue', value: tilesData?.fixed?.revenue ?? '--' },
+                { label: 'Employees', value: tilesData?.fixed?.employees ?? '--' },
+                { label: 'Market Cap', value: tilesData?.fixed?.marketCap ?? '--' },
+                { label: 'Sector', value: tilesData?.fixed?.sector ?? '--' },
+              ].map((m, i) => (
+                <div key={m.label} className="ws-metric">
+                  <WordsStagger className="ws-metric-label" delay={0.6 + i * 0.1} stagger={0.05} speed={0.35}>{m.label}</WordsStagger>
+                  <WordsStagger className="ws-metric-value" delay={0.8 + i * 0.1} stagger={0.08} speed={0.4}>{m.value}</WordsStagger>
+                </div>
+              ))}
+            </div>
+            {tilesData.tiles?.length > 0 && (
+              <div style={{ padding: '0 1.5rem 1rem', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {tilesData.tiles.map(tile => (
+                  <div key={tile.id} style={{ flex: tile.wide ? '1 1 100%' : '1 1 160px', minWidth: tile.wide ? '100%' : 140, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.07)', padding: '0.85rem 1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontSize: '0.6rem', fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.35)', marginBottom: 6 }}>{tile.label}</div>
+                    <div style={{ fontSize: tile.wide ? '0.78rem' : '0.88rem', fontWeight: tile.wide ? 400 : 600, color: '#1a1a1a', lineHeight: 1.45 }}>{tile.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+          </>
+        )}
+
+        {/* ── Platform proposals ── */}
+        {hubPhase === P.PLATFORMS_PROPOSED && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', marginTop: 4 }}>
+            <SectionHead label="Detected Platforms" badge={`${proposedPlatforms.filter(p => p._selected !== false).length} selected`} />
+            <div style={{ padding: '0 1.5rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {proposedPlatforms.length === 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'rgba(0,0,0,0.35)', padding: '1rem 0' }}>No platforms detected. You can add feedback and build anyway.</div>
+              )}
+              {proposedPlatforms.map((p, i) => (
+                <label key={p.id || i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '0.625rem 0.875rem', borderRadius: 10, background: p._selected !== false ? 'rgba(52,199,89,0.06)' : 'rgba(255,255,255,0.5)', border: `1px solid ${p._selected !== false ? 'rgba(52,199,89,0.2)' : 'rgba(0,0,0,0.07)'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <input type="checkbox" checked={p._selected !== false} onChange={() => setProposedPlatforms(prev => prev.map((x, j) => j === i ? { ...x, _selected: !x._selected } : x))} style={{ marginTop: 2, accentColor: '#34c759' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1a1a1a' }}>{p.actual_software || p.name}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>{p.reason || p.description}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Upload + feedback */}
+            <div style={{ padding: '0.875rem 1.5rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Suggestions or screenshots</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                {uploadedFiles.map((f, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img src={f.url} alt={f.name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)' }} />
+                    <button onClick={() => setUploadedFiles(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#ff3b30', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 1l6 6M7 1L1 7" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                ))}
+                <label style={{ width: 56, height: 56, borderRadius: 8, border: '1.5px dashed rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.3rem', color: 'rgba(0,0,0,0.25)' }}>
+                  +<input type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
+                </label>
+              </div>
+              <textarea
+                value={platformFeedback} onChange={e => setPlatformFeedback(e.target.value)}
+                placeholder="Any notes about their tech stack or setup…"
+                rows={2} style={{ width: '100%', padding: '0.6rem 0.875rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ padding: '0 1.5rem 1.25rem' }}>
+              <button onClick={handleBuildPlatforms} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg,#34c759,#30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Build {proposedPlatforms.filter(p => p._selected !== false).length} platform{proposedPlatforms.filter(p => p._selected !== false).length !== 1 ? 's' : ''} →
+              </button>
+            </div>
           </div>
         )}
-        {!tilesLoading && !tilesData && (
-          <div style={{ padding: '1rem 1.5rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.8rem' }}>
-            Research a company to see insights here.
+
+        {/* ── Building platforms ── */}
+        {hubPhase === P.PLATFORMS_BUILDING && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', padding: '1.5rem' }}>
+            <Spinner msg={buildingMsg} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              {proposedPlatforms.filter(p => p._selected !== false).map(p => (
+                <div key={p.id} style={{ padding: '4px 10px', background: 'rgba(52,199,89,0.1)', borderRadius: 8, fontSize: '0.7rem', color: '#1a1a1a', border: '1px solid rgba(52,199,89,0.2)' }}>{p.actual_software || p.name}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Built platforms ── */}
+        {[P.PLATFORMS_BUILT, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) && builtPlatforms.length > 0 && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+            <SectionHead label="Live Platforms" badge="Deployed" />
+            <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
+              {builtPlatforms.map(p => (
+                <div key={p.id || p.name} style={{ flex: '0 0 280px', height: 280, display: 'flex', flexDirection: 'column' }}>
+                  <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Worker proposals ── */}
+        {hubPhase === P.WORKERS_PROPOSED && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+            <SectionHead label="AI Workers Proposal" badge={`${proposedWorkers.filter(w => w._selected !== false).length} selected`} />
+            <div style={{ padding: '0 1.5rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {proposedWorkers.length === 0 && <Spinner msg="Generating worker proposals…" />}
+              {proposedWorkers.map((w, i) => (
+                <WorkerProposalCard
+                  key={w.id || i} worker={w}
+                  selected={w._selected !== false}
+                  onToggle={() => setProposedWorkers(prev => prev.map((x, j) => j === i ? { ...x, _selected: x._selected === false ? true : false } : x))}
+                  onEditWorkflow={(wf, worker) => { setEditingWorkflow({ wf, worker }); setWfEditText(wf.name || ''); }}
+                />
+              ))}
+            </div>
+
+            {/* Workflow edit modal */}
+            {editingWorkflow && (
+              <div style={{ margin: '0 1.5rem', padding: '0.875rem', background: 'rgba(255,255,255,0.8)', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.5)', marginBottom: 8 }}>Edit workflow: {editingWorkflow.wf.name}</div>
+                <input
+                  value={wfEditText} onChange={e => setWfEditText(e.target.value)}
+                  placeholder="Workflow name…" autoFocus
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.8)', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleSaveWorkflow} style={{ flex: 1, padding: '0.5rem', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Save</button>
+                  <button onClick={() => setEditingWorkflow(null)} style={{ padding: '0.5rem 0.875rem', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 8, fontSize: '0.78rem', cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* Worker feedback */}
+            <div style={{ padding: '0.875rem 1.5rem 0' }}>
+              <textarea
+                value={workerFeedback} onChange={e => setWorkerFeedback(e.target.value)}
+                placeholder="Changes to workers, add new ones, or delete…"
+                rows={2} style={{ width: '100%', padding: '0.6rem 0.875rem', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ padding: '0.75rem 1.5rem 1.25rem' }}>
+              <button onClick={handleDeployWorkers} disabled={proposedWorkers.filter(w => w._selected !== false).length === 0} style={{ width: '100%', padding: '0.8rem', background: proposedWorkers.filter(w => w._selected !== false).length === 0 ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#34c759,#30a74f)', color: proposedWorkers.filter(w => w._selected !== false).length === 0 ? 'rgba(0,0,0,0.35)' : '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: proposedWorkers.filter(w => w._selected !== false).length === 0 ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                Deploy {proposedWorkers.filter(w => w._selected !== false).length} AI worker{proposedWorkers.filter(w => w._selected !== false).length !== 1 ? 's' : ''} →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Deploying workers ── */}
+        {hubPhase === P.WORKERS_DEPLOYING && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', padding: '1.5rem' }}>
+            <Spinner msg={buildingMsg} />
+          </div>
+        )}
+
+        {/* ── Built workers ── */}
+        {hubPhase === P.WORKERS_BUILT && builtWorkers.length > 0 && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+            <SectionHead label="AI Workers" badge="Live" sub={`${builtWorkers.length} deployed`} />
+            <div style={{ padding: '0 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {builtWorkers.map((w, i) => (
+                <BuiltWorkerCard key={w.id || i} worker={w} onOpen={onGoWorkers} />
+              ))}
+              <button onClick={onGoWorkers} style={{ marginTop: 8, padding: '0.75rem', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 12, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'inherit' }}>
+                Open Workers Hub →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state when no research yet */}
+        {hubPhase === P.RESEARCH && !tilesLoading && !tilesData && (
+          <div style={{ padding: '2rem 1.5rem', textAlign: 'center', color: 'rgba(0,0,0,0.25)', fontSize: '0.85rem' }}>
+            Waiting to begin research…
           </div>
         )}
       </div>

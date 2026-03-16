@@ -312,6 +312,16 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     setNeedsAudioResume(false);
   }, []);
 
+  const interrupt = useCallback(() => {
+    const room = roomRef.current;
+    if (!room) return;
+    room.localParticipant?.publishData(
+      new TextEncoder().encode(JSON.stringify({ type: 'interrupt' })),
+      { reliable: true }
+    );
+    window.speechSynthesis?.cancel();
+  }, []);
+
   const callTool = useCallback(async (name, args) => {
     const room = roomRef.current;
     if (!room) return null;
@@ -342,6 +352,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     updatePrompt,
     toggleMute,
     disconnect,
+    interrupt,
     callTool,
     audioElRef,
   };

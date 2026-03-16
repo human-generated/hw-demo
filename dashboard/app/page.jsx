@@ -8,6 +8,7 @@ import { Workspace } from './components/Workspace';
 import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { OnboardingFlow } from './components/OnboardingFlow';
+import { LoginPage } from './components/LoginPage';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
@@ -1426,7 +1427,7 @@ function AppInner() {
           <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff', border: 'none' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
           <Btn ghost small onClick={newSession}>+ New</Btn>
-          <Btn small onClick={() => setShowHubPicker(true)} style={{ background: '#1a1a1a', color: '#fff', border: 'none', letterSpacing: '-0.01em' }}>✦ HUB</Btn>
+          <Btn small onClick={() => setAiView('login')} style={{ background: '#1a1a1a', color: '#fff', border: 'none', letterSpacing: '-0.01em' }}>✦ HUB</Btn>
         </div>
       </div>
 
@@ -1479,9 +1480,22 @@ function AppInner() {
       {/* AI Workers Hub overlay */}
       {aiView && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
+          {aiView === 'login' && (
+            <LoginPage
+              onLogin={async ({ sessionId: sid, name, email }) => {
+                setHubSessionId(sid);
+                setHubCompanyName(null);
+                setHubWorkers([]);
+                setHubWorkflowIdParam(null);
+                if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${sid}`);
+                setAiView('home');
+              }}
+            />
+          )}
           {aiView === 'home' && (
             <Homepage
               onSubmit={(text, client, camera, avatarStream) => {
+                if (text) setHubCompanyName(text);
                 if (client) setHubAnamClient(client);
                 if (camera) setHubCameraStream(camera);
                 if (avatarStream) setHubAvatarStream(avatarStream);
@@ -1503,7 +1517,6 @@ function AppInner() {
               researchFindings={researchFindings}
               anamClient={hubAnamClient}
               cameraStream={hubCameraStream}
-              avatarStream={hubAvatarStream}
               sessionId={hubSessionId}
               onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
@@ -1512,6 +1525,7 @@ function AppInner() {
               onGoPlatforms={() => setShowPlatforms(true)}
               onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
+              onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
             />
           )}
           {aiView === 'workers' && (

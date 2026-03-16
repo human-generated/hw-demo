@@ -35,7 +35,7 @@ const WAVEFORM_BARS = [
   { x: 180, h: 2, fill: "rgba(0,0,0,0.02)", active: false },
 ];
 
-export function InCallCard({ active = false, muted = false, cameraOn = false, onToggleMute, onToggleCamera, onEndCall, startTime, cameraVideoRef }) {
+export function InCallCard({ active = false, muted = false, cameraOn = false, onToggleMute, onToggleCamera, onEndCall, onInterrupt, startTime, cameraVideoRef }) {
   const [elapsed, setElapsed] = useState(0);
   const [barHeights, setBarHeights] = useState(() => WAVEFORM_BARS.map(b => b.h));
   const audioCtxRef = useRef(null);
@@ -157,6 +157,15 @@ export function InCallCard({ active = false, muted = false, cameraOn = false, on
               {!cameraOn && <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />}
             </svg>
           </button>
+          {onInterrupt && (
+            <button className="in-call-action-btn" title="Interrupt agent" onClick={onInterrupt} disabled={!active}
+              style={{ background: 'rgba(255,149,0,0.12)', color: '#ff9500' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
+                <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
+              </svg>
+            </button>
+          )}
           <button className="in-call-action-btn in-call-action-btn--end"
             aria-label="End call" onClick={onEndCall} disabled={!active}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

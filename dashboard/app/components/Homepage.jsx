@@ -98,7 +98,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
 
   const {
     connected, connecting, agentText, videoTrack, micMuted, needsAudioResume,
-    resumeAudio, sendText, updatePrompt, toggleMute, disconnect, audioElRef,
+    resumeAudio, sendText, updatePrompt, toggleMute, disconnect, interrupt, audioElRef,
   } = useWorkerSession({
     worker: ALEXANDRA_WORKER,
     sessionId,
@@ -309,7 +309,8 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
           active={callEnabled && connected}
           muted={micMuted} cameraOn={cameraOn}
           onToggleMute={toggleMute} onToggleCamera={handleToggleCamera}
-          onEndCall={handleCloseAvatar} startTime={callStartTime} cameraVideoRef={attachCamera}
+          onEndCall={handleCloseAvatar} onInterrupt={interrupt}
+          startTime={callStartTime} cameraVideoRef={attachCamera}
         />
       </div>
 
