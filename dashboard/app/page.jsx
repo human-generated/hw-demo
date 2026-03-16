@@ -1384,7 +1384,7 @@ function AppInner() {
   return (
     <div style={{ fontFamily: T.ui, background: T.bg, color: T.text, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Nav */}
-      <div style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px) saturate(1.6)', WebkitBackdropFilter: 'blur(24px) saturate(1.6)', borderBottom: '1px solid rgba(0,0,0,0.06)', padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: '0 1px 0 rgba(0,0,0,0.04)', position: 'relative', zIndex: 10 }}>
+      <div style={{ background: '#fff', border: '1px solid rgba(0,0,0,0.06)', padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.03)', borderRadius: 14, margin: '12px 12px 0', position: 'relative', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <span style={{ fontFamily: T.ui, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.03em', color: T.text }}>H-Demo</span>
           {(company?.name || sessionId) && <Badge color={T.faint} style={{ color: T.muted }}>{company?.name || sessionId.slice(0, 8)}</Badge>}
@@ -1617,10 +1617,12 @@ function AppInner() {
         />
       )}
 
+      {/* Main card wrapper */}
+      <div style={{ flex: 1, overflow: 'hidden', margin: '8px 12px 12px', background: '#fff', borderRadius: 12, border: '1px solid rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column' }}>
       {/* Main layout */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: T.bg }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* LEFT PANEL */}
-        <div style={{ width: 380, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', flexShrink: 0 }}>
+        <div style={{ width: 368, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(0,0,0,0.06)', background: '#fff', flexShrink: 0, overflow: 'hidden' }}>
           {/* Zeroclaw agent chat overlay */}
           {activeZcAgent ? (
             <ZcAgentChatPanel
@@ -1728,16 +1730,17 @@ function AppInner() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' }}>
           {/* Right panel tab bar */}
           {!showSettings && (
-            <div style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '0 1.25rem', display: 'flex', gap: 0, flexShrink: 0 }}>
+            <div style={{ borderBottom: '1px solid rgba(0,0,0,0.04)', background: '#fff', padding: '8px 16px', display: 'flex', gap: 1, flexShrink: 0 }}>
               {[{ id: 'demo', label: 'Demo' }, { id: 'canvas', label: '⬡ Canvas' }].map(v => (
                 <button key={v.id} onClick={() => setRightView(v.id)} style={{
-                  background: 'none', border: 'none', borderBottom: rightView === v.id ? `2px solid ${T.text}` : '2px solid transparent',
-                  padding: '0.55rem 1rem', cursor: 'pointer', fontFamily: T.ui, fontSize: '0.75rem',
-                  fontWeight: rightView === v.id ? 600 : 400, letterSpacing: '-0.01em',
-                  color: rightView === v.id ? T.text : T.muted, marginBottom: -1,
+                  background: rightView === v.id ? 'rgba(0,0,0,0.05)' : 'none', border: 'none', borderRadius: 8,
+                  padding: '0.45rem 1rem', cursor: 'pointer', fontFamily: T.ui, fontSize: '0.78rem',
+                  fontWeight: rightView === v.id ? 600 : 500, letterSpacing: '-0.01em',
+                  color: rightView === v.id ? T.text : 'rgba(0,0,0,0.35)',
+                  transition: 'all 0.15s ease',
                 }}>{v.label}</button>
               ))}
             </div>
@@ -1842,6 +1845,7 @@ function AppInner() {
         </div>
       </div>
       <ObservabilityPanel />
+      </div>
       {showNetwork && (
         <AgentNetwork3D
           agentTree={agentTree}
