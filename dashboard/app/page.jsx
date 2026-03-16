@@ -388,14 +388,14 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
           <div className="wkp-menu-avatar">P</div>
         </div>
       </nav>
-      <div style={{ position: 'absolute', top: 48, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 48, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
         {platforms.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
             No platforms detected yet. Run the onboarding wizard first.
           </div>
         ) : (
           platforms.map(p => (
-            <div key={p.id || p.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div key={p.id || p.name} style={{ flex: '0 0 420px', display: 'flex', flexDirection: 'column', minWidth: 320 }}>
               <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
             </div>
           ))
@@ -619,15 +619,19 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const searchParams = useSearchParams();
-  // AI Workers Hub view: null | 'home' | 'workspace' | 'workers' | 'worker-page'
-  const [aiView, setAiView] = useState(null);
+  // AI Workers Hub view: null | 'login' | 'home' | 'workspace' | 'workers' | 'worker-page'
+  // Start at login unless a direct ?hub= URL was provided
+  const [aiView, setAiView] = useState(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('hub')) return null;
+    return 'login';
+  });
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [hubAnamClient, setHubAnamClient] = useState(null);
   const [hubCameraStream, setHubCameraStream] = useState(null);
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
-  const [showHubPicker, setShowHubPicker] = useState(true); // hub is the default view
+  const [showHubPicker, setShowHubPicker] = useState(false); // shown after login
   const [showWizard, setShowWizard] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -1440,7 +1444,7 @@ function AppInner() {
             setHubWorkflowIdParam(null);
             if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${s.id}`);
             setShowHubPicker(false);
-            setAiView('workers'); // go directly to workers view to show session workers
+            setAiView('home'); // start the call / see the experience
           }}
           onNew={async () => {
             try {
@@ -1455,7 +1459,7 @@ function AppInner() {
               }
             } catch {}
             setShowHubPicker(false);
-            setShowWizard(true); // show onboarding wizard instead of going directly to home
+            setAiView('home'); // go to video call / homepage experience
           }}
           onClose={() => setShowHubPicker(false)}
         />
@@ -1482,13 +1486,9 @@ function AppInner() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
           {aiView === 'login' && (
             <LoginPage
-              onLogin={async ({ sessionId: sid, name, email }) => {
-                setHubSessionId(sid);
-                setHubCompanyName(null);
-                setHubWorkers([]);
-                setHubWorkflowIdParam(null);
-                if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${sid}`);
-                setAiView('home');
+              onLogin={() => {
+                setAiView(null);
+                setShowHubPicker(true);
               }}
             />
           )}

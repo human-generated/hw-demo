@@ -2,30 +2,27 @@
 import { useState } from 'react';
 import { MeshGradient } from '@paper-design/shaders-react';
 
+const DEMO_EMAIL = 'demo@demo.com';
+const DEMO_PASSWORD = 'aigeneratedpassword';
+
 export function LoginPage({ onLogin }) {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!email.trim()) return;
-    setLoading(true);
     setError('');
-    try {
-      const r = await fetch('/api/demo/session', { method: 'POST' });
-      const d = await r.json();
-      if (d.sessionId) {
-        onLogin({ sessionId: d.sessionId, name: name.trim(), email: email.trim() });
-      } else {
-        setError('Failed to start session. Please try again.');
-        setLoading(false);
-      }
-    } catch {
-      setError('Connection error. Please try again.');
-      setLoading(false);
+    if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+      setError('Invalid credentials.');
+      return;
     }
+    setLoading(true);
+    // Small delay for feel
+    await new Promise(r => setTimeout(r, 400));
+    setLoading(false);
+    onLogin();
   }
 
   const inp = {
@@ -64,32 +61,32 @@ export function LoginPage({ onLogin }) {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Your name</label>
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Email</label>
             <input
-              autoFocus value={name} onChange={e => setName(e.target.value)}
-              placeholder="Jane Smith" style={inp}
+              autoFocus type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="demo@demo.com" required style={inp}
               onFocus={e => (e.target.style.borderColor = 'rgba(52,199,89,0.5)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Work email</label>
+            <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Password</label>
             <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="jane@company.com" required style={inp}
+              type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••••••••••••" required style={inp}
               onFocus={e => (e.target.style.borderColor = 'rgba(52,199,89,0.5)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
           </div>
           {error && <div style={{ fontSize: '0.78rem', color: '#ff3b30', textAlign: 'center' }}>{error}</div>}
           <button
-            type="submit" disabled={loading || !email.trim()}
+            type="submit" disabled={loading || !email.trim() || !password}
             style={{
               marginTop: 4, padding: '0.875rem',
               background: loading ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#34c759,#30a74f)',
               color: loading ? 'rgba(0,0,0,0.35)' : '#fff',
               border: 'none', borderRadius: 12, fontSize: '0.9rem', fontWeight: 600,
-              cursor: loading || !email.trim() ? 'default' : 'pointer',
+              cursor: loading || !email.trim() || !password ? 'default' : 'pointer',
               fontFamily: "'DM Sans', sans-serif", letterSpacing: '-0.01em',
               transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
@@ -97,9 +94,9 @@ export function LoginPage({ onLogin }) {
             {loading ? (
               <>
                 <div style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.15)', borderTopColor: 'rgba(0,0,0,0.4)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                Starting session…
+                Signing in…
               </>
-            ) : 'Start Demo →'}
+            ) : 'Sign in →'}
           </button>
         </form>
 
