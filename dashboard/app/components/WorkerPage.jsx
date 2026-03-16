@@ -141,12 +141,6 @@ function FileThumb({ type, color, bg, ext }) {
   );
 }
 
-const STATIC_OUTPUTS = [
-  { label: 'Q3 Report', ext: 'PDF', color: '#DC4B4B', bg: '#FEF2F2', icon: 'doc' },
-  { label: 'Voice recording', ext: 'WAV', color: '#16A34A', bg: '#F0FDF4', icon: 'mic' },
-  { label: 'Call transcript', ext: 'TXT', color: '#6B7B8D', bg: '#F1F5F9', icon: 'transcript' },
-  { label: 'Email draft', ext: 'EML', color: '#9333EA', bg: '#FAF5FF', icon: 'email' },
-];
 
 function StepDiagramIcon({ status, label }) {
   const color = (status === 'done' || status === 'active') ? '#fff' : 'rgba(26,26,26,0.25)';
@@ -321,8 +315,10 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
   );
 }
 
-function DashboardTab({ cfg, firstName, companyName, platforms, sessionId }) {
+function DashboardTab({ cfg, firstName, companyName, platforms, sessionId, workerId }) {
   const d = cfg.dashboard;
+  const wfList = cfg?.workflows?.list || [];
+  const emptyCard = { padding: '20px 16px', textAlign: 'center', color: 'rgba(26,26,26,0.3)', fontSize: 13, background: '#fff', borderRadius: 10, border: '1px solid rgba(0,0,0,0.06)' };
   return (
     <div className="wkp-center">
       <div className="wkp-status-banner">
@@ -345,134 +341,42 @@ function DashboardTab({ cfg, firstName, companyName, platforms, sessionId }) {
         </div>
       </div>
       <div className="wkp-section">
-        <WordsStagger className="wkp-section-label" delay={0.6} stagger={0.05} speed={0.35}>Tools</WordsStagger>
-        <div className="wkp-tools-wrap">
-          {d.tools.map(t => {
-            const icon = guessToolIcon(t);
+        <WordsStagger className="wkp-section-label" delay={0.6} stagger={0.05} speed={0.35}>Recent Workflow Runs</WordsStagger>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {wfList.length === 0 ? (
+            <div style={emptyCard}>No workflow runs yet</div>
+          ) : wfList.slice(0, 5).map((wf, i) => {
+            const isActive = wf.status === 'active';
+            const isDone = wf.status === 'completed' || wf.status === 'done';
+            const dotColor = isActive ? '#34c759' : isDone ? 'rgba(26,26,26,0.4)' : 'rgba(26,26,26,0.15)';
+            const statusColor = isActive ? '#34c759' : isDone ? 'rgba(26,26,26,0.5)' : 'rgba(26,26,26,0.3)';
             return (
-              <div key={t} className="wkp-tool-pill">
-                {icon && <ToolIcon type={icon} />}
-                <span>{t}</span>
+              <div key={wf.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#fff', borderRadius: 10, border: '1px solid rgba(0,0,0,0.06)' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, flexShrink: 0, boxShadow: isActive ? '0 0 0 3px rgba(52,199,89,0.15)' : 'none' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{wf.name || wf.title}</div>
+                  {wf.steps && <div style={{ fontSize: 11, color: 'rgba(26,26,26,0.4)', marginTop: 2 }}>{wf.steps.length} step{wf.steps.length !== 1 ? 's' : ''}</div>}
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 500, color: statusColor, textTransform: 'capitalize', flexShrink: 0 }}>
+                  {isActive ? 'Running' : isDone ? 'Done' : wf.status || 'Pending'}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
       <div className="wkp-section">
-        <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>{firstName}'s office</WordsStagger>
-        <div className="wkp-office-row">
-          {platforms && platforms.length > 0 ? (
-            platforms.map(p => (
-              <PlatformPreviewCard key={p.id} platform={p} sessionId={sessionId} companyName={companyName} />
-            ))
-          ) : (
-            <>
-              <div className="wkp-browser">
-                <div className="wkp-browser-toolbar">
-                  <div className="wkp-browser-dots">
-                    <span className="wkp-dot wkp-dot--red" /><span className="wkp-dot wkp-dot--yellow" /><span className="wkp-dot wkp-dot--green" />
-                  </div>
-                  <div className="wkp-browser-nav">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L3.5 6L7.5 10" stroke="rgba(0,0,0,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8.5 6L4.5 10" stroke="rgba(0,0,0,0.15)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  </div>
-                  <div className="wkp-browser-url">{d.office}</div>
-                </div>
-                <div className="wkp-browser-page">
-                  <div className="wkp-browser-nav-row">
-                    <span className="wkp-browser-site">{d.siteName}</span>
-                    <div className="wkp-browser-links"><span>Dashboard</span><span>Reports</span><span>Settings</span></div>
-                  </div>
-                  <div className="wkp-browser-content">
-                    <span className="wkp-browser-title">{d.browserTitle}</span>
-                    <span className="wkp-browser-sub">{d.browserSub}</span>
-                  </div>
-                  <div className="wkp-browser-metrics">
-                    {d.browserMetrics.map(m => (
-                      <div key={m.label} className={`wkp-browser-metric${m === d.browserMetrics[0] ? ' wkp-browser-metric--hl' : ''}`}>
-                        <span className="wkp-browser-metric-label">{m.label}</span>
-                        <span className={`wkp-browser-metric-value${m.value.includes('%') || m.value.includes('↑') ? ' wkp-green' : ''}`}>{m.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="wkp-phone">
-                <div className="wkp-phone-notch" />
-                <div className="wkp-phone-screen">
-                  <div className="wkp-phone-status"><span className="wkp-phone-time">9:41</span></div>
-                  <div className="wkp-phone-stock-name">{d.siteName || companyName}</div>
-                  <div className="wkp-phone-price-row">
-                    <span className="wkp-phone-price">$68.42</span>
-                    <span className="wkp-phone-change">+2.4%</span>
-                  </div>
-                  <svg width="100%" height="24" viewBox="0 0 90 24" fill="none" preserveAspectRatio="none">
-                    <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3" stroke="#34C759" strokeWidth="1.5" fill="none" />
-                    <path d="M0 20 Q10 18 20 16 T40 12 T60 8 T80 5 T90 3 L90 24 L0 24 Z" fill="#34C759" style={{ opacity: 0.08 }} />
-                  </svg>
-                  <div className="wkp-phone-buttons">
-                    <div className="wkp-phone-btn wkp-phone-btn--buy">Buy</div>
-                    <div className="wkp-phone-btn wkp-phone-btn--sell">Sell</div>
-                  </div>
-                  <div className="wkp-phone-stats">
-                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Mkt Cap</span><span className="wkp-phone-stat-val">$24.1B</span></div>
-                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">P/E</span><span className="wkp-phone-stat-val">28.4x</span></div>
-                    <div className="wkp-phone-stat"><span className="wkp-phone-stat-label">Vol</span><span className="wkp-phone-stat-val">3.2M</span></div>
-                  </div>
-                </div>
-                <div className="wkp-phone-home" />
-              </div>
-            </>
-          )}
-        </div>
+        <WordsStagger className="wkp-section-label" delay={0.7} stagger={0.05} speed={0.35}>Triggered Run</WordsStagger>
+        <div style={emptyCard}>No runs triggered yet — use the Run button to start a workflow</div>
       </div>
       <div className="wkp-section">
-        <WordsStagger className="wkp-section-label" delay={0.9} stagger={0.05} speed={0.35}>Outputs</WordsStagger>
-        <div className="wkp-outputs-row">
-          {STATIC_OUTPUTS.map(o => (
-            <div key={o.label} className="wkp-output">
-              <FileThumb type={o.icon} color={o.color} bg={o.bg} ext={o.ext} />
-              <span className="wkp-output-label">{o.label}</span>
-            </div>
-          ))}
-        </div>
+        <WordsStagger className="wkp-section-label" delay={0.8} stagger={0.05} speed={0.35}>Workflow Edits</WordsStagger>
+        <div style={emptyCard}>No workflow edits yet</div>
       </div>
       <div className="wkp-section">
-        <WordsStagger className="wkp-section-label" delay={1.0} stagger={0.05} speed={0.35}>Recent Activity</WordsStagger>
-        <div className="wkp-activity-list">
-          {d.activity.map((a, i) => (
-            <div key={i} className="wkp-activity-item">
-              <span className="wkp-activity-dot" style={{ background: a.color }} />
-              <span className="wkp-activity-text">{a.text}</span>
-              <span className="wkp-activity-time">{a.time}</span>
-            </div>
-          ))}
-        </div>
+        <WordsStagger className="wkp-section-label" delay={0.9} stagger={0.05} speed={0.35}>Canvas Artifacts</WordsStagger>
+        <div style={emptyCard}>No canvas artifacts yet</div>
       </div>
-      {cfg.dashboard.sandboxes && cfg.dashboard.sandboxes.length > 0 && (
-        <div className="wkp-section">
-          <WordsStagger className="wkp-section-label" delay={1.2} stagger={0.05} speed={0.35}>Sandboxes</WordsStagger>
-          <div className="wkpt-card">
-            <div className="wkpt-card-head" />
-            <div className="wkpt-sandbox-grid">
-              {cfg.dashboard.sandboxes.map((sb, i) => (
-                <div key={i} className="wkpt-sandbox-item">
-                  <div className="wkpt-sandbox-header">
-                    <span className="wkpt-sandbox-name">{sb.name}</span>
-                    <span className={`wkpt-sandbox-status${sb.status === 'running' ? ' wkpt-sandbox-status--running' : sb.status === 'idle' ? ' wkpt-sandbox-status--idle' : ''}`}>{sb.status}</span>
-                  </div>
-                  <div className="wkpt-sandbox-meta">
-                    <span>{sb.type}</span>
-                    <span>·</span>
-                    <span>{sb.region}</span>
-                    {sb.cost && <><span>·</span><span>{sb.cost}/hr</span></>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2183,7 +2087,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           ))}
         </div>
         <div className="wkp-main-body">
-          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} platforms={platforms} sessionId={sessionId} />}
+          {activeTab === 'Dashboard' && <DashboardTab cfg={cfg} firstName={firstName} companyName={companyName} platforms={platforms} sessionId={sessionId} workerId={workerId} />}
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
