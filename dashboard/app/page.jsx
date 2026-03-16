@@ -12,21 +12,21 @@ import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
-  bg:     '#F4F4F4',
+  bg:     '#F4F5F7',
   card:   '#FFFFFF',
-  text:   '#0D0D0D',
-  muted:  '#888888',
-  faint:  'rgba(0,0,0,0.07)',
-  border: '1px solid rgba(0,0,0,0.08)',
-  shadow: '0 2px 12px rgba(0,0,0,0.06)',
-  radius: '4px',
-  mono:   "'JetBrains Mono', 'Fira Mono', monospace",
-  ui:     "'Space Grotesk', 'Inter', sans-serif",
-  mint:   '#6CEFA0',
-  blue:   '#6CDDEF',
-  purple: '#B06CEF',
-  orange: '#EF9B6C',
-  red:    '#EF4444',
+  text:   '#1a1a1a',
+  muted:  '#8e8e93',
+  faint:  'rgba(0,0,0,0.04)',
+  border: '1px solid rgba(0,0,0,0.06)',
+  shadow: '0 1px 4px rgba(0,0,0,0.03)',
+  radius: '12px',
+  mono:   "'IBM Plex Mono', 'DM Mono', monospace",
+  ui:     "'DM Sans', system-ui, sans-serif",
+  mint:   '#34c759',
+  blue:   '#3b82f6',
+  purple: '#8b5cf6',
+  orange: '#f59e0b',
+  red:    '#ff3b30',
   yellow: '#F5C842',
 };
 
@@ -34,11 +34,11 @@ const T = {
 function Badge({ color, children, style = {} }) {
   return (
     <span style={{
-      background: color || T.faint, color: T.text,
-      borderRadius: T.radius, padding: '2px 8px',
+      background: color || T.faint, color: T.muted,
+      borderRadius: '999px', padding: '2px 10px',
       fontSize: '0.6rem', fontFamily: T.mono,
-      fontWeight: '700', textTransform: 'uppercase',
-      letterSpacing: '0.06em', display: 'inline-block', ...style,
+      fontWeight: '500', textTransform: 'uppercase',
+      letterSpacing: '0.08em', display: 'inline-block', ...style,
     }}>{children}</span>
   );
 }
@@ -50,17 +50,19 @@ function Btn({ onClick, children, ghost, small, disabled, color, style = {} }) {
       onClick={onClick}
       disabled={disabled}
       style={{
-        background: ghost ? T.card : (color || T.text),
-        color: ghost ? T.muted : '#fff',
-        border: ghost ? `1px solid rgba(0,0,0,0.1)` : 'none',
-        borderRadius: T.radius,
-        padding: small ? '0.3rem 0.75rem' : '0.5rem 1.2rem',
+        background: ghost ? 'rgba(255,255,255,0.7)' : (color || T.text),
+        color: ghost ? T.text : '#fff',
+        border: ghost ? `1px solid rgba(0,0,0,0.09)` : 'none',
+        borderRadius: '10px',
+        padding: small ? '0.3rem 0.85rem' : '0.55rem 1.25rem',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        fontFamily: T.mono, fontSize: small ? '0.62rem' : '0.7rem',
-        textTransform: 'uppercase', letterSpacing: '0.06em',
-        transition: 'opacity 0.15s',
+        opacity: disabled ? 0.45 : 1,
+        fontFamily: T.ui, fontSize: small ? '0.72rem' : '0.8rem',
+        fontWeight: 500,
+        letterSpacing: '-0.01em',
+        transition: 'all 0.15s cubic-bezier(0.22,1,0.36,1)',
         whiteSpace: 'nowrap',
+        boxShadow: ghost ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
         ...style,
       }}
     >{children}</button>
@@ -226,7 +228,7 @@ function HubOverlay({ onClose, children, title, subtitle }) {
       <div style={{ position: 'relative', zIndex: 1, background: 'rgba(255,255,255,0.78)', backdropFilter: 'blur(28px) saturate(1.5)', WebkitBackdropFilter: 'blur(28px) saturate(1.5)', borderRadius: 20, padding: '2rem', width: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.9) inset', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
           <div style={{ flex: 1 }}>
-            {title && <div style={{ fontFamily: "'Space Grotesk','Inter',sans-serif", fontSize: '1.05rem', fontWeight: 700, color: '#1a1a1a' }}>{title}</div>}
+            {title && <div style={{ fontFamily: "'DM Sans',system-ui,sans-serif", fontSize: '1.05rem', fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.02em' }}>{title}</div>}
             {subtitle && <div style={{ fontFamily: 'system-ui', fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginTop: 3 }}>{subtitle}</div>}
           </div>
           {onClose && <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.35)', fontSize: '1.2rem', lineHeight: 1, padding: '0 0 0 12px' }}>✕</button>}
@@ -578,7 +580,7 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
           <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #34c759, #30a74f)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.875rem', boxShadow: '0 8px 24px rgba(52,199,89,0.35)' }}>
             <span style={{ fontFamily: 'Georgia, serif', fontSize: '1.6rem', color: '#fff', fontWeight: 700, lineHeight: 1 }}>h</span>
           </div>
-          <div style={{ fontFamily: "'Space Grotesk', 'Inter', sans-serif", fontSize: '1.15rem', fontWeight: 700, marginBottom: 4, color: '#1a1a1a' }}>Humans.AI Hub</div>
+          <div style={{ fontFamily: "'DM Sans',system-ui,sans-serif", fontSize: '1.15rem', fontWeight: 700, marginBottom: 4, color: '#1a1a1a' }}>Humans.AI Hub</div>
           <div style={{ fontFamily: 'system-ui', fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)' }}>Select a company session to open in the Hub</div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: '1rem', maxHeight: 320 }}>
@@ -589,7 +591,7 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.92)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.55)'; e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <span style={{ fontFamily: "'Space Grotesk','Inter',sans-serif", fontWeight: 600, fontSize: '0.88rem', color: '#1a1a1a' }}>{s.company || <span style={{ color: 'rgba(0,0,0,0.35)', fontWeight: 400 }}>Unnamed Session</span>}</span>
+                <span style={{ fontFamily: "'DM Sans',system-ui,sans-serif", fontWeight: 600, fontSize: '0.88rem', color: '#1a1a1a' }}>{s.company || <span style={{ color: 'rgba(0,0,0,0.35)', fontWeight: 400 }}>Unnamed Session</span>}</span>
                 <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', textTransform: 'uppercase', color: phaseColors[s.phase] || '#8e8e93', fontWeight: 700, letterSpacing: '0.05em', background: `${phaseColors[s.phase] || '#8e8e93'}18`, borderRadius: 4, padding: '2px 6px' }}>{s.phase || 'start'}</span>
               </div>
               <div style={{ display: 'flex', gap: 10, fontFamily: 'monospace', fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', alignItems: 'center' }}>
@@ -602,7 +604,7 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
             </div>
           ))}
         </div>
-        <button onClick={onNew} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'Space Grotesk','Inter',sans-serif", boxShadow: '0 4px 16px rgba(52,199,89,0.3)', marginBottom: 8 }}>
+        <button onClick={onNew} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',system-ui,sans-serif", boxShadow: '0 4px 16px rgba(52,199,89,0.3)', marginBottom: 8 }}>
           + New Hub Session
         </button>
         <button onClick={onClose} style={{ width: '100%', padding: '0.5rem', background: 'none', color: 'rgba(0,0,0,0.4)', border: 'none', borderRadius: 8, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'monospace' }}>
@@ -1382,9 +1384,9 @@ function AppInner() {
   return (
     <div style={{ fontFamily: T.ui, background: T.bg, color: T.text, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Nav */}
-      <div style={{ background: T.card, borderBottom: T.border, padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: T.shadow }}>
+      <div style={{ background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px) saturate(1.6)', WebkitBackdropFilter: 'blur(24px) saturate(1.6)', borderBottom: '1px solid rgba(0,0,0,0.06)', padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, boxShadow: '0 1px 0 rgba(0,0,0,0.04)', position: 'relative', zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontFamily: T.mono, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.02em' }}>H-Demo</span>
+          <span style={{ fontFamily: T.ui, fontWeight: 700, fontSize: '0.95rem', letterSpacing: '-0.03em', color: T.text }}>H-Demo</span>
           {(company?.name || sessionId) && <Badge color={T.faint} style={{ color: T.muted }}>{company?.name || sessionId.slice(0, 8)}</Badge>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -1402,18 +1404,18 @@ function AppInner() {
                     onClick={() => { if (canNav) { setPhase(p); setActivePlatformChat(null); setPlatformChatHistory([]); setShowSettings(false); } }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.3rem',
-                      padding: '0.25rem 0.5rem', borderRadius: T.radius,
-                      background: isActive ? T.text : isDone ? 'rgba(108,239,160,0.15)' : 'transparent',
-                      border: isActive ? 'none' : isDone ? `1px solid rgba(108,239,160,0.4)` : '1px solid transparent',
+                      padding: '0.25rem 0.65rem', borderRadius: '999px',
+                      background: isActive ? '#1a1a1a' : isDone ? 'rgba(52,199,89,0.1)' : 'transparent',
+                      border: isActive ? 'none' : isDone ? `1px solid rgba(52,199,89,0.3)` : '1px solid rgba(0,0,0,0.07)',
                       cursor: canNav ? 'pointer' : 'default',
-                      transition: 'all 0.15s',
+                      transition: 'all 0.2s cubic-bezier(0.22,1,0.36,1)',
                     }}
                   >
                     <div style={{
-                      width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                      background: isActive ? '#fff' : isDone ? T.mint : T.faint,
+                      width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+                      background: isActive ? '#fff' : isDone ? T.mint : 'rgba(0,0,0,0.2)',
                     }} />
-                    <span style={{ fontSize: '0.6rem', fontFamily: T.mono, fontWeight: isActive ? 700 : 400, color: isActive ? '#fff' : isDone ? T.mint : T.muted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{phaseLabel(p)}</span>
+                    <span style={{ fontSize: '0.62rem', fontFamily: T.ui, fontWeight: isActive ? 600 : 400, color: isActive ? '#fff' : isDone ? T.mint : T.muted, whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{phaseLabel(p)}</span>
                   </div>
                   {i < arr.length - 1 && <span style={{ color: T.faint, fontSize: '0.75rem' }}>›</span>}
                 </div>
@@ -1421,10 +1423,10 @@ function AppInner() {
             })}
           </div>
           <Btn ghost small onClick={() => setShowNetwork(true)} style={{ fontFamily: T.mono }}>⬡ Network</Btn>
-          <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff' } : {}}>⚙ Settings</Btn>
+          <Btn ghost small onClick={() => setShowSettings(s => !s)} style={showSettings ? { background: T.text, color: '#fff', border: 'none' } : {}}>⚙ Settings</Btn>
           <Btn ghost small onClick={() => setShowSessions(s => !s)}>Sessions</Btn>
-          <Btn ghost small onClick={newSession}>New Session</Btn>
-          <Btn small onClick={() => setShowHubPicker(true)} style={{ background: 'linear-gradient(135deg, #34c759, #30a74f)', color: '#fff', border: 'none' }}>✦ Hub</Btn>
+          <Btn ghost small onClick={newSession}>+ New</Btn>
+          <Btn small onClick={() => setShowHubPicker(true)} style={{ background: '#1a1a1a', color: '#fff', border: 'none', letterSpacing: '-0.01em' }}>✦ HUB</Btn>
         </div>
       </div>
 
@@ -1616,9 +1618,9 @@ function AppInner() {
       )}
 
       {/* Main layout */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', background: T.bg }}>
         {/* LEFT PANEL */}
-        <div style={{ width: 380, display: 'flex', flexDirection: 'column', borderRight: T.border, background: T.card, flexShrink: 0 }}>
+        <div style={{ width: 380, display: 'flex', flexDirection: 'column', borderRight: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', flexShrink: 0 }}>
           {/* Zeroclaw agent chat overlay */}
           {activeZcAgent ? (
             <ZcAgentChatPanel
@@ -1665,7 +1667,7 @@ function AppInner() {
                     />
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(255,255,255,0.92)', borderRadius: '14px', border: '1px solid rgba(0,0,0,0.08)', padding: '0.3rem 0.3rem 0.3rem 0.85rem', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
                   <input
                     value={input}
                     onChange={e => setInput(e.target.value)}
@@ -1673,12 +1675,12 @@ function AppInner() {
                     placeholder={phase === 'start' ? 'Enter company name...' : 'Chat with orchestrator...'}
                     disabled={loading}
                     style={{
-                      flex: 1, background: T.bg, border: T.border, borderRadius: T.radius,
-                      padding: '0.5rem 0.75rem', fontFamily: T.mono, fontSize: '0.8rem',
+                      flex: 1, background: 'none', border: 'none',
+                      padding: '0.35rem 0', fontFamily: T.ui, fontSize: '0.82rem',
                       color: T.text, outline: 'none',
                     }}
                   />
-                  <Btn onClick={handleOrchestratorMessage} disabled={loading || !input.trim()} small>
+                  <Btn onClick={handleOrchestratorMessage} disabled={loading || !input.trim()} small style={{ borderRadius: '10px', padding: '0.35rem 0.9rem' }}>
                     {loading ? '...' : '→'}
                   </Btn>
                 </div>
@@ -1695,7 +1697,7 @@ function AppInner() {
                       const inferWh = (usage.estimatedCostUsd || 0) * 0.3;
                       const totalWh = (power.totalWh || 0) + inferWh;
                       const label = totalWh < 0.001 ? `${(totalWh*1e6).toFixed(0)} µWh` : totalWh < 1 ? `${(totalWh*1000).toFixed(2)} mWh` : `${totalWh.toFixed(3)} Wh`;
-                      return <span style={{ color: '#6CEFA0' }}>{label}{power.runs > 0 ? ` · ${power.runs} runs` : ''}</span>;
+                      return <span style={{ color: T.mint }}>{label}{power.runs > 0 ? ` · ${power.runs} runs` : ''}</span>;
                     })()}
                   </div>
                 )}
@@ -1729,12 +1731,12 @@ function AppInner() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Right panel tab bar */}
           {!showSettings && (
-            <div style={{ borderBottom: T.border, background: T.card, padding: '0 1rem', display: 'flex', gap: 0, flexShrink: 0 }}>
+            <div style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '0 1.25rem', display: 'flex', gap: 0, flexShrink: 0 }}>
               {[{ id: 'demo', label: 'Demo' }, { id: 'canvas', label: '⬡ Canvas' }].map(v => (
                 <button key={v.id} onClick={() => setRightView(v.id)} style={{
                   background: 'none', border: 'none', borderBottom: rightView === v.id ? `2px solid ${T.text}` : '2px solid transparent',
-                  padding: '0.5rem 1rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.62rem',
-                  textTransform: 'uppercase', letterSpacing: '0.06em',
+                  padding: '0.55rem 1rem', cursor: 'pointer', fontFamily: T.ui, fontSize: '0.75rem',
+                  fontWeight: rightView === v.id ? 600 : 400, letterSpacing: '-0.01em',
                   color: rightView === v.id ? T.text : T.muted, marginBottom: -1,
                 }}>{v.label}</button>
               ))}
@@ -1763,24 +1765,24 @@ function AppInner() {
             {phase === 'start' && (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ maxWidth: 480, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.65rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.62rem', fontFamily: T.mono, color: T.muted, textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: '1.25rem' }}>
                     AI Back-Office Simulator
                   </div>
-                  <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.03em' }}>
-                    Type a company name to begin
+                  <h1 style={{ fontSize: '2.2rem', fontWeight: 700, marginBottom: '0.85rem', letterSpacing: '-0.04em', lineHeight: 1.15, fontFamily: T.ui }}>
+                    Type a company name<br/>to begin
                   </h1>
-                  <p style={{ color: T.muted, fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '2rem' }}>
-                    The orchestrator will research the company, detect back-office platforms, build live sandboxes, and deploy AI workers — all through chat.
+                  <p style={{ color: T.muted, fontSize: '0.88rem', lineHeight: 1.65, marginBottom: '2.5rem', maxWidth: 380, margin: '0 auto 2.5rem' }}>
+                    The orchestrator researches the company, detects platforms, builds live sandboxes, and deploys AI workers — all through chat.
                   </p>
-                  <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center' }}>
                     {[
                       { icon: '🔍', label: 'Research', desc: 'AI discovers platforms' },
                       { icon: '🏗️', label: 'Build', desc: 'Live sandbox per platform' },
                       { icon: '🤖', label: 'Automate', desc: 'Workers with real triggers' },
                     ].map(s => (
-                      <div key={s.label} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>{s.icon}</div>
-                        <div style={{ fontWeight: 700, fontSize: '0.8rem', marginBottom: '0.2rem' }}>{s.label}</div>
+                      <div key={s.label} style={{ textAlign: 'center', padding: '1rem 1.25rem', background: 'rgba(255,255,255,0.7)', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                        <div style={{ fontSize: '1.4rem', marginBottom: '0.5rem' }}>{s.icon}</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '0.2rem', letterSpacing: '-0.02em' }}>{s.label}</div>
                         <div style={{ color: T.muted, fontSize: '0.7rem' }}>{s.desc}</div>
                       </div>
                     ))}
@@ -1852,8 +1854,8 @@ function AppInner() {
 }
 
 const miniInputStyle = {
-  background: T.bg, border: T.border, borderRadius: T.radius,
-  padding: '0.4rem 0.6rem', fontFamily: T.mono, fontSize: '0.75rem',
+  background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '10px',
+  padding: '0.45rem 0.75rem', fontFamily: T.ui, fontSize: '0.78rem',
   color: T.text, outline: 'none', width: '100%',
 };
 
@@ -1866,7 +1868,7 @@ const EV_COLORS = {
   'agent:message':      '#06B6D4',
   'skill:selected':     '#A78BFA',
   'artifact:created':   '#34D399',
-  'worker:trigger':     '#6CEFA0',
+  'worker:trigger':     T.mint,
   'worker:twilio_call': '#F5C842',
   'worker:error':       '#EF4444',
   'worker:trigger_manual': '#EF9B6C',
@@ -2332,16 +2334,17 @@ function ChatBubble({ msg }) {
       )}
       <div style={{
         maxWidth: '90%',
-        background: isUser ? T.text : T.card,
+        background: isUser ? '#1a1a1a' : 'rgba(255,255,255,0.9)',
         color: isUser ? '#fff' : T.text,
-        borderRadius: T.radius,
-        padding: '0.6rem 0.9rem',
+        borderRadius: isUser ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+        padding: '0.65rem 1rem',
         fontSize: '0.82rem',
-        lineHeight: 1.5,
-        boxShadow: T.shadow,
-        border: isUser ? 'none' : T.border,
+        lineHeight: 1.55,
+        boxShadow: isUser ? 'none' : '0 1px 4px rgba(0,0,0,0.04)',
+        border: isUser ? 'none' : '1px solid rgba(0,0,0,0.06)',
         fontFamily: msg.tag === 'agent:plan' ? T.mono : T.ui,
         whiteSpace: msg.tag === 'agent:plan' ? 'pre-wrap' : 'normal',
+        letterSpacing: '-0.01em',
       }}>{msg.content}</div>
       {msg.imageUrl && (
         <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer" style={{ maxWidth: '90%', display: 'block', marginTop: '0.3rem' }}>
@@ -3187,7 +3190,7 @@ function AgentNetwork3D({ agentTree, workers, onClose }) {
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: '#f8fafc' }}>
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
       {/* Legend */}
-      <div style={{ position: 'absolute', top: 20, left: 20, color: '#64748b', fontFamily: "'JetBrains Mono','Fira Mono',monospace", fontSize: '0.65rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, color: '#64748b', fontFamily: "'IBM Plex Mono','DM Mono',monospace", fontSize: '0.65rem', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>Agent Network</div>
         <div>● <span style={{ color: '#334155' }}>Orchestrator</span></div>
         <div>● <span style={{ color: '#64748b' }}>Agents ({agentTree.length})</span></div>
@@ -3340,13 +3343,13 @@ function CanvasPanel({ workers, sessionId, onRun, fetchLogs, logs, onOpenZcAgent
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Canvas sub-tabs */}
-      <div style={{ borderBottom: T.border, background: T.card, padding: '0 1rem', display: 'flex', flexShrink: 0 }}>
+      <div style={{ borderBottom: '1px solid rgba(0,0,0,0.06)', background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '0 1.25rem', display: 'flex', flexShrink: 0 }}>
         {CANVAS_TABS.map(t => (
           <button key={t.id} onClick={() => setCanvasTab(t.id)} style={{
             background: 'none', border: 'none',
             borderBottom: canvasTab === t.id ? `2px solid ${T.text}` : '2px solid transparent',
-            padding: '0.55rem 1rem', cursor: 'pointer', fontFamily: T.mono, fontSize: '0.62rem',
-            textTransform: 'uppercase', letterSpacing: '0.06em',
+            padding: '0.55rem 1rem', cursor: 'pointer', fontFamily: T.ui, fontSize: '0.75rem',
+            fontWeight: canvasTab === t.id ? 600 : 400, letterSpacing: '-0.01em',
             color: canvasTab === t.id ? T.text : T.muted, marginBottom: -1,
           }}>{t.label}</button>
         ))}
@@ -3516,10 +3519,10 @@ function CanvasWorkerCard({ worker, sessionId, onRun, fetchLogs, logs, onOpenZcA
   const hasZcAgent = !!worker.zcAgentId;
 
   return (
-    <div style={{ background: T.card, border: T.border, borderRadius: T.radius, padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+    <div style={{ background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       {/* Header: name + status dot */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: isDeployed ? T.mint : T.muted, boxShadow: isDeployed ? `0 0 6px ${T.mint}` : 'none' }} />
+        <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: isDeployed ? T.mint : T.muted, boxShadow: isDeployed ? `0 0 0 0 ${T.mint}` : 'none', animation: isDeployed ? 'pulse-dot 2s ease-in-out infinite' : 'none' }} />
         <span style={{ fontWeight: 700, fontSize: '0.88rem', flex: 1 }}>{worker.name}</span>
         <Badge color={isDeployed ? 'rgba(108,239,160,0.15)' : T.faint} style={{ color: isDeployed ? T.mint : T.muted }}>{worker.status || 'idle'}</Badge>
       </div>
@@ -3667,7 +3670,7 @@ function SettingsPanel() {
     { id: 'nfs',       label: '🗄️ NFS Storage' },
   ];
 
-  const sInput = { background: T.bg, border: T.border, borderRadius: T.radius, padding: '0.35rem 0.6rem', fontFamily: T.mono, fontSize: '0.72rem', color: T.text, outline: 'none', width: '100%', boxSizing: 'border-box' };
+  const sInput = { background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '10px', padding: '0.42rem 0.75rem', fontFamily: T.ui, fontSize: '0.78rem', color: T.text, outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
