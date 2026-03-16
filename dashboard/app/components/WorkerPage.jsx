@@ -331,10 +331,10 @@ function DashboardTab({ cfg, firstName, companyName, platforms, sessionId }) {
         <span className="wkp-status-time">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
       <div className="wkp-metrics-row">
-        <TiltCard className="wkp-metric-card wkp-metric-card--job">
+        <div className="wkp-metric-card wkp-metric-card--job">
           <WordsStagger className="wkp-metric-label" delay={0.3} stagger={0.05} speed={0.35}>Job</WordsStagger>
           <WordsStagger className="wkp-metric-desc" delay={0.5} stagger={0.04} speed={0.4}>{cfg.job}</WordsStagger>
-        </TiltCard>
+        </div>
         <div className="wkp-metric-card">
           <WordsStagger className="wkp-metric-label" delay={0.4} stagger={0.05} speed={0.35}>ROI</WordsStagger>
           <WordsStagger className="wkp-metric-big" delay={0.6} stagger={0.08} speed={0.5}>{d.roi}</WordsStagger>
