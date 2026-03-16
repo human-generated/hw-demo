@@ -788,6 +788,112 @@ function SkillsTab({ cfg, sessionId, workerId, onRunGuiAgent }) {
   );
 }
 
+const FLOW_COLORS = ['#2DB563', '#D4A853', '#7B8FA8'];
+const FLOW_BG_COLORS = ['#F2F8F4', '#FFF8EC', '#F0F3F6'];
+
+function StepIcon({ status, type }) {
+  const color = status === 'done' || status === 'active' ? '#FFFFFF' : 'rgba(26,26,26,0.25)';
+  const strokeColor = status === 'active' ? '#2DB563' : color;
+  const props = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: status === 'active' ? strokeColor : color, strokeWidth: 2 };
+  const t = (type || '').toLowerCase();
+  if (t.includes('search') || t.includes('research') || t.includes('find')) return <svg {...props}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+  if (t.includes('extract') || t.includes('read') || t.includes('parse')) return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>;
+  if (t.includes('compile') || t.includes('build') || t.includes('code')) return <svg {...props}><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>;
+  if (t.includes('report') || t.includes('write') || t.includes('draft')) return <svg {...props}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>;
+  if (t.includes('send') || t.includes('email') || t.includes('notify')) return <svg {...props}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></svg>;
+  return <svg {...props}><circle cx="12" cy="12" r="4" /></svg>;
+}
+
+function FlowPanel({ cfg, sessionId, workerId, workerName, channels, onChannelsChange }) {
+  const wfList = cfg?.workflows?.list || [];
+  const displayWfs = wfList.slice(0, 3);
+  const activeWf = wfList.find(wf => wf.status === 'active') || wfList[0];
+  const rawSteps = activeWf?.steps || [];
+  // Assign done/active/pending based on position
+  const steps = rawSteps.slice(0, 5).map((s, i) => ({
+    label: s.label || s.name || `Step ${i + 1}`,
+    status: i < Math.floor(rawSteps.length * 0.4) ? 'done' : i === Math.floor(rawSteps.length * 0.4) ? 'active' : 'pending',
+  }));
+
+  const [running, setRunning] = useState(false);
+  const [ran, setRan] = useState(false);
+
+  async function handleRun() {
+    if (!activeWf || running) return;
+    setRunning(true);
+    try {
+      await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, mode: 'soft', workflowId: activeWf.id, channels }),
+      });
+    } catch {}
+    setRunning(false);
+    setRan(true);
+    setTimeout(() => setRan(false), 3000);
+  }
+
+  return (
+    <div className="wkp-right">
+      <div className="wkp-flow-panel">
+        <div className="wkp-flow-header">
+          <WordsStagger className="wkp-section-label" delay={0.4} stagger={0.05} speed={0.35}>Flow</WordsStagger>
+          <span className="wkp-flow-count">{wfList.length} workflow{wfList.length !== 1 ? 's' : ''}</span>
+        </div>
+        {displayWfs.length > 0 ? displayWfs.map((wf, i) => (
+          <div key={wf.id || i} className="wkp-workflow">
+            <div className="wkp-workflow-title-row">
+              <span className="wkp-workflow-dot" style={{ background: FLOW_COLORS[i % FLOW_COLORS.length] }} />
+              <span className="wkp-workflow-title">{wf.name}</span>
+            </div>
+            <span className="wkp-workflow-desc">{wf.trigger}</span>
+            <div className="wkp-workflow-tools">
+              {(wf.steps || []).slice(0, 3).map(s => (
+                <span key={s.label} className="wkp-workflow-tag" style={{ background: FLOW_BG_COLORS[i % FLOW_BG_COLORS.length], color: FLOW_COLORS[i % FLOW_COLORS.length] }}>{s.label}</span>
+              ))}
+            </div>
+          </div>
+        )) : (
+          <div style={{ fontSize: 12, color: 'rgba(0,0,0,0.3)', fontFamily: 'DM Sans', padding: '8px 0' }}>No workflows yet</div>
+        )}
+        {steps.length > 0 && (
+          <div className="wkp-diagram">
+            <span className="wkp-diagram-label">Active workflow</span>
+            <div className="wkp-diagram-steps">
+              {steps.map((step, i) => (
+                <div key={step.label + i} className="wkp-diagram-step-group">
+                  <div className={`wkp-diagram-node wkp-diagram-node--${step.status}`}>
+                    <StepIcon status={step.status} type={step.label} />
+                  </div>
+                  {i < steps.length - 1 && <div className={`wkp-diagram-line wkp-diagram-line--${step.status}`} />}
+                  <span className={`wkp-diagram-step-label wkp-diagram-step-label--${step.status}`}>{step.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ flex: 1 }} />
+        <div className="wkp-run-btn" onClick={handleRun} style={{ opacity: running ? 0.7 : 1 }}>
+          <LiquidMetal
+            className="wkp-run-shader"
+            speed={1} softness={0.1} repetition={2} shiftRed={0.3} shiftBlue={0.3}
+            distortion={0.07} contour={0.4} scale={10} rotation={0} shape="diamond" angle={70}
+            colorBack="#00000000" colorTint="#FFFFFF"
+            style={{ backgroundColor: '#AAAAAC', borderRadius: '12px', width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+          />
+          <div className="wkp-run-inner">
+            {running ? (
+              <span style={{ width: 14, height: 14, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#1a1a1a', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 2.5L13 8L4 13.5V2.5Z" fill="rgba(0,0,0,0.35)" /></svg>
+            )}
+            <span className="wkp-run-text">{ran ? 'Triggered!' : running ? 'Running…' : 'Run workflow'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WorkflowChat({ wf, sessionId, workerId, workerName, onWorkerUpdate }) {
   const [msgs, setMsgs] = useState([]);
   const [input, setInput] = useState('');
@@ -2088,6 +2194,9 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
           {activeTab === 'Canvas' && <CanvasTab sessionId={sessionId} workerId={workerId} />}
+
+          {/* Right: Flow Panel — always visible */}
+          <FlowPanel cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} channels={workerChannels} onChannelsChange={setWorkerChannels} />
         </div>
       </div>
     </div>
