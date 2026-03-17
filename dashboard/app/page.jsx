@@ -375,7 +375,7 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
   return (
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)', zIndex: 0 }} />
-      <nav className="wkp-menu" style={{ zIndex: 10 }}>
+      <nav className="wkp-menu" style={{ position: 'fixed', top: 16, left: 16, right: 16, zIndex: 10010, pointerEvents: 'auto' }}>
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />

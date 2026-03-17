@@ -1,15 +1,31 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 const DEMO_EMAIL = 'demo@demo.com';
 const DEMO_PASSWORD = 'aidemo';
+const LS_KEY = 'hw_demo_remembered';
 
 export function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        const { email: e, password: p } = JSON.parse(saved);
+        if (e && p) {
+          setEmail(e);
+          setPassword(p);
+          setRememberMe(true);
+        }
+      }
+    } catch {}
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -19,7 +35,11 @@ export function LoginPage({ onLogin }) {
       return;
     }
     setLoading(true);
-    // Small delay for feel
+    if (rememberMe) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ email: email.trim().toLowerCase(), password })); } catch {}
+    } else {
+      try { localStorage.removeItem(LS_KEY); } catch {}
+    }
     await new Promise(r => setTimeout(r, 400));
     setLoading(false);
     onLogin();
@@ -78,6 +98,13 @@ export function LoginPage({ onLogin }) {
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
+              style={{ width: 15, height: 15, accentColor: '#34c759', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.5)', fontFamily: "'DM Sans', sans-serif" }}>Remember me</span>
+          </label>
           {error && <div style={{ fontSize: '0.78rem', color: '#ff3b30', textAlign: 'center' }}>{error}</div>}
           <button
             type="submit" disabled={loading || !email.trim() || !password}
