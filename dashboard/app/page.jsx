@@ -375,7 +375,7 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
   return (
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000 }}>
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)', zIndex: 0 }} />
-      <nav className="wkp-menu">
+      <nav className="wkp-menu" style={{ zIndex: 10 }}>
         <div className="wkp-menu-left">
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
@@ -388,7 +388,7 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
           <div className="wkp-menu-avatar">P</div>
         </div>
       </nav>
-      <div style={{ position: 'absolute', top: 48, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 80, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
         {platforms.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
             No platforms detected yet. Run the onboarding wizard first.
@@ -824,7 +824,7 @@ function AppInner() {
           setHubSessionId(hubParam);
           setHubCompanyName(hd?.company?.name || hd?.company || null);
           setShowHubPicker(false);
-          setAiView('workers');
+          setAiView('workspace');
           // Also load main session from localStorage so dashboard still works
         }
       }
@@ -1511,7 +1511,7 @@ function AppInner() {
           )}
           {aiView === 'workspace' && (
             <Workspace
-              companyName={hubCompanyName || company?.name || 'Humans.AI'}
+              companyName={hubCompanyName || company?.name || ''}
               company={company}
               researchSummary={researchSummary}
               researchFindings={researchFindings}
@@ -1526,6 +1526,7 @@ function AppInner() {
               onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
               onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
+              onCompanyName={(name) => { if (name) setHubCompanyName(name); }}
             />
           )}
           {aiView === 'workers' && (

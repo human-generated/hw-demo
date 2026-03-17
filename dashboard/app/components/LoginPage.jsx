@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 const DEMO_EMAIL = 'demo@demo.com';
-const DEMO_PASSWORD = 'aigeneratedpassword';
+const DEMO_PASSWORD = 'aidemo';
 
 export function LoginPage({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -64,7 +64,7 @@ export function LoginPage({ onLogin }) {
             <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Email</label>
             <input
               autoFocus type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="demo@demo.com" required style={inp}
+              placeholder="" required style={inp}
               onFocus={e => (e.target.style.borderColor = 'rgba(52,199,89,0.5)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
@@ -100,9 +100,6 @@ export function LoginPage({ onLogin }) {
           </button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.68rem', color: 'rgba(0,0,0,0.25)' }}>
-          Humans.AI confidential demo platform
-        </div>
       </div>
     </div>
   );

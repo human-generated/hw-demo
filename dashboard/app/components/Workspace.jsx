@@ -122,7 +122,7 @@ function BuiltWorkerCard({ worker, onOpen }) {
 }
 
 export function Workspace({
-  companyName = 'Meridian Corp.',
+  companyName = '',
   company = null,
   researchSummary = '',
   researchFindings = [],
@@ -139,11 +139,12 @@ export function Workspace({
   sessionId,
   onBackToDashboard,
   onWorkersBuilt,
+  onCompanyName,
 }) {
   // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
-    { id: 1, author: 'ALEXANDRA', text: `Starting research on ${companyName}…`, time: 'Just now', isUser: false },
+    { id: 1, author: 'ALEXANDRA', text: companyName ? `Starting research on ${companyName}…` : `What company are we presenting to today?`, time: 'Just now', isUser: false },
   ]);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
 
@@ -245,35 +246,23 @@ export function Workspace({
     return () => clearInterval(id);
   }, [isConnected, callStartTime]);
 
-  // ── Research trigger ───────────────────────────────────────────────────────
+  // ── Research trigger — only fires once company name is known ───────────────
   useEffect(() => {
     if (!sessionId || !companyName || researchTriggered.current) return;
     researchTriggered.current = true;
-    startResearch();
+    startResearch(companyName);
   }, [sessionId, companyName]);
 
-  async function startResearch() {
+  async function startResearch(name) {
+    const co = (name || companyName || '').trim();
+    if (!co) return;
     setTilesLoading(true);
-    // Check if tiles already exist
-    try {
-      const r = await fetch(`/api/demo/research/${sessionId}/tiles`);
-      const d = await r.json();
-      if (!d.error && d.tiles?.length > 0) {
-        setTilesData(d);
-        setTilesLoading(false);
-        addMsg('ALEXANDRA', `Research on **${d.companyName || companyName}** loaded. ${d.tiles.length} insights found.`);
-        await fetchSessionPlatforms();
-        return;
-      }
-    } catch {}
-
-    // Trigger fresh research
-    addMsg('ALEXANDRA', `Researching ${companyName}. I'll share findings as they come in…`);
+    addMsg('ALEXANDRA', `Researching ${co} — running deep web analysis, SEC filings, LinkedIn, news sources…`);
     try {
       const r = await fetch('/api/demo/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company: companyName, sessionId }),
+        body: JSON.stringify({ company: co, sessionId, deep: true }),
       });
       const d = await r.json();
       if (d.company) {
@@ -285,14 +274,13 @@ export function Workspace({
           plats.length ? `Detected ${plats.length} platforms in their stack.` : '',
         ].filter(Boolean).join(' '));
       }
-      // Fetch tiles
+      // Fetch tiles after research completes
       try {
         const tr = await fetch(`/api/demo/research/${sessionId}/tiles`);
         const td = await tr.json();
-        if (!td.error) setTilesData(td);
+        if (!td.error && td.tiles?.length > 0) setTilesData(td);
       } catch {}
       setHubPhase(P.PLATFORMS_PROPOSED);
-      // scroll right panel
       setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
     } catch (e) {
       addMsg('ALEXANDRA', 'Research encountered an error. Please try again.');
@@ -473,6 +461,18 @@ export function Workspace({
     if (!text || orchestratorLoading) return;
     addMsg('YOU', text);
     setChatInput('');
+
+    // If no company name yet, treat first message as the company name
+    if (!companyName && !researchTriggered.current) {
+      addMsg('ALEXANDRA', `Got it — researching **${text}** now. This will take a moment…`);
+      if (isConnected && anamClientRef.current) anamClientRef.current.sendUserMessage(`Research ${text} for me.`);
+      researchTriggered.current = true;
+      startResearch(text);
+      // Propagate company name up if callback available
+      onCompanyName?.(text);
+      return;
+    }
+
     if (isConnected && anamClientRef.current) {
       anamClientRef.current.sendUserMessage(text);
     }
@@ -829,10 +829,18 @@ export function Workspace({
           </div>
         )}
 
-        {/* Empty state when no research yet */}
+        {/* Empty state / company name prompt */}
         {hubPhase === P.RESEARCH && !tilesLoading && !tilesData && (
-          <div style={{ padding: '2rem 1.5rem', textAlign: 'center', color: 'rgba(0,0,0,0.25)', fontSize: '0.85rem' }}>
-            Waiting to begin research…
+          <div style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontSize: '2rem', opacity: 0.15 }}>🏢</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'rgba(0,0,0,0.35)', textAlign: 'center', lineHeight: 1.5 }}>
+              {companyName ? `Preparing to research ${companyName}…` : 'Type the company name in the chat to begin research'}
+            </div>
+            {!companyName && (
+              <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.2)', textAlign: 'center' }}>
+                Alexandra will run a deep analysis and come back with insights, platforms, and worker recommendations.
+              </div>
+            )}
           </div>
         )}
       </div>
