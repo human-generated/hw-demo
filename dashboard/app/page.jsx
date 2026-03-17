@@ -9,6 +9,7 @@ import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LoginPage } from './components/LoginPage';
+import { DockIcons } from './components/DockIcons';
 import { MeshGradient } from '@paper-design/shaders-react';
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
@@ -371,7 +372,7 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 }
 
 // ── PlatformsView ──────────────────────────────────────────────────────────────
-function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
+function PlatformsView({ sessionId, platforms = [], companyName, onClose, onGoHome, onGoHub, onGoWorkers, onGoAbout }) {
   return (
     // .wkp gives position:relative context for wkp-menu (position:absolute z-index:100)
     // Cards container sits at z-index:1 — nav always wins, iframes can never cover it
@@ -381,6 +382,9 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
           <span className="wkp-menu-logo">h</span>
           <div className="wkp-menu-sep" />
           <span className="wkp-menu-label">Platforms</span>
+        </div>
+        <div className="wkp-menu-center">
+          <DockIcons active="platforms" onHome={onGoHome} onHub={onGoHub} onWorkers={onGoWorkers} onPlatforms={() => {}} onAbout={onGoAbout} />
         </div>
         <div className="wkp-menu-right">
           <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
@@ -466,7 +470,7 @@ function ContactCard({ contact, onRemove, onChange }) {
   );
 }
 
-function AboutView({ sessionId, companyName, onClose }) {
+function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms }) {
   const [data, setData] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [phone, setPhone] = useState('');
@@ -512,6 +516,7 @@ function AboutView({ sessionId, companyName, onClose }) {
   const co = data?.company;
 
   return (
+  <>
     <HubOverlay onClose={onClose} title={co?.name || companyName || 'About Company'} subtitle={co ? `${co.industry || ''} · ${co.size || ''}` : 'Company info & session settings'}>
       {co && (
         <div style={{ marginBottom: 14, padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
@@ -551,6 +556,10 @@ function AboutView({ sessionId, companyName, onClose }) {
         </div>
       </div>
     </HubOverlay>
+    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9300, background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderRadius: 14, padding: '4px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.85)' }}>
+      <DockIcons active="about" onHome={onGoHome} onHub={onGoHub} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={() => {}} />
+    </div>
+  </>
   );
 }
 
@@ -1602,6 +1611,10 @@ function AppInner() {
           platforms={hubPlatforms}
           companyName={hubCompanyName}
           onClose={() => setShowPlatforms(false)}
+          onGoHome={() => { setShowPlatforms(false); setAiView('home'); }}
+          onGoHub={() => { setShowPlatforms(false); setAiView('workspace'); }}
+          onGoWorkers={() => { setShowPlatforms(false); setAiView('workers'); }}
+          onGoAbout={() => { setShowPlatforms(false); setShowAbout(true); }}
         />
       )}
       {showAbout && (
@@ -1609,6 +1622,10 @@ function AppInner() {
           sessionId={hubSessionId}
           companyName={hubCompanyName}
           onClose={() => setShowAbout(false)}
+          onGoHome={() => { setShowAbout(false); setAiView('home'); }}
+          onGoHub={() => { setShowAbout(false); setAiView('workspace'); }}
+          onGoWorkers={() => { setShowAbout(false); setAiView('workers'); }}
+          onGoPlatforms={() => { setShowAbout(false); setShowPlatforms(true); }}
         />
       )}
       {showSessions && (
