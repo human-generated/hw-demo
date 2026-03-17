@@ -373,27 +373,24 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 // ── PlatformsView ──────────────────────────────────────────────────────────────
 function PlatformsView({ sessionId, platforms = [], companyName, onClose }) {
   return (
-    // Flexbox column — nav is first child so iframes below can NEVER cover it
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)' }} />
-      {/* Nav wrapper — relative in flex flow, guaranteed above everything below */}
-      <div style={{ position: 'relative', flexShrink: 0, padding: '16px 16px 0', zIndex: 2 }}>
-        <nav className="wkp-menu" style={{ position: 'relative', top: 'auto', left: 'auto', right: 'auto', animation: 'none' }}>
-          <div className="wkp-menu-left">
-            <span className="wkp-menu-logo">h</span>
-            <div className="wkp-menu-sep" />
-            <span className="wkp-menu-label">Platforms</span>
-          </div>
-          <div className="wkp-menu-right">
-            <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </button>
-            <div className="wkp-menu-avatar">P</div>
-          </div>
-        </nav>
-      </div>
-      {/* Cards: flex-1, scrollable, rendered below nav in DOM order */}
-      <div style={{ flex: 1, position: 'relative', zIndex: 1, display: 'flex', padding: '12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
+    // .wkp gives position:relative context for wkp-menu (position:absolute z-index:100)
+    // Cards container sits at z-index:1 — nav always wins, iframes can never cover it
+    <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000, height: 'auto', background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)' }}>
+      <nav className="wkp-menu">
+        <div className="wkp-menu-left">
+          <span className="wkp-menu-logo">h</span>
+          <div className="wkp-menu-sep" />
+          <span className="wkp-menu-label">Platforms</span>
+        </div>
+        <div className="wkp-menu-right">
+          <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <div className="wkp-menu-avatar">S</div>
+        </div>
+      </nav>
+      {/* Cards sit below nav in z-index — wkp-menu at z-index:100, cards at z-index:1 */}
+      <div style={{ position: 'absolute', top: 84, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '0 12px 12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
         {platforms.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
             No platforms detected yet. Run the onboarding wizard first.
