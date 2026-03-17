@@ -218,6 +218,8 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
   const proxyUrl = sessionId && platform.id
     ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/`
     : platform.url;
+  const isBuilt = !!(platform.url || platform.sandboxId || platform.status === 'deployed');
+  const platformIcons = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', messaging: '💬', ecommerce: '🛒', hr: '🏢', billing: '💳' };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
 
@@ -267,21 +269,29 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
         </div>
       </div>
 
-      {/* Live status strip */}
+      {/* Status strip */}
       <div className="wkp-platform-strip">
-        <span className="wkp-platform-dot" />
-        <span className="wkp-platform-strip-name">{platform.name}</span>
-        <span className="wkp-platform-strip-status">Live</span>
+        <span className="wkp-platform-dot" style={{ background: isBuilt ? undefined : '#555' }} />
+        <span className="wkp-platform-strip-name">{platform.actual_software || platform.name}</span>
+        <span className="wkp-platform-strip-status" style={{ color: isBuilt ? undefined : '#555' }}>{isBuilt ? 'Live' : 'Pending'}</span>
       </div>
 
-      {/* iframe preview */}
+      {/* iframe preview or not-built placeholder */}
       <div className="wkp-platform-frame">
-        <iframe
-          src={proxyUrl}
-          title={platform.name}
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          className="wkp-platform-iframe"
-        />
+        {isBuilt ? (
+          <iframe
+            src={proxyUrl}
+            title={platform.name}
+            sandbox="allow-scripts allow-same-origin allow-forms"
+            className="wkp-platform-iframe"
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, background: '#0b0d14', color: '#444' }}>
+            <span style={{ fontSize: '1.8rem', opacity: 0.4 }}>{platformIcons[platform.id] || '⚙️'}</span>
+            <span style={{ fontSize: '0.78rem', color: '#555' }}>Not yet deployed</span>
+            <span style={{ fontSize: '0.65rem', color: '#333', textAlign: 'center', maxWidth: 160 }}>{platform.actual_software || platform.name} · Build platforms to activate</span>
+          </div>
+        )}
       </div>
 
       {/* Chat panel */}

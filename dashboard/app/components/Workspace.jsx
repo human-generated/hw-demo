@@ -172,6 +172,7 @@ export function Workspace({
   const [buildingMsg, setBuildingMsg] = useState('');
   const [editingWorkflow, setEditingWorkflow] = useState(null); // { wf, worker }
   const [wfEditText, setWfEditText] = useState('');
+  const [expandedTiles, setExpandedTiles] = useState({});
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -246,12 +247,57 @@ export function Workspace({
     return () => clearInterval(id);
   }, [isConnected, callStartTime]);
 
-  // ── Research trigger — only fires once company name is known ───────────────
+  // ── Session init — restore existing state, then trigger research if needed ──
   useEffect(() => {
-    if (!sessionId || !companyName || researchTriggered.current) return;
-    researchTriggered.current = true;
-    startResearch(companyName);
-  }, [sessionId, companyName]);
+    if (!sessionId) return;
+    let cancelled = false;
+    async function init() {
+      try {
+        const [tilesRes, sessionRes] = await Promise.all([
+          fetch(`/api/demo/research/${sessionId}/tiles`),
+          fetch(`/api/demo/session/${sessionId}`),
+        ]);
+        const tilesD = await tilesRes.json();
+        const sessionD = await sessionRes.json();
+        if (cancelled) return;
+
+        const hasTiles = !tilesD.error && (tilesD.tiles?.length > 0);
+        const deployed = (sessionD.platforms || []).filter(p => p.status === 'deployed');
+        const proposed = (sessionD.platforms || []);
+
+        if (hasTiles) setTilesData(tilesD);
+
+        if (deployed.length > 0) {
+          setBuiltPlatforms(deployed);
+          const workers = sessionD.workers || [];
+          if (workers.length > 0) { setBuiltWorkers(workers); setHubPhase(P.WORKERS_BUILT); }
+          else setHubPhase(P.PLATFORMS_BUILT);
+          researchTriggered.current = true;
+          return;
+        }
+
+        if (proposed.length > 0 && hasTiles) {
+          setProposedPlatforms(proposed.map(p => ({ ...p, _selected: p.selected !== false })));
+          setHubPhase(P.PLATFORMS_PROPOSED);
+          researchTriggered.current = true;
+          return;
+        }
+
+        // No existing data — run research if company name already known
+        if (companyName && !researchTriggered.current) {
+          researchTriggered.current = true;
+          startResearch(companyName);
+        }
+      } catch {
+        if (companyName && !researchTriggered.current) {
+          researchTriggered.current = true;
+          startResearch(companyName);
+        }
+      }
+    }
+    init();
+    return () => { cancelled = true; };
+  }, [sessionId]);
 
   async function startResearch(name) {
     const co = (name || companyName || '').trim();
@@ -404,6 +450,19 @@ export function Workspace({
       });
     } catch {}
     setEditingWorkflow(null);
+  }
+
+  function renderMarkdown(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/###\s+(.+)/g, '<strong style="display:block;font-size:0.82rem;margin-top:8px;margin-bottom:2px;color:#1a1a1a">$1</strong>')
+      .replace(/##\s+(.+)/g, '<strong style="display:block;margin-top:6px;margin-bottom:2px">$1</strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)/gm, '<span style="display:block;padding-left:12px">· $1</span>')
+      .replace(/\n\n/g, '<br/><br/>')
+      .replace(/\n/g, '<br/>');
   }
 
   function addMsg(author, text) {
@@ -669,14 +728,43 @@ export function Workspace({
                 </div>
               ))}
             </div>
+            {/* Refresh button when data looks like fallback */}
+            {(tilesData?.fixed?.revenue === '--' && tilesData?.fixed?.employees === '--') && !tilesLoading && (
+              <div style={{ padding: '0 1.5rem 0.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => { researchTriggered.current = false; startResearch(tilesData.companyName || companyName); }}
+                  style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.4)', background: 'none', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ↻ Refresh Research
+                </button>
+              </div>
+            )}
             {tilesData.tiles?.length > 0 && (
               <div style={{ padding: '0 1.5rem 1rem', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {tilesData.tiles.map(tile => (
-                  <div key={tile.id} style={{ flex: tile.wide ? '1 1 100%' : '1 1 160px', minWidth: tile.wide ? '100%' : 140, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.07)', padding: '0.85rem 1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                    <div style={{ fontSize: '0.6rem', fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.35)', marginBottom: 6 }}>{tile.label}</div>
-                    <div style={{ fontSize: tile.wide ? '0.78rem' : '0.88rem', fontWeight: tile.wide ? 400 : 600, color: '#1a1a1a', lineHeight: 1.45 }}>{tile.value}</div>
-                  </div>
-                ))}
+                {tilesData.tiles.map(tile => {
+                  const isLong = tile.value?.length > 200;
+                  const isExpanded = expandedTiles[tile.id];
+                  const isKeyFinding = tile.label === 'Key Finding' || tile.label === 'Tech Landscape';
+                  const displayValue = isKeyFinding && isLong && !isExpanded
+                    ? tile.value.slice(0, 220) + '…'
+                    : tile.value;
+                  return (
+                    <div key={tile.id} style={{ flex: tile.wide ? '1 1 100%' : '1 1 160px', minWidth: tile.wide ? '100%' : 140, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(8px)', borderRadius: 14, border: '1px solid rgba(0,0,0,0.07)', padding: '0.85rem 1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                      <div style={{ fontSize: '0.6rem', fontFamily: 'monospace', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.35)', marginBottom: 6 }}>{tile.label}</div>
+                      {isKeyFinding ? (
+                        <>
+                          <div dangerouslySetInnerHTML={{ __html: renderMarkdown(displayValue) }} style={{ fontSize: '0.78rem', fontWeight: 400, color: '#1a1a1a', lineHeight: 1.5 }} />
+                          {isLong && (
+                            <button onClick={() => setExpandedTiles(p => ({ ...p, [tile.id]: !isExpanded }))}
+                              style={{ marginTop: 6, fontSize: '0.68rem', color: 'rgba(52,199,89,0.9)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+                              {isExpanded ? '↑ Show less' : '↓ Read more'}
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ fontSize: tile.wide ? '0.78rem' : '0.88rem', fontWeight: tile.wide ? 400 : 600, color: '#1a1a1a', lineHeight: 1.45 }}>{tile.value}</div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
