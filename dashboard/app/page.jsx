@@ -516,50 +516,63 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
   const co = data?.company;
 
   return (
-  <>
-    <HubOverlay onClose={onClose} title={co?.name || companyName || 'About Company'} subtitle={co ? `${co.industry || ''} · ${co.size || ''}` : 'Company info & session settings'}>
-      {co && (
-        <div style={{ marginBottom: 14, padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
-          <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.6)', lineHeight: 1.6 }}>{co.description}</div>
-          {data?.researchSummary && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>{data.researchSummary}</div>}
+    <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000, height: 'auto', background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)' }}>
+      <nav className="wkp-menu">
+        <div className="wkp-menu-left">
+          <span className="wkp-menu-logo">h</span>
+          <div className="wkp-menu-sep" />
+          <span className="wkp-menu-label">{co?.name || companyName || 'About'}</span>
         </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Session settings</div>
-        {[['Email', 'email', email, setEmail, 'contact@company.com'], ['Phone', 'tel', phone, setPhone, '+1 555 000 0000'], ['Telegram', 'text', telegram, setTelegram, '@channel or chat ID']].map(([label, type, val, setter, ph]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.6rem 0.875rem', borderRadius: 10, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.08)' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', width: 64, flexShrink: 0 }}>{label}</span>
-            <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph} onBlur={() => save(contacts, { phone, email, telegram })} style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.8rem', outline: 'none', fontFamily: 'inherit' }} />
-          </div>
-        ))}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
-            Contacts <span style={{ fontWeight: 400, opacity: 0.6 }}>({contacts.length})</span>
-          </div>
-          <label style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)' }}>
-            Import CSV<input type="file" accept=".csv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={importCsv} />
-          </label>
-          <button onClick={addBlank} style={{ padding: '4px 10px', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontFamily: 'inherit' }}>+ Add</button>
+        <div className="wkp-menu-center">
+          <DockIcons active="about" onHome={onGoHome} onHub={onGoHub} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={() => {}} />
         </div>
-        {contacts.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '1.2rem 0', fontSize: '0.75rem', color: 'rgba(0,0,0,0.32)', fontStyle: 'italic' }}>
-            No contacts yet — import a CSV or add manually.<br/>
-            <span style={{ fontSize: '0.68rem' }}>Agents will know who is attending the demo.</span>
+        <div className="wkp-menu-right">
+          <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </button>
+          <div className="wkp-menu-avatar">S</div>
+        </div>
+      </nav>
+      <div style={{ position: 'absolute', top: 84, left: 0, right: 0, bottom: 0, zIndex: 1, overflowY: 'auto', display: 'flex', justifyContent: 'center', padding: '24px 16px' }}>
+        <div style={{ width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {co && (
+            <div style={{ padding: '0.875rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(0,0,0,0.07)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.6)', lineHeight: 1.6 }}>{co.description}</div>
+              {data?.researchSummary && <div style={{ marginTop: 8, fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', fontStyle: 'italic' }}>{data.researchSummary}</div>}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Session settings</div>
+            {[['Email', 'email', email, setEmail, 'contact@company.com'], ['Phone', 'tel', phone, setPhone, '+1 555 000 0000'], ['Telegram', 'text', telegram, setTelegram, '@channel or chat ID']].map(([label, type, val, setter, ph]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.6rem 0.875rem', borderRadius: 10, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.08)' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.45)', width: 64, flexShrink: 0 }}>{label}</span>
+                <input type={type} value={val} onChange={e => setter(e.target.value)} placeholder={ph} onBlur={() => save(contacts, { phone, email, telegram })} style={{ flex: 1, border: 'none', background: 'none', fontSize: '0.8rem', outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+            ))}
           </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {contacts.map(c => (
-            <ContactCard key={c.id} contact={c} onRemove={() => removeContact(c.id)} onChange={updateContact} />
-          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
+              Contacts <span style={{ fontWeight: 400, opacity: 0.6 }}>({contacts.length})</span>
+            </div>
+            <label style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)' }}>
+              Import CSV<input type="file" accept=".csv,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={importCsv} />
+            </label>
+            <button onClick={addBlank} style={{ padding: '4px 10px', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: 'rgba(0,0,0,0.55)', fontFamily: 'inherit' }}>+ Add</button>
+          </div>
+          {contacts.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '1.2rem 0', fontSize: '0.75rem', color: 'rgba(0,0,0,0.32)', fontStyle: 'italic' }}>
+              No contacts yet — import a CSV or add manually.<br/>
+              <span style={{ fontSize: '0.68rem' }}>Agents will know who is attending the demo.</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {contacts.map(c => (
+              <ContactCard key={c.id} contact={c} onRemove={() => removeContact(c.id)} onChange={updateContact} />
+            ))}
+          </div>
         </div>
       </div>
-    </HubOverlay>
-    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 9300, background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderRadius: 14, padding: '4px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid rgba(255,255,255,0.85)' }}>
-      <DockIcons active="about" onHome={onGoHome} onHub={onGoHub} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={() => {}} />
     </div>
-  </>
   );
 }
 
