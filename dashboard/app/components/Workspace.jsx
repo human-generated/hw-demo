@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
@@ -59,39 +59,101 @@ function SectionHead({ label, badge, sub }) {
   );
 }
 
-function WorkerProposalCard({ worker, selected, onToggle, onEditWorkflow }) {
+const SKILL_META = {
+  'query-platform':    { label: 'Query',     bg: 'rgba(59,130,246,0.12)',  color: '#2563eb' },
+  'condition':         { label: 'If',        bg: 'rgba(245,158,11,0.12)',  color: '#b45309' },
+  'transform-data':    { label: 'Transform', bg: 'rgba(139,92,246,0.12)', color: '#7c3aed' },
+  'send-notification': { label: 'Notify',    bg: 'rgba(34,197,94,0.12)',   color: '#15803d' },
+  'generate-report':   { label: 'AI Report', bg: 'rgba(99,102,241,0.12)', color: '#4338ca' },
+  'call-webhook':      { label: 'Webhook',   bg: 'rgba(20,184,166,0.12)', color: '#0f766e' },
+  'run-script':        { label: 'Script',    bg: 'rgba(249,115,22,0.12)', color: '#c2410c' },
+  'wait':              { label: 'Wait',      bg: 'rgba(107,114,128,0.1)', color: '#4b5563' },
+};
+const TRIGGER_META = {
+  'schedule':       { icon: '⏱', label: 'Scheduled' },
+  'webhook':        { icon: '⚡', label: 'Webhook' },
+  'message':        { icon: '💬', label: 'Message' },
+  'platform-event': { icon: '📡', label: 'Event' },
+  'manual':         { icon: '▶', label: 'Manual' },
+};
+
+function SkillPill({ skill, name }) {
+  const m = SKILL_META[skill] || { label: skill, bg: 'rgba(0,0,0,0.06)', color: 'rgba(0,0,0,0.5)' };
+  return (
+    <span title={name} style={{ fontSize: '0.58rem', fontWeight: 700, padding: '2px 6px', borderRadius: 5, background: m.bg, color: m.color, whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
+      {m.label}
+    </span>
+  );
+}
+
+function WorkerProposalCard({ worker, selected, onToggle }) {
   const photo = getWorkerPhoto(worker, 0);
   const wfs = worker.workflows || [];
+  const steps = worker.steps || [];
+
   return (
-    <div onClick={onToggle} style={{
-      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0.875rem 1rem',
-      background: selected ? 'rgba(52,199,89,0.06)' : 'rgba(255,255,255,0.5)',
-      border: `1px solid ${selected ? 'rgba(52,199,89,0.25)' : 'rgba(0,0,0,0.07)'}`,
-      borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+    <div style={{
+      background: selected ? 'rgba(52,199,89,0.05)' : 'rgba(255,255,255,0.65)',
+      border: `1px solid ${selected ? 'rgba(52,199,89,0.28)' : 'rgba(0,0,0,0.08)'}`,
+      borderRadius: 13, overflow: 'hidden', transition: 'all 0.15s',
     }}>
-      <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f4f5f7', backgroundImage: photo ? `url(${photo})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0, border: '1px solid rgba(0,0,0,0.07)' }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1a1a1a', marginBottom: 2 }}>{worker.name}</div>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.45)', marginBottom: 6 }}>{worker.role || worker.description}</div>
-        {wfs.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {wfs.slice(0, 3).map((wf, i) => (
-              <span key={i} onClick={e => { e.stopPropagation(); onEditWorkflow?.(wf, worker); }} style={{
-                fontSize: '0.62rem', fontWeight: 500, color: 'rgba(0,0,0,0.5)',
-                background: 'rgba(0,0,0,0.05)', borderRadius: 6, padding: '2px 7px',
-                cursor: 'pointer', transition: 'background 0.1s',
-              }}
-              onMouseEnter={e => (e.target.style.background = 'rgba(0,0,0,0.1)')}
-              onMouseLeave={e => (e.target.style.background = 'rgba(0,0,0,0.05)')}
-              >{wf.name || wf.trigger}</span>
-            ))}
-            {wfs.length > 3 && <span style={{ fontSize: '0.62rem', color: 'rgba(0,0,0,0.3)', padding: '2px 4px' }}>+{wfs.length - 3}</span>}
-          </div>
-        )}
+      {/* Header */}
+      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.7rem 0.9rem', cursor: 'pointer' }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, border: '1px solid rgba(0,0,0,0.07)', background: '#f0f0f0', backgroundImage: photo ? `url(${photo})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1a1a1a' }}>{worker.name}</div>
+          <div style={{ fontSize: '0.67rem', color: 'rgba(0,0,0,0.4)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{worker.role || worker.description}</div>
+        </div>
+        <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, border: `2px solid ${selected ? '#34c759' : 'rgba(0,0,0,0.15)'}`, background: selected ? '#34c759' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+          {selected && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </div>
       </div>
-      <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${selected ? '#34c759' : 'rgba(0,0,0,0.15)'}`, background: selected ? '#34c759' : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
-        {selected && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-      </div>
+
+      {/* Workflows + pipeline */}
+      {(wfs.length > 0 || steps.length > 0) && (
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', padding: '0.5rem 0.9rem 0.75rem' }}>
+          {/* Workflow rows */}
+          {wfs.map((wf, i) => {
+            const trig = TRIGGER_META[wf.trigger] || { icon: '▶', label: wf.trigger || 'Manual' };
+            // Distribute steps across workflows proportionally
+            const chunk = Math.max(1, Math.ceil(steps.length / Math.max(1, wfs.length)));
+            const wfSteps = steps.slice(i * chunk, (i + 1) * chunk);
+            const sharedSteps = wfSteps.length > 0 ? wfSteps : steps;
+            return (
+              <div key={i} style={{ marginBottom: i < wfs.length - 1 ? 8 : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                  <span style={{ fontSize: '0.65rem' }}>{trig.icon}</span>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#1a1a1a', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wf.name}</span>
+                  <span style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.35)', background: 'rgba(0,0,0,0.05)', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{trig.label}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', paddingLeft: 18 }}>
+                  {sharedSteps.map((s, j) => (
+                    <React.Fragment key={j}>
+                      <SkillPill skill={s.skill} name={s.name} />
+                      {j < sharedSteps.length - 1 && <span style={{ fontSize: '0.55rem', color: 'rgba(0,0,0,0.18)', userSelect: 'none' }}>›</span>}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Fallback: no workflows, just show step pipeline */}
+          {wfs.length === 0 && steps.length > 0 && (
+            <div>
+              <div style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(0,0,0,0.35)', marginBottom: 4 }}>Pipeline</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                {steps.map((s, j) => (
+                  <React.Fragment key={j}>
+                    <SkillPill skill={s.skill} name={s.name} />
+                    {j < steps.length - 1 && <span style={{ fontSize: '0.55rem', color: 'rgba(0,0,0,0.18)' }}>›</span>}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -956,26 +1018,9 @@ export function Workspace({
                   key={w.id || i} worker={w}
                   selected={w._selected !== false}
                   onToggle={() => setProposedWorkers(prev => prev.map((x, j) => j === i ? { ...x, _selected: x._selected === false ? true : false } : x))}
-                  onEditWorkflow={(wf, worker) => { setEditingWorkflow({ wf, worker }); setWfEditText(wf.name || ''); }}
                 />
               ))}
             </div>
-
-            {/* Workflow edit modal */}
-            {editingWorkflow && (
-              <div style={{ margin: '0 1.5rem', padding: '0.875rem', background: 'rgba(255,255,255,0.8)', borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(0,0,0,0.5)', marginBottom: 8 }}>Edit workflow: {editingWorkflow.wf.name}</div>
-                <input
-                  value={wfEditText} onChange={e => setWfEditText(e.target.value)}
-                  placeholder="Workflow name…" autoFocus
-                  style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(255,255,255,0.8)', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', marginBottom: 8 }}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={handleSaveWorkflow} style={{ flex: 1, padding: '0.5rem', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Save</button>
-                  <button onClick={() => setEditingWorkflow(null)} style={{ padding: '0.5rem 0.875rem', background: 'rgba(0,0,0,0.06)', border: 'none', borderRadius: 8, fontSize: '0.78rem', cursor: 'pointer' }}>Cancel</button>
-                </div>
-              </div>
-            )}
 
             {/* Worker feedback */}
             <div style={{ padding: '0.875rem 1.5rem 0' }}>
