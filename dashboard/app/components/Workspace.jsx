@@ -157,6 +157,7 @@ export function Workspace({
   const [elapsed, setElapsed] = useState(0);
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
+  const [videoEnabled, setVideoEnabled] = useState(true);
 
   // ── Hub flow state ─────────────────────────────────────────────────────────
   const [hubPhase, setHubPhase] = useState(P.RESEARCH);
@@ -585,6 +586,11 @@ export function Workspace({
           {sessionId && (
             <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId.slice(0, 16)}</span>
           )}
+          <label className="wkp-nav-toggle">
+            <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
+            <span className="wkp-nav-toggle-track"><span className="wkp-nav-toggle-thumb" /></span>
+            <span className="wkp-nav-toggle-label">Video</span>
+          </label>
           {onBackToDashboard && (
             <button onClick={onBackToDashboard} title="Back to Dashboard" className="ws-menu-btn" style={{ padding: '4px 8px', display: 'flex', alignItems: 'center' }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -604,7 +610,7 @@ export function Workspace({
                 backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${PHOTO_URL})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
-              <video id="ws-avatar-video" autoPlay playsInline className="ws-badge-video" style={{ display: isConnected ? 'block' : 'none' }} />
+              <video id="ws-avatar-video" autoPlay playsInline className="ws-badge-video" style={{ display: isConnected && videoEnabled ? 'block' : 'none' }} />
               {isConnected && <div className="ws-badge-video-fade" />}
               <button className={`ws-avatar-mute ${avatarMuted ? 'ws-avatar-mute--on' : ''} ${isConnected ? '' : 'ws-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -719,7 +725,7 @@ export function Workspace({
               {[
                 { label: 'Annual Revenue', value: tilesData?.fixed?.revenue ?? '--' },
                 { label: 'Employees', value: tilesData?.fixed?.employees ?? '--' },
-                { label: 'Market Cap', value: tilesData?.fixed?.marketCap ?? '--' },
+                { label: tilesData?.fixed?.marketCapLabel || 'Market Cap', value: tilesData?.fixed?.marketCap ?? '--' },
                 { label: 'Sector', value: tilesData?.fixed?.sector ?? '--' },
               ].map((m, i) => (
                 <div key={m.label} className="ws-metric">
@@ -843,6 +849,15 @@ export function Workspace({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── Propose workers CTA ── */}
+        {hubPhase === P.PLATFORMS_BUILT && (
+          <div style={{ padding: '0 1.5rem 1.25rem' }}>
+            <button onClick={proposeWorkers} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Propose AI Workers →
+            </button>
           </div>
         )}
 
