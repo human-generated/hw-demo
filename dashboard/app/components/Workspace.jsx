@@ -280,7 +280,10 @@ export function Workspace({
         if (deployed.length > 0) {
           setBuiltPlatforms(deployed);
           const workers = sessionD.workers || [];
-          if (workers.length > 0) { setBuiltWorkers(workers); setHubPhase(P.WORKERS_BUILT); }
+          const deployedWorkers = workers.filter(w => w.status !== 'proposed');
+          const proposedOnly = workers.filter(w => w.status === 'proposed');
+          if (deployedWorkers.length > 0) { setBuiltWorkers(deployedWorkers); setHubPhase(P.WORKERS_BUILT); }
+          else if (proposedOnly.length > 0) { setProposedWorkers(proposedOnly.map(w => ({ ...w, _selected: true }))); setHubPhase(P.WORKERS_PROPOSED); }
           else setHubPhase(P.PLATFORMS_BUILT);
           researchTriggered.current = true;
           return;
