@@ -158,6 +158,11 @@ export function Workspace({
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  // ── Briefing / knowledge panel ─────────────────────────────────────────────
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefingSources, setBriefingSources] = useState([{ type: 'text', value: '' }]);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [promptGenerating, setPromptGenerating] = useState(false);
 
   // ── Hub flow state ─────────────────────────────────────────────────────────
   const [hubPhase, setHubPhase] = useState(P.RESEARCH);
@@ -230,7 +235,11 @@ export function Workspace({
         const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: ANAM_PERSONA_ID });
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
+          if (!cancelled) {
+            setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now());
+            // Inject custom briefing prompt as first message
+            if (customPrompt) setTimeout(() => newClient.sendUserMessage(`Context for this session: ${customPrompt}`), 1200);
+          }
         });
         attachSubtitleListener(newClient);
         await newClient.streamToVideoElement('ws-avatar-video');
@@ -506,6 +515,22 @@ export function Workspace({
     const next = !avatarMuted; videoEl.muted = next; setAvatarMuted(next);
   }, [avatarMuted]);
 
+  async function handleGeneratePrompt() {
+    const filled = briefingSources.filter(s => s.value.trim());
+    if (!filled.length) return;
+    setPromptGenerating(true);
+    try {
+      const r = await fetch(`/api/demo/session/${sessionId}/generate-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: filled }),
+      });
+      const d = await r.json();
+      if (d.prompt) setCustomPrompt(d.prompt);
+    } catch {}
+    setPromptGenerating(false);
+  }
+
   function handleInterrupt() {
     // Mute + unmute rapidly to signal interruption to Anam
     const client = anamClientRef.current;
@@ -697,6 +722,62 @@ export function Workspace({
               </div>
             </div>
           </form>
+        </div>
+
+        {/* Briefing / knowledge panel */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 12px' }}>
+          <button onClick={() => setBriefingOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {customPrompt ? '✦ Briefing' : 'Briefing & Knowledge'}
+            </span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: briefingOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', opacity: 0.4 }}>
+              <path d="M2 4l4 4 4-4" stroke="#000" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {briefingOpen && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {briefingSources.map((src, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  <select value={src.type} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, type: e.target.value } : s))}
+                    style={{ fontSize: '0.68rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.8)', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
+                    <option value="text">Text</option>
+                    <option value="url">URL</option>
+                    <option value="drive">Drive</option>
+                  </select>
+                  {src.type === 'text' ? (
+                    <textarea value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
+                      placeholder="Paste notes, agenda, context…" rows={3}
+                      style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
+                  ) : (
+                    <input value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
+                      placeholder={src.type === 'drive' ? 'Google Drive share URL…' : 'https://…'}
+                      style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
+                  )}
+                  {briefingSources.length > 1 && (
+                    <button onClick={() => setBriefingSources(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', fontSize: '14px', padding: '4px', flexShrink: 0 }}>✕</button>
+                  )}
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setBriefingSources(prev => [...prev, { type: 'text', value: '' }])}
+                  style={{ fontSize: '0.7rem', padding: '4px 10px', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}>
+                  + Source
+                </button>
+                <button onClick={handleGeneratePrompt} disabled={promptGenerating || !briefingSources.some(s => s.value.trim())}
+                  style={{ flex: 1, fontSize: '0.75rem', padding: '5px 10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: promptGenerating ? 0.6 : 1 }}>
+                  {promptGenerating ? 'Generating…' : '✦ Generate Prompt'}
+                </button>
+              </div>
+              {customPrompt !== undefined && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>System Prompt</div>
+                  <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)}
+                    placeholder="Generated prompt will appear here — edit as needed…" rows={4}
+                    style={{ fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)' }} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

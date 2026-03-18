@@ -64,10 +64,10 @@ function sessionWorkerToCard(w, index, allWorkers) {
 }
 
 export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome, onGoCall, onGoHub, onGoPlatforms, onGoAbout, workers: sessionWorkers, sessionId, onBackToDashboard }) {
-  // Use session workers if provided, otherwise use hardcoded WORKERS
-  const displayWorkers = sessionWorkers && sessionWorkers.length > 0
+  // Use session workers only — no hardcoded fallback
+  const displayWorkers = (sessionWorkers && sessionWorkers.length > 0)
     ? sessionWorkers.map((w, i) => sessionWorkerToCard(w, i, sessionWorkers))
-    : WORKERS;
+    : [];
 
   function handleView(e, w) {
     e.stopPropagation();
@@ -112,6 +112,13 @@ export function AIWorkers({ companyName = 'Humans.AI', onSelectWorker, onGoHome,
       {/* Content */}
       <div className="aw-content">
         <div className="aw-tab-workers">
+          {displayWorkers.length === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, color: 'rgba(0,0,0,0.35)', fontFamily: "'DM Sans',system-ui,sans-serif" }}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="18" r="9" stroke="rgba(0,0,0,0.2)" strokeWidth="2"/><path d="M8 42c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="rgba(0,0,0,0.2)" strokeWidth="2" strokeLinecap="round"/></svg>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'rgba(0,0,0,0.4)' }}>No AI Workers deployed yet</div>
+              <div style={{ fontSize: '0.75rem', maxWidth: 260, textAlign: 'center', lineHeight: 1.5 }}>Build platforms first, then propose and deploy AI workers from the Hub.</div>
+            </div>
+          )}
           <div className="aw-grid">
             {displayWorkers.map((w, i) => (
               <div key={i} className="aw-worker" style={{ '--tilt': `${w.tilt}deg` }}>

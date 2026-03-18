@@ -372,10 +372,36 @@ function NewHubWizard({ sessionId, onDone, onCancel }) {
 }
 
 // ── PlatformsView ──────────────────────────────────────────────────────────────
-function PlatformsView({ sessionId, platforms = [], companyName, onClose, onGoHome, onGoHub, onGoWorkers, onGoAbout }) {
+function PlatformsView({ sessionId, platforms = [], companyName, onClose, onGoHome, onGoHub, onGoWorkers, onGoAbout, onPlatformsChange }) {
+  const [list, setList] = useState(platforms);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addUrl, setAddUrl] = useState('');
+
+  function persist(next) {
+    setList(next);
+    onPlatformsChange?.(next);
+    fetch(`/api/demo/session/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platforms: next }),
+    }).catch(() => {});
+  }
+
+  function handleAdd(e) {
+    e.preventDefault();
+    if (!addUrl.trim()) return;
+    const name = addName.trim() || new URL(addUrl.trim().startsWith('http') ? addUrl.trim() : 'https://' + addUrl.trim()).hostname;
+    const p = { id: 'ext-' + Date.now(), name, actual_software: name, status: 'deployed', url: addUrl.trim().startsWith('http') ? addUrl.trim() : 'https://' + addUrl.trim(), external: true };
+    persist([...list, p]);
+    setAddName(''); setAddUrl(''); setAddOpen(false);
+  }
+
+  function handleRemove(id) {
+    persist(list.filter(p => (p.id || p.name) !== id));
+  }
+
   return (
-    // .wkp gives position:relative context for wkp-menu (position:absolute z-index:100)
-    // Cards container sits at z-index:1 — nav always wins, iframes can never cover it
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000, height: 'auto', background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)' }}>
       <nav className="wkp-menu">
         <div className="wkp-menu-left">
@@ -387,21 +413,35 @@ function PlatformsView({ sessionId, platforms = [], companyName, onClose, onGoHo
           <DockIcons active="platforms" onHome={onGoHome} onHub={onGoHub} onWorkers={onGoWorkers} onPlatforms={() => {}} onAbout={onGoAbout} />
         </div>
         <div className="wkp-menu-right">
+          <button className="wkp-menu-btn" onClick={() => setAddOpen(v => !v)} title="Add platform by URL" style={{ fontSize: '18px', lineHeight: 1, padding: '0 4px' }}>+</button>
           <button className="wkp-menu-btn wkp-menu-btn--back" onClick={onClose}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </button>
           <div className="wkp-menu-avatar">S</div>
         </div>
       </nav>
-      {/* Cards sit below nav in z-index — wkp-menu at z-index:100, cards at z-index:1 */}
+
+      {/* Add platform form */}
+      {addOpen && (
+        <form onSubmit={handleAdd} style={{ position: 'absolute', top: 84, left: 16, zIndex: 110, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', borderRadius: 14, padding: '14px 16px', display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.8)', flexWrap: 'wrap', maxWidth: 480 }}>
+          <input autoFocus value={addName} onChange={e => setAddName(e.target.value)} placeholder="Name (optional)" style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: '6px 10px', fontSize: '0.8rem', fontFamily: 'inherit', outline: 'none', width: 140 }} />
+          <input value={addUrl} onChange={e => setAddUrl(e.target.value)} placeholder="https://..." required style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: '6px 10px', fontSize: '0.8rem', fontFamily: 'inherit', outline: 'none', flex: 1, minWidth: 180 }} />
+          <button type="submit" style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Add</button>
+          <button type="button" onClick={() => setAddOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.4)', fontSize: '1rem', padding: '0 4px' }}>✕</button>
+        </form>
+      )}
+
+      {/* Cards */}
       <div style={{ position: 'absolute', top: 84, left: 0, right: 0, bottom: 0, zIndex: 1, display: 'flex', padding: '0 12px 12px', gap: 12, overflowX: 'auto', overflowY: 'hidden' }}>
-        {platforms.length === 0 ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem' }}>
-            No platforms detected yet. Run the onboarding wizard first.
+        {list.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.35)', fontSize: '0.85rem', gap: 12 }}>
+            <div>No platforms yet.</div>
+            <button onClick={() => setAddOpen(true)} style={{ background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>+ Add by URL</button>
           </div>
         ) : (
-          platforms.map(p => (
-            <div key={p.id || p.name} style={{ flex: '0 0 420px', display: 'flex', flexDirection: 'column', minWidth: 320 }}>
+          list.map(p => (
+            <div key={p.id || p.name} style={{ flex: '0 0 420px', display: 'flex', flexDirection: 'column', minWidth: 320, position: 'relative' }}>
+              <button onClick={() => handleRemove(p.id || p.name)} title="Remove platform" style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px', color: 'rgba(0,0,0,0.5)', lineHeight: 1 }}>✕</button>
               <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
             </div>
           ))
@@ -1628,6 +1668,7 @@ function AppInner() {
           onGoHub={() => { setShowPlatforms(false); setAiView('workspace'); }}
           onGoWorkers={() => { setShowPlatforms(false); setAiView('workers'); }}
           onGoAbout={() => { setShowPlatforms(false); setShowAbout(true); }}
+          onPlatformsChange={next => setHubPlatforms(next)}
         />
       )}
       {showAbout && (
