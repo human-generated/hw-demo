@@ -3742,7 +3742,7 @@ body {
 
 /* ---- Tab Content Layouts ---- */
 .aw-tab-content { display: flex; flex-direction: column; gap: 16px; animation: aw-fade-in 0.3s ease; }
-.aw-tab-workers { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 20px 0; }
+.aw-tab-workers { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 120px 60px; }
 
 .aw-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .aw-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
@@ -3982,7 +3982,7 @@ body {
 .aw-production-btn:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
 
 /* ======== Workers Tab (cards grid) ======== */
-.aw-grid { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 48px 36px; max-width: 1000px; }
+.aw-grid { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 220px 100px; max-width: 1100px; }
 
 .aw-worker {
   position: relative; width: 158px; height: 158px; cursor: pointer;
