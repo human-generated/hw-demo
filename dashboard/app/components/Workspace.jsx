@@ -248,6 +248,9 @@ export function Workspace({
   const [editingWorkflow, setEditingWorkflow] = useState(null); // { wf, worker }
   const [wfEditText, setWfEditText] = useState('');
   const [expandedTiles, setExpandedTiles] = useState({});
+  const [autopilot, setAutopilot] = useState(false);
+  const [autopilotMsg, setAutopilotMsg] = useState('');
+  const [telegramLink, setTelegramLink] = useState('');
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -339,6 +342,8 @@ export function Workspace({
         const tilesD = await tilesRes.json();
         const sessionD = await sessionRes.json();
         if (cancelled) return;
+
+        if (sessionD.telegramInviteLink) setTelegramLink(sessionD.telegramInviteLink);
 
         const hasTiles = !tilesD.error && (tilesD.tiles?.length > 0);
         const deployed = (sessionD.platforms || []).filter(p => p.status === 'deployed');
@@ -512,6 +517,81 @@ export function Workspace({
       console.error('Deploy workers error:', e);
       setHubPhase(P.WORKERS_PROPOSED);
     }
+  }
+
+  async function runAutopilot() {
+    if (autopilot) return;
+    const co = (companyName || '').trim();
+    if (!co) { addMsg('ALEXANDRA', 'Please specify a company name first to start autopilot.'); return; }
+    setAutopilot(true);
+    researchTriggered.current = true;
+    try {
+      setAutopilotMsg('Researching…');
+      addMsg('ALEXANDRA', `⚡ Autopilot activated for **${co}** — running full pipeline: research → platforms → workers…`);
+      setTilesLoading(true);
+      const resR = await fetch('/api/demo/research', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company: co, sessionId, deep: true }),
+      });
+      const resD = await resR.json();
+      setTilesLoading(false);
+      const platforms = (resD.platforms || []).map(p => ({ ...p, _selected: true }));
+      setProposedPlatforms(platforms);
+      try {
+        const tr = await fetch(`/api/demo/research/${sessionId}/tiles`);
+        const td = await tr.json();
+        if (!td.error && td.tiles?.length > 0) setTilesData(td);
+      } catch {}
+
+      setAutopilotMsg('Building platforms…');
+      addMsg('ALEXANDRA', `Research complete. Building ${platforms.length} platform${platforms.length !== 1 ? 's' : ''}…`);
+      setHubPhase(P.PLATFORMS_BUILDING);
+      setBuildingMsg('Spinning up platform environments…');
+      await fetch('/api/demo/build-platforms', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, platforms, feedback: '' }),
+      });
+      const sr = await fetch(`/api/demo/session/${sessionId}`);
+      const sd = await sr.json();
+      const deployed = (sd.platforms || []).filter(p => p.status === 'deployed');
+      const builtPlatformsLocal = deployed.length > 0 ? deployed : platforms.map(p => ({ ...p, status: 'deployed' }));
+      setBuiltPlatforms(builtPlatformsLocal);
+      setHubPhase(P.PLATFORMS_BUILT);
+
+      setAutopilotMsg('Proposing workers…');
+      addMsg('ALEXANDRA', `${builtPlatformsLocal.length} platforms live. Generating AI worker proposals…`);
+      const wrR = await fetch('/api/demo/workers/propose', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, feedback: '' }),
+      });
+      const wrD = await wrR.json();
+      const workers = (wrD.workers || []).map(w => ({ ...w, _selected: true }));
+      setProposedWorkers(workers);
+
+      setAutopilotMsg('Deploying workers…');
+      addMsg('ALEXANDRA', `Deploying ${workers.length} AI worker${workers.length !== 1 ? 's' : ''}…`);
+      setHubPhase(P.WORKERS_DEPLOYING);
+      setBuildingMsg('Deploying AI workers…');
+      await Promise.allSettled(workers.map(w =>
+        fetch('/api/demo/workers/deploy', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, worker: w }),
+        })
+      ));
+      const finalSr = await fetch(`/api/demo/session/${sessionId}`);
+      const finalSd = await finalSr.json();
+      const finalWorkers = finalSd.workers?.length > 0 ? finalSd.workers : workers.map(w => ({ ...w, status: 'deployed' }));
+      setBuiltWorkers(finalWorkers);
+      setHubPhase(P.WORKERS_BUILT);
+      addMsg('ALEXANDRA', `✅ Autopilot complete! ${finalWorkers.length} AI workers deployed and ready.`);
+      onWorkersBuilt?.(finalWorkers);
+      setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+    } catch (e) {
+      addMsg('ALEXANDRA', `Autopilot encountered an error: ${e.message}`);
+      console.error('Autopilot error:', e);
+    }
+    setAutopilot(false);
+    setAutopilotMsg('');
   }
 
   async function handleSaveWorkflow() {
@@ -714,15 +794,28 @@ export function Workspace({
 
       <nav className="ws-menu">
         <div className="ws-menu-left">
-          <span className="ws-menu-logo">h</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: '#1a1a1a', borderRadius: 6, flexShrink: 0 }}>
+            <span style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: '-0.04em', lineHeight: 1 }}>h</span>
+          </div>
           <div className="ws-menu-sep" />
-          <span className="ws-menu-label">Hub</span>
+          <span className="ws-menu-label">Humans.AI</span>
           {tilesData?.companyName && <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginLeft: 6 }}>· {tilesData.companyName}</span>}
         </div>
         <div className="ws-menu-center">
           <DockIcons active="hub" onHome={onGoHome} onHub={onGoHub || onGoCall} onWorkers={onGoWorkers} onPlatforms={onGoPlatforms} onAbout={onGoAbout} />
         </div>
         <div className="ws-menu-right">
+          {telegramLink && (
+            <a href={telegramLink} target="_blank" rel="noreferrer" title="Open Telegram group" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: 'rgba(0,136,204,0.1)', border: '1px solid rgba(0,136,204,0.25)', borderRadius: 7, textDecoration: 'none', color: '#0088cc', fontSize: '0.68rem', fontWeight: 600 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.012 9.481c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.39 14.033l-2.963-.924c-.642-.204-.657-.642.136-.951l11.57-4.461c.537-.194 1.006.131.429.551z"/></svg>
+              Group
+            </a>
+          )}
+          {(hubPhase === P.RESEARCH || hubPhase === P.PLATFORMS_PROPOSED) && companyName && (
+            <button onClick={runAutopilot} disabled={autopilot} title={autopilotMsg || 'Run full autopilot pipeline'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', background: autopilot ? 'rgba(0,0,0,0.06)' : 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: 7, color: autopilot ? 'rgba(0,0,0,0.4)' : '#fff', fontSize: '0.68rem', fontWeight: 700, cursor: autopilot ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+              {autopilot ? `⚡ ${autopilotMsg}` : '⚡ Autopilot'}
+            </button>
+          )}
           {sessionId && (
             <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId.slice(0, 16)}</span>
           )}

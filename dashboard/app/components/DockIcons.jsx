@@ -18,17 +18,11 @@ export function DockIcons({ active, onHome, onCall, onHub, onWorkers, onPlatform
 
       <div
         className={`dock-icon ${active === 'call' || active === 'hub' ? 'dock-icon--active' : ''}`}
-        style={{ background: 'linear-gradient(145deg, #f0f8f2 0%, #d4e8d8 50%, #c0d8c4 100%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5), inset 0 -1px 2px rgba(0,0,0,0.06), 0 2px 6px rgba(52,160,89,0.15)' }}
+        style={{ background: 'linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 60%, #111 100%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.08), inset 0 -1px 2px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.25)' }}
         onClick={hubCb}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="3" y="8" width="2" height="4" rx="1" fill="#34c759" opacity="0.5" />
-          <rect x="6.5" y="5" width="2" height="10" rx="1" fill="#34c759" opacity="0.6" />
-          <rect x="10" y="7" width="2" height="6" rx="1" fill="#34c759" opacity="0.7" />
-          <rect x="13.5" y="4" width="2" height="12" rx="1" fill="#34c759" opacity="0.5" />
-          <rect x="17" y="6" width="2" height="8" rx="1" fill="#34c759" opacity="0.4" />
-        </svg>
-        <span className="dock-label">Hub</span>
+        <span style={{ color: '#fff', fontSize: '1rem', fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: '-0.04em', lineHeight: 1 }}>h</span>
+        <span className="dock-label" style={{ color: 'rgba(255,255,255,0.6)' }}>Hub</span>
       </div>
 
       <div

@@ -76,7 +76,6 @@ export function LoginPage({ onLogin }) {
             <span style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 700, fontFamily: "'DM Sans', sans-serif", letterSpacing: '-0.04em' }}>h</span>
           </div>
           <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '1.25rem', fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.03em' }}>Humans.AI</div>
-          <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.4)', marginTop: 4 }}>Demo Experience Platform</div>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
