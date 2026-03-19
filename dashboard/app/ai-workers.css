@@ -3982,7 +3982,7 @@ body {
 .aw-production-btn:hover { background: #333; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
 
 /* ======== Workers Tab (cards grid) ======== */
-.aw-grid { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 220px 100px; max-width: 1100px; }
+.aw-grid { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 320px 100px; max-width: 1100px; }
 
 .aw-worker {
   position: relative; width: 158px; height: 158px; cursor: pointer;
