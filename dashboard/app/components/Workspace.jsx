@@ -547,10 +547,12 @@ export function Workspace({
       addMsg('ALEXANDRA', `Research complete. Building ${platforms.length} platform${platforms.length !== 1 ? 's' : ''}…`);
       setHubPhase(P.PLATFORMS_BUILDING);
       setBuildingMsg('Spinning up platform environments…');
-      await fetch('/api/demo/build-platforms', {
+      const buildR = await fetch('/api/demo/build-platforms', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, platforms, feedback: '' }),
       });
+      const buildD = await buildR.json();
+      if (buildD.error) addMsg('ALEXANDRA', `⚠ Platform build warning: ${buildD.error} — continuing with proposed platforms.`);
       const sr = await fetch(`/api/demo/session/${sessionId}`);
       const sd = await sr.json();
       const deployed = (sd.platforms || []).filter(p => p.status === 'deployed');
@@ -566,6 +568,7 @@ export function Workspace({
       });
       const wrD = await wrR.json();
       const workers = (wrD.workers || []).map(w => ({ ...w, _selected: true }));
+      if (!workers.length) throw new Error('Worker proposal returned 0 workers — check server logs');
       setProposedWorkers(workers);
 
       setAutopilotMsg('Deploying workers…');
