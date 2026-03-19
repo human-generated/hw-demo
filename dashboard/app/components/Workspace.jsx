@@ -535,7 +535,7 @@ export function Workspace({
       });
       const resD = await resR.json();
       setTilesLoading(false);
-      const platforms = (resD.platforms || []).map(p => ({ ...p, _selected: true }));
+      const platforms = (resD.platforms || []).slice(0, 10).map(p => ({ ...p, _selected: true }));
       setProposedPlatforms(platforms);
       try {
         const tr = await fetch(`/api/demo/research/${sessionId}/tiles`);
@@ -567,7 +567,7 @@ export function Workspace({
         body: JSON.stringify({ sessionId, feedback: '' }),
       });
       const wrD = await wrR.json();
-      const workers = (wrD.workers || []).map(w => ({ ...w, _selected: true }));
+      const workers = (wrD.workers || []).slice(0, 20).map(w => ({ ...w, _selected: true }));
       if (!workers.length) throw new Error('Worker proposal returned 0 workers — check server logs');
       setProposedWorkers(workers);
 
