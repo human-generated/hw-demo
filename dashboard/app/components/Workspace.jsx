@@ -226,6 +226,13 @@ export function Workspace({
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptGenerating, setPromptGenerating] = useState(false);
 
+  // ── Demo Fix chat ──────────────────────────────────────────────────────────
+  const [fixOpen, setFixOpen] = useState(false);
+  const [fixInput, setFixInput] = useState('');
+  const [fixMessages, setFixMessages] = useState([]);
+  const [fixRunning, setFixRunning] = useState(false);
+  const fixBottomRef = useRef(null);
+
   // ── Hub flow state ─────────────────────────────────────────────────────────
   const [hubPhase, setHubPhase] = useState(P.RESEARCH);
   const [tilesData, setTilesData] = useState(null);
@@ -596,6 +603,49 @@ export function Workspace({
     setPromptGenerating(false);
   }
 
+  async function handleFixChat() {
+    const msg = fixInput.trim();
+    if (!msg || fixRunning) return;
+    setFixInput('');
+    setFixRunning(true);
+    const userMsg = { role: 'user', text: msg };
+    const assistantMsg = { role: 'assistant', text: '' };
+    setFixMessages(prev => [...prev, userMsg, assistantMsg]);
+    try {
+      const r = await fetch('/api/demo/fix-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message: msg }),
+      });
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const d = JSON.parse(line.slice(6));
+            if (d.text) setFixMessages(prev => {
+              const next = [...prev];
+              next[next.length - 1] = { ...next[next.length - 1], text: next[next.length - 1].text + d.text };
+              return next;
+            });
+            if (d.done) break;
+          } catch {}
+        }
+      }
+    } catch (e) {
+      setFixMessages(prev => { const next = [...prev]; next[next.length - 1] = { ...next[next.length - 1], text: `Error: ${e.message}` }; return next; });
+    }
+    setFixRunning(false);
+    setTimeout(() => fixBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  }
+
   function handleInterrupt() {
     // Mute + unmute rapidly to signal interruption to Anam
     const client = anamClientRef.current;
@@ -840,6 +890,63 @@ export function Workspace({
                     placeholder="Generated prompt will appear here — edit as needed…" rows={4}
                     style={{ fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)' }} />
                 </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Demo Fix chat ── */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 12px' }}>
+          <button onClick={() => setFixOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: fixRunning ? '#f59e0b' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 5 }}>
+              {fixRunning && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block', animation: 'pulse 1s infinite' }} />}
+              🔧 Demo Fix
+            </span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: fixOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', opacity: 0.3 }}>
+              <path d="M2 4l4 4 4-4" stroke="#000" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {fixOpen && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Message history */}
+              {fixMessages.length > 0 && (
+                <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
+                  {fixMessages.map((m, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                      <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'rgba(0,0,0,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 1 }}>
+                        {m.role === 'user' ? 'You' : '⚙ Claude Code'}
+                      </div>
+                      <div style={{
+                        fontSize: '0.72rem', lineHeight: 1.55, padding: '6px 10px', borderRadius: 8, maxWidth: '90%',
+                        background: m.role === 'user' ? '#1a1a1a' : 'rgba(0,0,0,0.04)',
+                        color: m.role === 'user' ? '#fff' : '#1a1a1a',
+                        fontFamily: m.role === 'assistant' ? 'monospace' : 'inherit',
+                        whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                        border: m.role === 'assistant' ? '1px solid rgba(0,0,0,0.08)' : 'none',
+                      }}>
+                        {m.text || (m.role === 'assistant' && fixRunning ? <span style={{ opacity: 0.4 }}>Running…</span> : '')}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={fixBottomRef} />
+                </div>
+              )}
+              {/* Input row */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <textarea
+                  value={fixInput} onChange={e => setFixInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFixChat(); } }}
+                  placeholder="Fix a worker, patch session data, reset phase…"
+                  rows={2} disabled={fixRunning}
+                  style={{ flex: 1, fontSize: '0.73rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', resize: 'none', background: 'rgba(255,255,255,0.85)', outline: 'none', opacity: fixRunning ? 0.6 : 1 }}
+                />
+                <button onClick={handleFixChat} disabled={fixRunning || !fixInput.trim()}
+                  style={{ padding: '0 12px', background: fixRunning ? 'rgba(0,0,0,0.08)' : '#f59e0b', color: fixRunning ? 'rgba(0,0,0,0.3)' : '#fff', border: 'none', borderRadius: 8, cursor: fixRunning ? 'default' : 'pointer', fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}>
+                  {fixRunning ? '…' : '↑'}
+                </button>
+              </div>
+              {fixMessages.length > 0 && (
+                <button onClick={() => setFixMessages([])} style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>Clear history</button>
               )}
             </div>
           )}
