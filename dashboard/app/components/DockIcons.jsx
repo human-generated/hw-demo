@@ -1,6 +1,6 @@
 'use client';
 
-export function DockIcons({ active, onHome, onCall, onHub, onWorkers, onPlatforms, onAbout }) {
+export function DockIcons({ active, onHome, onCall, onHub, onWorkers, onPlatforms, onAbout, onStatus }) {
   const hubCb = onHub || onCall; // backward compat
   return (
     <div className="dock-icons">
@@ -71,6 +71,22 @@ export function DockIcons({ active, onHome, onCall, onHub, onWorkers, onPlatform
           <rect x="8.5" y="7.5" width="3" height="2" rx="0.8" stroke="rgba(146,64,14,0.5)" strokeWidth="1.2" />
         </svg>
         <span className="dock-label">About</span>
+      </div>
+
+      <div
+        className={`dock-icon ${active === 'status' ? 'dock-icon--active' : ''}`}
+        style={{ background: 'linear-gradient(145deg, #f0f7ff 0%, #dbeafe 50%, #bfdbfe 100%)', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6), inset 0 -1px 2px rgba(0,0,0,0.06), 0 2px 6px rgba(59,130,246,0.18)' }}
+        onClick={onStatus}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="10" r="7" stroke="rgba(37,99,235,0.5)" strokeWidth="1.4"/>
+          <circle cx="10" cy="10" r="2" fill="rgba(37,99,235,0.7)"/>
+          <circle cx="10" cy="4" r="1" fill="rgba(37,99,235,0.5)"/>
+          <circle cx="10" cy="16" r="1" fill="rgba(37,99,235,0.4)"/>
+          <circle cx="4" cy="10" r="1" fill="rgba(37,99,235,0.4)"/>
+          <circle cx="16" cy="10" r="1" fill="rgba(37,99,235,0.5)"/>
+        </svg>
+        <span className="dock-label">Status</span>
       </div>
     </div>
   );
