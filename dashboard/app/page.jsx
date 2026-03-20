@@ -638,6 +638,7 @@ function ApiStatusView({ onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms,
   const SERVICE_ICONS = {
     bland: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 13V6l4-4h5l3 3v6l-3 3H6L2 13z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M6 8h4M6 10.5h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
     twilio: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3"/><circle cx="5.5" cy="6" r="1.2" fill="currentColor"/><circle cx="10.5" cy="6" r="1.2" fill="currentColor"/><circle cx="5.5" cy="10" r="1.2" fill="currentColor"/><circle cx="10.5" cy="10" r="1.2" fill="currentColor"/></svg>,
+    telnyx: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="13" cy="12" r="1.5" fill="currentColor"/></svg>,
     openrouter: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h3l2-4 2 8 2-4h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     wavspeed: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="2" height="4" rx="1" fill="currentColor" opacity="0.5"/><rect x="5" y="4" width="2" height="8" rx="1" fill="currentColor" opacity="0.7"/><rect x="8" y="5" width="2" height="6" rx="1" fill="currentColor" opacity="0.8"/><rect x="11" y="3" width="2" height="10" rx="1" fill="currentColor" opacity="0.6"/></svg>,
     anthropic: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
@@ -645,6 +646,9 @@ function ApiStatusView({ onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms,
     telegram: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l12-5-3 10-4-3-3 2V8l3-2-3.5-1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
     google: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.5 8.18c0-.42-.04-.83-.1-1.22H8v2.3h3.09a2.64 2.64 0 01-1.14 1.73v1.44h1.85c1.08-1 1.7-2.47 1.7-4.25z" fill="currentColor" opacity="0.7"/><path d="M8 14c1.56 0 2.87-.52 3.82-1.4l-1.86-1.44c-.52.35-1.18.55-1.96.55-1.5 0-2.77-1.01-3.23-2.38H.86v1.49A6 6 0 008 14z" fill="currentColor" opacity="0.5"/><path d="M4.77 9.33A3.6 3.6 0 014.58 8c0-.46.08-.9.19-1.33V5.18H.86A6 6 0 000 8c0 .97.23 1.88.64 2.68l3.5-1.35z" fill="currentColor" opacity="0.6"/><path d="M8 3.12c.85 0 1.61.29 2.21.86l1.66-1.66A6 6 0 008 1a6 6 0 00-5.36 3.3l3.5 1.37c.46-1.37 1.73-2.55 1.86-2.55z" fill="currentColor" opacity="0.8"/></svg>,
   };
+  const GROUP_LABELS = { telephony: 'Telephony', ai: 'AI / LLM', media: 'Media', messaging: 'Messaging', identity: 'Identity' };
+  const GROUP_ORDER = ['telephony', 'ai', 'media', 'messaging', 'identity'];
+  const grouped = data ? GROUP_ORDER.reduce((acc, g) => { const svcs = data.filter(s => s.group === g); if (svcs.length) acc.push([g, svcs]); return acc; }, []) : [];
 
   return (
     <div className="wkp" style={{ position: 'fixed', inset: 0, zIndex: 10000, height: 'auto', background: 'linear-gradient(135deg,#e0eaff 0%,#fff 40%,#aee8e2 70%,#d4eaed 100%)' }}>
@@ -681,8 +685,12 @@ function ApiStatusView({ onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms,
           )}
 
           {data && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {data.map(svc => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {grouped.map(([group, svcs]) => (
+                <div key={group}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(0,0,0,0.38)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{GROUP_LABELS[group]}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {svcs.map(svc => (
                 <div key={svc.id} style={{ padding: '0.75rem 1rem', borderRadius: 12, background: svc.warning ? 'rgba(254,243,199,0.7)' : 'rgba(255,255,255,0.65)', border: svc.warning ? '1px solid rgba(217,119,6,0.2)' : '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 12 }}>
                   {/* Icon badge */}
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: svc.ok ? (svc.warning ? '#fef3c720' : svc.color + '18') : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: svc.ok ? (svc.warning ? '#b45309' : svc.color) : '#94a3b8' }}>
@@ -703,6 +711,9 @@ function ApiStatusView({ onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms,
                   )}
                   {/* Status dot */}
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: svc.warning ? '#f59e0b' : (svc.ok ? '#22c55e' : '#ef4444'), flexShrink: 0, boxShadow: svc.warning ? '0 0 0 3px rgba(245,158,11,0.2)' : (svc.ok ? '0 0 0 3px rgba(34,197,94,0.15)' : '0 0 0 3px rgba(239,68,68,0.12)') }} />
+                </div>
+              ))}
+                  </div>
                 </div>
               ))}
             </div>
