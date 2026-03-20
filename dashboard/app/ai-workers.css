@@ -4019,6 +4019,7 @@ body {
   position: relative; background: #f2f8f4; border-radius: 20px; overflow: hidden;
   padding: 14px; display: flex; flex-direction: column; align-items: center;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  height: 370px;
 }
 .aw-badge-green { position: absolute; top: 0; left: 0; right: 0; height: 55%; background: linear-gradient(180deg, #c8e6d0 0%, #daf0e0 60%, #f2f8f4 100%); border-radius: 20px 20px 0 0; opacity: 0.5; }
 .aw-badge-status { position: relative; z-index: 1; display: flex; align-items: center; gap: 5px; align-self: flex-end; margin-bottom: 6px; }
@@ -4026,8 +4027,8 @@ body {
 .aw-badge-status span { font-family: "IBM Plex Mono", monospace; font-size: 9px; font-weight: 500; color: rgba(0,0,0,0.4); text-transform: uppercase; letter-spacing: 0.06em; }
 .aw-badge-photo { position: relative; z-index: 1; width: 120px; height: 120px; border-radius: 18px; background-repeat: no-repeat; flex-shrink: 0; }
 .aw-badge-info { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; margin-top: 10px; gap: 2px; }
-.aw-badge-name { font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 600; color: #1a1a1a; text-align: center; white-space: pre-line; line-height: 1.2; }
-.aw-badge-role { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: rgba(0,0,0,0.35); letter-spacing: 0.02em; margin-top: 2px; }
+.aw-badge-name { font-family: "DM Sans", sans-serif; font-size: 15px; font-weight: 600; color: #1a1a1a; text-align: center; white-space: pre-line; line-height: 1.2; height: 36px; overflow: hidden; }
+.aw-badge-role { font-family: "IBM Plex Mono", monospace; font-size: 10px; color: rgba(0,0,0,0.35); letter-spacing: 0.02em; margin-top: 2px; height: 28px; overflow: hidden; text-align: center; }
 .aw-badge-stats { position: relative; z-index: 1; display: flex; align-items: center; gap: 16px; margin-top: 12px; padding: 8px 16px; background: rgba(0,0,0,0.03); border-radius: 10px; width: 100%; justify-content: center; }
 .aw-badge-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .aw-badge-stat-val { font-family: "DM Sans", sans-serif; font-size: 16px; font-weight: 700; color: #1a1a1a; line-height: 1.2; }
