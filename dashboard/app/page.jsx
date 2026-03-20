@@ -683,26 +683,26 @@ function ApiStatusView({ onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms,
           {data && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {data.map(svc => (
-                <div key={svc.id} style={{ padding: '0.75rem 1rem', borderRadius: 12, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={svc.id} style={{ padding: '0.75rem 1rem', borderRadius: 12, background: svc.warning ? 'rgba(254,243,199,0.7)' : 'rgba(255,255,255,0.65)', border: svc.warning ? '1px solid rgba(217,119,6,0.2)' : '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', gap: 12 }}>
                   {/* Icon badge */}
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: svc.ok ? svc.color + '18' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: svc.ok ? svc.color : '#94a3b8' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: svc.ok ? (svc.warning ? '#fef3c720' : svc.color + '18') : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: svc.ok ? (svc.warning ? '#b45309' : svc.color) : '#94a3b8' }}>
                     {SERVICE_ICONS[svc.id] || <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3"/></svg>}
                   </div>
                   {/* Name + account */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1a1a1a' }}>{svc.name}</div>
-                    {svc.ok && svc.account && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{svc.account}{svc.detail ? <span style={{ marginLeft: 6 }}>{svc.detail}</span> : null}</div>}
+                    {svc.ok && svc.account && <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.4)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{svc.account}{svc.detail ? <span style={{ marginLeft: 6, opacity: 0.7 }}>· {svc.detail}</span> : null}</div>}
                     {!svc.ok && <div style={{ fontSize: '0.7rem', color: '#b91c1c', marginTop: 1 }}>{svc.error}</div>}
                   </div>
                   {/* Credits */}
                   {svc.ok && svc.credits && (
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: svc.id === 'twilio' || svc.id === 'openrouter' ? '#15803d' : 'rgba(0,0,0,0.55)', whiteSpace: 'nowrap' }}>{svc.credits}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', marginTop: 1 }}>credits</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: svc.warning ? '#b45309' : (svc.credits.startsWith('USD') ? '#15803d' : 'rgba(0,0,0,0.55)'), whiteSpace: 'nowrap' }}>{svc.credits}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', marginTop: 1 }}>{svc.warning ? '⚠ top up needed' : 'balance'}</div>
                     </div>
                   )}
                   {/* Status dot */}
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: svc.ok ? '#22c55e' : '#ef4444', flexShrink: 0, boxShadow: svc.ok ? '0 0 0 3px rgba(34,197,94,0.15)' : '0 0 0 3px rgba(239,68,68,0.12)' }} />
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: svc.warning ? '#f59e0b' : (svc.ok ? '#22c55e' : '#ef4444'), flexShrink: 0, boxShadow: svc.warning ? '0 0 0 3px rgba(245,158,11,0.2)' : (svc.ok ? '0 0 0 3px rgba(34,197,94,0.15)' : '0 0 0 3px rgba(239,68,68,0.12)') }} />
                 </div>
               ))}
             </div>
