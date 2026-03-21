@@ -214,10 +214,13 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
   const chatEndRef = useRef(null);
 
   const slug = (companyName || 'company').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const displayUrl = `${slug}.humans.ai/${platform.name.toLowerCase()}`;
-  const proxyUrl = sessionId && platform.id
-    ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/`
-    : platform.url;
+  const displayUrl = platform.url
+    ? platform.url.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    : `${slug}.humans.ai/${platform.name.toLowerCase()}`;
+  // External platforms (Streamlit, etc.) must load directly — no proxy
+  const proxyUrl = platform.external || !platform.sandboxId
+    ? platform.url
+    : (sessionId && platform.id ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/` : platform.url);
   const isBuilt = !!(platform.url || platform.sandboxId || platform.status === 'deployed');
   const platformIcons = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', messaging: '💬', ecommerce: '🛒', hr: '🏢', billing: '💳' };
 
@@ -282,8 +285,9 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
           <iframe
             src={proxyUrl}
             title={platform.name}
-            sandbox="allow-scripts allow-same-origin allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             className="wkp-platform-iframe"
+            allow="fullscreen"
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, background: '#0b0d14', color: '#444' }}>

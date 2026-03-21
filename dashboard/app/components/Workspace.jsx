@@ -226,6 +226,7 @@ export function Workspace({
   const [briefingSources, setBriefingSources] = useState([{ type: 'text', value: '' }]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptGenerating, setPromptGenerating] = useState(false);
+  const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
   const [fixOpen, setFixOpen] = useState(false);
@@ -315,8 +316,9 @@ export function Workspace({
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
           if (!cancelled) {
             setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now());
-            // Inject custom briefing prompt as first message
-            if (customPrompt) setTimeout(() => newClient.sendUserMessage(`Context for this session: ${customPrompt}`), 1200);
+            // Inject custom briefing prompt — use ref so we always get latest value even if loaded async
+            const prompt = customPromptRef.current || customPrompt;
+            if (prompt) setTimeout(() => newClient.sendUserMessage(`Context for this session: ${prompt}`), 1200);
           }
         });
         attachSubtitleListener(newClient);
@@ -727,7 +729,7 @@ export function Workspace({
         body: JSON.stringify({ sources: filled }),
       });
       const d = await r.json();
-      if (d.prompt) setCustomPrompt(d.prompt);
+      if (d.prompt) { setCustomPrompt(d.prompt); customPromptRef.current = d.prompt; }
     } catch {}
     setPromptGenerating(false);
   }
@@ -834,9 +836,31 @@ export function Workspace({
 
   async function loadContextApi(apiUrl, summaryHint) {
     try {
+      // All fetches go through the server proxy to avoid CORS
       const r = await fetch(`/api/demo/context-fetch?url=${encodeURIComponent(apiUrl)}`);
       const d = await r.json();
-      if (!d.error) setContextApiData({ ...d, apiUrl, summaryHint });
+      if (d.error) return;
+
+      setContextApiData({ ...d, apiUrl, summaryHint });
+
+      // Build a rich prompt with live sample data
+      const { sampleData, title, description } = d;
+      const sampleStr = sampleData
+        ? `Live sample (4h visit, summer 2025): total ${sampleData.total_kg?.toFixed(2)} kg CO2 — operational ${sampleData.operational_kg?.toFixed(2)} kg, overhead ${sampleData.overhead_kg?.toFixed(2)} kg, non-metered ${sampleData.non_metered_kg?.toFixed(2)} kg. Energy mix: ${Object.entries(sampleData.metered_by_source || {}).map(([k, v]) => `${k} ${v.total_kg?.toFixed(3)} kg`).join(', ')}.`
+        : '';
+      const fullPrompt = [
+        summaryHint || description || title || '',
+        sampleStr,
+        `To compute footprint: GET ${apiUrl}/api/footprint?date=YYYY-MM-DD&entry_hour=H&exit_hour=H`,
+      ].filter(Boolean).join(' ');
+
+      customPromptRef.current = fullPrompt;
+      setCustomPrompt(fullPrompt);
+
+      // If Anam avatar is already connected, inject the context now
+      if (anamClientRef.current) {
+        setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${fullPrompt}`), 300);
+      }
     } catch {}
   }
 
@@ -1089,7 +1113,7 @@ export function Workspace({
               {customPrompt !== undefined && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>System Prompt</div>
-                  <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)}
+                  <textarea value={customPrompt} onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; }}
                     placeholder="Generated prompt will appear here — edit as needed…" rows={4}
                     style={{ fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)' }} />
                 </div>
@@ -1298,13 +1322,20 @@ export function Workspace({
         {[P.PLATFORMS_BUILT, P.WORKFLOW_CHECK, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) && builtPlatforms.length > 0 && (
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <SectionHead label="Live Platforms" badge="Deployed" />
-            <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
-              {builtPlatforms.map(p => (
-                <div key={p.id || p.name} style={{ flex: '0 0 280px', height: 280, display: 'flex', flexDirection: 'column' }}>
-                  <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
-                </div>
-              ))}
-            </div>
+            {builtPlatforms.length === 1 ? (
+              // Single platform — show large
+              <div style={{ padding: '0 1.5rem 1rem', height: 520 }}>
+                <PlatformPreviewCard platform={builtPlatforms[0]} sessionId={sessionId} companyName={companyName} />
+              </div>
+            ) : (
+              <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
+                {builtPlatforms.map(p => (
+                  <div key={p.id || p.name} style={{ flex: '0 0 280px', height: 280, display: 'flex', flexDirection: 'column' }}>
+                    <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
