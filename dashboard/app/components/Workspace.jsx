@@ -35,6 +35,7 @@ const P = {
   PLATFORMS_PROPOSED: 'platforms-proposed',
   PLATFORMS_BUILDING: 'platforms-building',
   PLATFORMS_BUILT: 'platforms-built',
+  WORKFLOW_CHECK: 'workflow-check',
   WORKERS_PROPOSED: 'workers-proposed',
   WORKERS_DEPLOYING: 'workers-deploying',
   WORKERS_BUILT: 'workers-built',
@@ -251,6 +252,7 @@ export function Workspace({
   const [autopilot, setAutopilot] = useState(false);
   const [autopilotMsg, setAutopilotMsg] = useState('');
   const [telegramLink, setTelegramLink] = useState('');
+  const [wfCheckProgress, setWfCheckProgress] = useState([]); // [{name, status}]
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -357,7 +359,16 @@ export function Workspace({
           const deployedWorkers = workers.filter(w => w.status !== 'proposed');
           const proposedOnly = workers.filter(w => w.status === 'proposed');
           if (deployedWorkers.length > 0) { setBuiltWorkers(deployedWorkers); setHubPhase(P.WORKERS_BUILT); }
-          else if (proposedOnly.length > 0) { setProposedWorkers(proposedOnly.map(w => ({ ...w, _selected: true }))); setHubPhase(P.WORKERS_PROPOSED); }
+          else if (proposedOnly.length > 0) {
+            setProposedWorkers(proposedOnly.map(w => ({ ...w, _selected: true })));
+            // If server is still in workflow-check phase, show that UI
+            if (sessionD.phase === 'workflow-check') {
+              setWfCheckProgress(proposedOnly.map(w => ({ name: w.name, status: 'checking' })));
+              setHubPhase(P.WORKFLOW_CHECK);
+            } else {
+              setHubPhase(P.WORKERS_PROPOSED);
+            }
+          }
           else setHubPhase(P.PLATFORMS_BUILT);
           researchTriggered.current = true;
           return;
@@ -485,8 +496,33 @@ export function Workspace({
       const d = await r.json();
       const workers = (d.workers || []).map(w => ({ ...w, _selected: true }));
       setProposedWorkers(workers);
-      setHubPhase(P.WORKERS_PROPOSED);
+      // Show workflow-check phase while server validates all workflows
+      setHubPhase(P.WORKFLOW_CHECK);
+      setWfCheckProgress(workers.map(w => ({ name: w.name, status: 'pending' })));
       setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+      // Poll session until server transitions phase to 'workers'
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const sr = await fetch(`/api/demo/session/${sessionId}`);
+          const sd = await sr.json();
+          // Update per-worker check status from refreshed worker list
+          if (sd.workers?.length > 0) {
+            setWfCheckProgress(sd.workers.map(w => ({
+              name: w.name,
+              status: sd.phase === 'workers' || sd.phase === 'workers-proposed' ? 'done' : 'checking',
+            })));
+          }
+          if (sd.phase === 'workers' || attempts > 60) {
+            clearInterval(poll);
+            const finalWorkers = (sd.workers || workers).map(w => ({ ...w, _selected: true }));
+            setProposedWorkers(finalWorkers);
+            setHubPhase(P.WORKERS_PROPOSED);
+            setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
+          }
+        } catch { if (attempts > 60) clearInterval(poll); }
+      }, 3000);
     } catch (e) {
       console.error('Propose workers error:', e);
     }
@@ -785,7 +821,7 @@ export function Workspace({
   }
 
   const timeStr = `${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`;
-  const phaseAfter = (...phases) => phases.some(ph => [P.PLATFORMS_BUILT, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) || hubPhase === ph);
+  const phaseAfter = (...phases) => phases.some(ph => [P.PLATFORMS_BUILT, P.WORKFLOW_CHECK, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) || hubPhase === ph);
 
   return (
     <div className="ws">
@@ -1188,7 +1224,7 @@ export function Workspace({
         )}
 
         {/* ── Built platforms ── */}
-        {[P.PLATFORMS_BUILT, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) && builtPlatforms.length > 0 && (
+        {[P.PLATFORMS_BUILT, P.WORKFLOW_CHECK, P.WORKERS_PROPOSED, P.WORKERS_DEPLOYING, P.WORKERS_BUILT].includes(hubPhase) && builtPlatforms.length > 0 && (
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <SectionHead label="Live Platforms" badge="Deployed" />
             <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
@@ -1207,6 +1243,26 @@ export function Workspace({
             <button onClick={proposeWorkers} style={{ width: '100%', padding: '0.8rem', background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', color: '#fff', border: 'none', borderRadius: 12, fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               Propose AI Workers →
             </button>
+          </div>
+        )}
+
+        {/* ── Workflow check phase ── */}
+        {hubPhase === P.WORKFLOW_CHECK && (
+          <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', padding: '1.25rem 1.5rem' }}>
+            <SectionHead label="Workflow Check" badge="Validating" sub="soft-running all workflows…" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0.5rem 0 0' }}>
+              {wfCheckProgress.map((w, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0.5rem 0.75rem', background: 'rgba(0,0,0,0.03)', borderRadius: 8 }}>
+                  {w.status === 'done'
+                    ? <span style={{ color: '#34c759', fontSize: 13 }}>✓</span>
+                    : <span style={{ width: 12, height: 12, border: '2px solid rgba(0,0,0,0.15)', borderTopColor: '#8b5cf6', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                  }
+                  <span style={{ fontSize: '0.78rem', fontFamily: 'DM Sans', color: 'rgba(0,0,0,0.6)', flex: 1 }}>{w.name}</span>
+                  <span style={{ fontSize: '0.65rem', color: w.status === 'done' ? '#34c759' : 'rgba(0,0,0,0.3)', fontFamily: 'monospace', textTransform: 'uppercase' }}>{w.status === 'done' ? 'passed' : 'checking…'}</span>
+                </div>
+              ))}
+              {wfCheckProgress.length === 0 && <Spinner msg="Generating worker proposals…" />}
+            </div>
           </div>
         )}
 

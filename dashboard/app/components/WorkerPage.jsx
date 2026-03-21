@@ -721,29 +721,44 @@ function StepIcon({ status, type }) {
 function FlowPanel({ cfg, sessionId, workerId, workerName, channels, onChannelsChange }) {
   const wfList = cfg?.workflows?.list || [];
   const displayWfs = wfList.slice(0, 3);
-  const activeWf = wfList.find(wf => wf.status === 'active') || wfList[0];
-  const rawSteps = activeWf?.steps || [];
-  // Assign done/active/pending based on position
-  const steps = rawSteps.slice(0, 5).map((s, i) => ({
-    label: s.label || s.name || `Step ${i + 1}`,
-    status: i < Math.floor(rawSteps.length * 0.4) ? 'done' : i === Math.floor(rawSteps.length * 0.4) ? 'active' : 'pending',
-  }));
 
+  const [selectedWfIndex, setSelectedWfIndex] = useState(0);
   const [running, setRunning] = useState(false);
   const [ran, setRan] = useState(false);
+  const [stepStatuses, setStepStatuses] = useState({}); // stepIndex -> 'running'|'done'|'error'
+
+  const selectedWf = displayWfs[selectedWfIndex] || displayWfs[0];
+  const rawSteps = selectedWf?.steps || [];
+  const steps = rawSteps.slice(0, 6).map((s, i) => ({
+    label: s.label || s.name || `Step ${i + 1}`,
+    skill: s.skill || '',
+    status: stepStatuses[i] || (i < Math.floor(rawSteps.length * 0.4) ? 'done' : i === Math.floor(rawSteps.length * 0.4) ? 'active' : 'pending'),
+  }));
 
   async function handleRun() {
-    if (!activeWf || running) return;
+    if (!selectedWf || running) return;
     setRunning(true);
+    setStepStatuses({});
+    // Animate steps one by one during hard run
+    const animateSteps = async () => {
+      for (let i = 0; i < steps.length; i++) {
+        setStepStatuses(prev => ({ ...prev, [i]: 'running' }));
+        await new Promise(r => setTimeout(r, 900));
+        setStepStatuses(prev => ({ ...prev, [i]: 'done' }));
+      }
+    };
     try {
-      await fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, mode: 'soft', workflowId: activeWf.id, channels }),
-      });
+      const [res] = await Promise.all([
+        fetch(`/api/demo/workers/${encodeURIComponent(workerId)}/run-steps`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, mode: 'hard', workflowId: selectedWf.id, channels }),
+        }),
+        animateSteps(),
+      ]);
     } catch {}
     setRunning(false);
     setRan(true);
-    setTimeout(() => setRan(false), 3000);
+    setTimeout(() => { setRan(false); setStepStatuses({}); }, 3000);
   }
 
   return (
@@ -754,10 +769,16 @@ function FlowPanel({ cfg, sessionId, workerId, workerName, channels, onChannelsC
           <span className="wkp-flow-count">{wfList.length} workflow{wfList.length !== 1 ? 's' : ''}</span>
         </div>
         {displayWfs.length > 0 ? displayWfs.map((wf, i) => (
-          <div key={wf.id || i} className="wkp-workflow">
+          <div
+            key={wf.id || i}
+            className="wkp-workflow"
+            onClick={() => setSelectedWfIndex(i)}
+            style={{ cursor: 'pointer', outline: selectedWfIndex === i ? `1.5px solid ${FLOW_COLORS[i % FLOW_COLORS.length]}` : 'none', borderRadius: 8, transition: 'outline 0.15s' }}
+          >
             <div className="wkp-workflow-title-row">
               <span className="wkp-workflow-dot" style={{ background: FLOW_COLORS[i % FLOW_COLORS.length] }} />
               <span className="wkp-workflow-title">{wf.name}</span>
+              {selectedWfIndex === i && <span style={{ marginLeft: 'auto', fontSize: 10, color: FLOW_COLORS[i % FLOW_COLORS.length], fontFamily: 'DM Sans', fontWeight: 600 }}>SELECTED</span>}
             </div>
             <span className="wkp-workflow-desc">{wf.trigger}</span>
             <div className="wkp-workflow-tools">
@@ -771,17 +792,23 @@ function FlowPanel({ cfg, sessionId, workerId, workerName, channels, onChannelsC
         )}
         {steps.length > 0 && (
           <div className="wkp-diagram">
-            <span className="wkp-diagram-label">Active workflow</span>
+            <span className="wkp-diagram-label">Selected workflow steps</span>
             <div className="wkp-diagram-steps">
-              {steps.map((step, i) => (
-                <div key={step.label + i} className="wkp-diagram-step-group">
-                  <div className={`wkp-diagram-node wkp-diagram-node--${step.status}`}>
-                    <StepIcon status={step.status} type={step.label} />
+              {steps.map((step, i) => {
+                const st = stepStatuses[i] === 'running' ? 'active' : stepStatuses[i] === 'done' ? 'done' : step.status;
+                return (
+                  <div key={step.label + i} className="wkp-diagram-step-group">
+                    <div className={`wkp-diagram-node wkp-diagram-node--${st}`}>
+                      {stepStatuses[i] === 'running'
+                        ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#1a1a1a', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                        : <StepIcon status={st} type={step.label} />
+                      }
+                    </div>
+                    {i < steps.length - 1 && <div className={`wkp-diagram-line wkp-diagram-line--${st}`} />}
+                    <span className={`wkp-diagram-step-label wkp-diagram-step-label--${st}`}>{step.label}</span>
                   </div>
-                  {i < steps.length - 1 && <div className={`wkp-diagram-line wkp-diagram-line--${step.status}`} />}
-                  <span className={`wkp-diagram-step-label wkp-diagram-step-label--${step.status}`}>{step.label}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -800,7 +827,7 @@ function FlowPanel({ cfg, sessionId, workerId, workerName, channels, onChannelsC
             ) : (
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 2.5L13 8L4 13.5V2.5Z" fill="rgba(0,0,0,0.35)" /></svg>
             )}
-            <span className="wkp-run-text">{ran ? 'Triggered!' : running ? 'Running…' : 'Run workflow'}</span>
+            <span className="wkp-run-text">{ran ? 'Done!' : running ? 'Running…' : 'Run workflow'}</span>
           </div>
         </div>
       </div>
