@@ -253,6 +253,10 @@ export function Workspace({
   const [autopilotMsg, setAutopilotMsg] = useState('');
   const [telegramLink, setTelegramLink] = useState('');
   const [wfCheckProgress, setWfCheckProgress] = useState([]); // [{name, status}]
+  const [contextApiData, setContextApiData] = useState(null); // { title, description, apiUrl, context }
+  const [deployStatus, setDeployStatus] = useState(null); // { status, standaloneUrl, platforms }
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [vercelTokenInput, setVercelTokenInput] = useState('');
 
   const anamClientRef = useRef(anamClient);
   const cameraStreamRef = useRef(cameraStream);
@@ -346,6 +350,12 @@ export function Workspace({
         if (cancelled) return;
 
         if (sessionD.telegramInviteLink) setTelegramLink(sessionD.telegramInviteLink);
+        // Load context API if this session has one
+        if (sessionD.contextApiUrl && !contextApiData) {
+          loadContextApi(sessionD.contextApiUrl, sessionD.contextApiSummary);
+        }
+        // Load standalone deploy status
+        if (sessionD.deployStandalone) setDeployStatus(sessionD.deployStandalone);
 
         const hasTiles = !tilesD.error && (tilesD.tiles?.length > 0);
         const deployed = (sessionD.platforms || []).filter(p => p.status === 'deployed');
@@ -797,10 +807,12 @@ export function Workspace({
     }
     setOrchestratorLoading(true);
     try {
+      // Prepend context API summary on first message if available
+      const contextPrefix = contextApiData && !messages.some(m => m.author === 'YOU') ? `[Context: ${contextApiData.summaryHint || contextApiData.description || ''}]\n\n` : '';
       const res = await fetch('/api/demo/orchestrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, sessionId: sessionId || 'workspace-session' }),
+        body: JSON.stringify({ message: contextPrefix + text, sessionId: sessionId || 'workspace-session' }),
       });
       const data = await res.json();
       if (data.reply || data.message) {
@@ -818,6 +830,42 @@ export function Workspace({
       fr.readAsDataURL(f);
     }));
     Promise.all(readers).then(imgs => setUploadedFiles(prev => [...prev, ...imgs]));
+  }
+
+  async function loadContextApi(apiUrl, summaryHint) {
+    try {
+      const r = await fetch(`/api/demo/context-fetch?url=${encodeURIComponent(apiUrl)}`);
+      const d = await r.json();
+      if (!d.error) setContextApiData({ ...d, apiUrl, summaryHint });
+    } catch {}
+  }
+
+  async function handleDeployStandalone(vercelToken) {
+    setDeployStatus({ status: 'deploying' });
+    setShowDeployModal(false);
+    try {
+      const r = await fetch('/api/demo/deploy-standalone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, vercelToken: vercelToken || undefined }),
+      });
+      const d = await r.json();
+      if (d.needsToken) { setShowDeployModal(true); setDeployStatus(null); return; }
+      if (!d.ok) { setDeployStatus({ status: 'error', error: d.message || 'Deploy failed' }); return; }
+      // Poll for completion
+      const poll = setInterval(async () => {
+        try {
+          const sr = await fetch(`/api/demo/deploy-standalone?sessionId=${sessionId}`);
+          const sd = await sr.json();
+          if (sd.status === 'done' || sd.status === 'error') {
+            clearInterval(poll);
+            setDeployStatus(sd);
+          }
+        } catch {}
+      }, 4000);
+    } catch (e) {
+      setDeployStatus({ status: 'error', error: e.message });
+    }
   }
 
   const timeStr = `${Math.floor(elapsed / 60)}:${(elapsed % 60).toString().padStart(2, '0')}`;
@@ -853,6 +901,29 @@ export function Workspace({
           {(hubPhase === P.RESEARCH || hubPhase === P.PLATFORMS_PROPOSED) && companyName && (
             <button onClick={runAutopilot} disabled={autopilot} title={autopilotMsg || 'Run full autopilot pipeline'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', background: autopilot ? 'rgba(0,0,0,0.06)' : 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', borderRadius: 7, color: autopilot ? 'rgba(0,0,0,0.4)' : '#fff', fontSize: '0.68rem', fontWeight: 700, cursor: autopilot ? 'default' : 'pointer', fontFamily: 'inherit' }}>
               {autopilot ? `⚡ ${autopilotMsg}` : '⚡ Autopilot'}
+            </button>
+          )}
+          {contextApiData && (
+            <span title={`Context: ${contextApiData.title}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: 7, fontSize: '0.65rem', fontWeight: 600, color: '#2e7d32' }}>
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4.5"/></svg>
+              Context loaded
+            </span>
+          )}
+          {/* Deploy Standalone button */}
+          {sessionId && (
+            <button
+              onClick={() => deployStatus?.status === 'done' ? window.open(deployStatus.standaloneUrl, '_blank') : setShowDeployModal(true)}
+              title={deployStatus?.status === 'done' ? deployStatus.standaloneUrl : 'Deploy as standalone Vercel app'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: deployStatus?.status === 'done' ? 'rgba(52,199,89,0.12)' : deployStatus?.status === 'deploying' ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.06)', border: `1px solid ${deployStatus?.status === 'done' ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.12)'}`, borderRadius: 7, fontSize: '0.65rem', fontWeight: 600, color: deployStatus?.status === 'done' ? '#2e7d32' : 'rgba(0,0,0,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              {deployStatus?.status === 'deploying' ? (
+                <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+              ) : deployStatus?.status === 'done' ? (
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4.5"/></svg>
+              ) : (
+                <svg width="9" height="9" viewBox="0 0 16 16" fill="none"><path d="M8 1v10M4 7l4-6 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="2" y="11" width="12" height="4" rx="1" fill="currentColor" opacity="0.3"/></svg>
+              )}
+              {deployStatus?.status === 'done' ? 'Deployed ↗' : deployStatus?.status === 'deploying' ? 'Deploying…' : 'Deploy'}
             </button>
           )}
           {sessionId && (
@@ -1336,5 +1407,51 @@ export function Workspace({
         )}
       </div>
     </div>
+
+    {/* ── Deploy Standalone Modal ── */}
+    {showDeployModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} onClick={() => setShowDeployModal(false)}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: 420, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Deploy Standalone</div>
+          <div style={{ fontSize: '0.78rem', color: 'rgba(0,0,0,0.5)', marginBottom: '1rem', lineHeight: 1.5 }}>
+            Deploys a self-contained Vercel app for this demo — each platform gets its own Vercel URL (no sandbox ports).
+          </div>
+          {deployStatus?.status === 'error' && (
+            <div style={{ background: '#fff3f3', border: '1px solid #fca5a5', borderRadius: 8, padding: '0.6rem 0.75rem', fontSize: '0.75rem', color: '#b91c1c', marginBottom: '0.75rem' }}>
+              {deployStatus.error}
+            </div>
+          )}
+          <div style={{ marginBottom: '0.75rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(0,0,0,0.6)', display: 'block', marginBottom: 4 }}>Vercel Token</label>
+            <input
+              value={vercelTokenInput} onChange={e => setVercelTokenInput(e.target.value)}
+              placeholder="paste your Vercel API token…"
+              type="password"
+              style={{ width: '100%', padding: '0.5rem 0.75rem', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, fontSize: '0.8rem', outline: 'none', fontFamily: 'monospace', boxSizing: 'border-box' }}
+            />
+            <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.35)', marginTop: 4 }}>
+              vercel.com → Settings → Tokens. Token is saved for future deploys.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => setShowDeployModal(false)} style={{ padding: '0.5rem 1rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, background: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit' }}>Cancel</button>
+            <button
+              onClick={() => handleDeployStandalone(vercelTokenInput)}
+              disabled={!vercelTokenInput.trim()}
+              style={{ padding: '0.5rem 1.25rem', background: vercelTokenInput.trim() ? '#1d1d1f' : 'rgba(0,0,0,0.08)', color: vercelTokenInput.trim() ? '#fff' : 'rgba(0,0,0,0.3)', border: 'none', borderRadius: 8, cursor: vercelTokenInput.trim() ? 'pointer' : 'default', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'inherit' }}
+            >
+              Deploy →
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ── Context API banner ── */}
+    {contextApiData && (
+      <div style={{ position: 'absolute', top: 52, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)', border: '1px solid rgba(52,199,89,0.25)', borderRadius: 10, padding: '5px 14px', fontSize: '0.68rem', color: 'rgba(0,0,0,0.5)', maxWidth: 480, textAlign: 'center', pointerEvents: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ color: '#2e7d32', fontWeight: 600 }}>Context loaded:</span> {contextApiData.title}
+      </div>
+    )}
   );
 }
