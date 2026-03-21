@@ -352,12 +352,23 @@ export function Workspace({
         if (cancelled) return;
 
         if (sessionD.telegramInviteLink) setTelegramLink(sessionD.telegramInviteLink);
-        // Load context API if this session has one
-        if (sessionD.contextApiUrl && !contextApiData) {
-          loadContextApi(sessionD.contextApiUrl, sessionD.contextApiSummary);
-        }
         // Load standalone deploy status
         if (sessionD.deployStandalone) setDeployStatus(sessionD.deployStandalone);
+
+        // Restore saved system prompt immediately (before Anam call fires VIDEO_PLAY_STARTED)
+        const savedPrompt = sessionD.settings?.systemPrompt;
+        if (savedPrompt) {
+          setCustomPrompt(savedPrompt);
+          customPromptRef.current = savedPrompt;
+        }
+
+        // Load context API (enriches prompt with live data)
+        if (sessionD.contextApiUrl && !contextApiData) {
+          loadContextApi(sessionD.contextApiUrl, sessionD.contextApiSummary);
+        } else if (!savedPrompt && (sessionD.researchSummary || sessionD.contextApiSummary)) {
+          // No saved prompt but session has research — auto-generate
+          autoGeneratePrompt();
+        }
 
         const hasTiles = !tilesD.error && (tilesD.tiles?.length > 0);
         const deployed = (sessionD.platforms || []).filter(p => p.status === 'deployed');
@@ -834,6 +845,25 @@ export function Workspace({
     Promise.all(readers).then(imgs => setUploadedFiles(prev => [...prev, ...imgs]));
   }
 
+  async function autoGeneratePrompt() {
+    if (!sessionId) return;
+    try {
+      const r = await fetch(`/api/demo/session/${sessionId}/generate-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: [] }), // server uses session data as fallback
+      });
+      const d = await r.json();
+      if (d.prompt) {
+        setCustomPrompt(d.prompt);
+        customPromptRef.current = d.prompt;
+        if (anamClientRef.current) {
+          setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${d.prompt}`), 300);
+        }
+      }
+    } catch {}
+  }
+
   async function loadContextApi(apiUrl, summaryHint) {
     try {
       // All fetches go through the server proxy to avoid CORS
@@ -843,23 +873,28 @@ export function Workspace({
 
       setContextApiData({ ...d, apiUrl, summaryHint });
 
-      // Build a rich prompt with live sample data
-      const { sampleData, title, description } = d;
-      const sampleStr = sampleData
-        ? `Live sample (4h visit, summer 2025): total ${sampleData.total_kg?.toFixed(2)} kg CO2 — operational ${sampleData.operational_kg?.toFixed(2)} kg, overhead ${sampleData.overhead_kg?.toFixed(2)} kg, non-metered ${sampleData.non_metered_kg?.toFixed(2)} kg. Energy mix: ${Object.entries(sampleData.metered_by_source || {}).map(([k, v]) => `${k} ${v.total_kg?.toFixed(3)} kg`).join(', ')}.`
+      // Now re-generate prompt enriched with live API sample data
+      // The server's generate-prompt endpoint uses contextApiSummary from the session;
+      // we additionally inject the live sample into the sources
+      const { sampleData, title } = d;
+      const liveSample = sampleData
+        ? `Live sample (4h summer visit 2025): total ${sampleData.total_kg?.toFixed(2)} kg CO2. Operational ${sampleData.operational_kg?.toFixed(2)} kg, overhead ${sampleData.overhead_kg?.toFixed(2)} kg, non-metered ${sampleData.non_metered_kg?.toFixed(2)} kg. Energy mix: ${Object.entries(sampleData.metered_by_source || {}).map(([k, v]) => `${k} ${v.total_kg?.toFixed(3)} kg`).join(', ')}.`
         : '';
-      const fullPrompt = [
-        summaryHint || description || title || '',
-        sampleStr,
-        `To compute footprint: GET ${apiUrl}/api/footprint?date=YYYY-MM-DD&entry_hour=H&exit_hour=H`,
-      ].filter(Boolean).join(' ');
 
-      customPromptRef.current = fullPrompt;
-      setCustomPrompt(fullPrompt);
-
-      // If Anam avatar is already connected, inject the context now
-      if (anamClientRef.current) {
-        setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${fullPrompt}`), 300);
+      if (sessionId && liveSample) {
+        const rp = await fetch(`/api/demo/session/${sessionId}/generate-prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sources: liveSample ? [{ type: 'text', value: liveSample }] : [] }),
+        });
+        const dp = await rp.json();
+        if (dp.prompt) {
+          setCustomPrompt(dp.prompt);
+          customPromptRef.current = dp.prompt;
+          if (anamClientRef.current) {
+            setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${dp.prompt}`), 300);
+          }
+        }
       }
     } catch {}
   }
@@ -1066,18 +1101,35 @@ export function Workspace({
           </form>
         </div>
 
-        {/* Briefing / knowledge panel */}
+        {/* ── System Prompt panel — always visible, per-demo ── */}
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 12px' }}>
-          <button onClick={() => setBriefingOpen(v => !v)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {customPrompt ? '✦ Briefing' : 'Briefing & Knowledge'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
+              {customPrompt ? '✦ AI Persona' : 'AI Persona'}
             </span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: briefingOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', opacity: 0.4 }}>
-              <path d="M2 4l4 4 4-4" stroke="#000" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+            <button
+              onClick={() => autoGeneratePrompt()}
+              disabled={promptGenerating}
+              title="Re-generate from session research + API data"
+              style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              {promptGenerating ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : '↺'}
+              {promptGenerating ? 'Generating…' : 'Re-generate'}
+            </button>
+            <button onClick={() => setBriefingOpen(v => !v)} title="Add custom sources"
+              style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.4)' }}>
+              + Sources
+            </button>
+          </div>
+          <textarea
+            value={customPrompt}
+            onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; }}
+            placeholder="Describe this demo's AI persona… (auto-generated from research + APIs)"
+            rows={4}
+            style={{ width: '100%', fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.3)', boxSizing: 'border-box' }}
+          />
           {briefingOpen && (
-            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.35)', fontFamily: 'inherit' }}>Add extra context (text, URL, or Google Drive) to improve the prompt:</div>
               {briefingSources.map((src, i) => (
                 <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                   <select value={src.type} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, type: e.target.value } : s))}
@@ -1088,7 +1140,7 @@ export function Workspace({
                   </select>
                   {src.type === 'text' ? (
                     <textarea value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
-                      placeholder="Paste notes, agenda, context…" rows={3}
+                      placeholder="Paste notes, agenda, context…" rows={2}
                       style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
                   ) : (
                     <input value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
@@ -1107,17 +1159,9 @@ export function Workspace({
                 </button>
                 <button onClick={handleGeneratePrompt} disabled={promptGenerating || !briefingSources.some(s => s.value.trim())}
                   style={{ flex: 1, fontSize: '0.75rem', padding: '5px 10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: promptGenerating ? 0.6 : 1 }}>
-                  {promptGenerating ? 'Generating…' : '✦ Generate Prompt'}
+                  {promptGenerating ? 'Generating…' : '✦ Generate from Sources'}
                 </button>
               </div>
-              {customPrompt !== undefined && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ fontSize: '0.68rem', fontWeight: 600, color: 'rgba(0,0,0,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>System Prompt</div>
-                  <textarea value={customPrompt} onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; }}
-                    placeholder="Generated prompt will appear here — edit as needed…" rows={4}
-                    style={{ fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)' }} />
-                </div>
-              )}
             </div>
           )}
         </div>
