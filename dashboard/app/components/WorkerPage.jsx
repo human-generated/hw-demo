@@ -282,25 +282,13 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
       {/* iframe preview or not-built placeholder */}
       <div className="wkp-platform-frame">
         {isBuilt ? (
-          platform.external ? (
-            // External platforms (e.g. Streamlit) block cross-origin iframes — show click-to-open card
-            <a href={platform.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, background: 'linear-gradient(135deg,#0b0d14,#111827)', color: '#fff', textDecoration: 'none', cursor: 'pointer' }}>
-              <span style={{ fontSize: '2.5rem', opacity: 0.5 }}>🌐</span>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.78rem', fontWeight: 600, marginBottom: 4, opacity: 0.9 }}>{platform.name}</div>
-                <div style={{ fontSize: '0.68rem', opacity: 0.45, marginBottom: 12 }}>{displayUrl}</div>
-                <div style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 8, padding: '7px 18px', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.02em' }}>Open ↗</div>
-              </div>
-            </a>
-          ) : (
           <iframe
-            src={proxyUrl}
+            src={platform.external ? `${proxyUrl}${proxyUrl.includes('?') ? '&' : '?'}embedded=true` : proxyUrl}
             title={platform.name}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             className="wkp-platform-iframe"
             allow="fullscreen"
           />
-          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8, background: '#0b0d14', color: '#444' }}>
             <span style={{ fontSize: '1.8rem', opacity: 0.4 }}>{platformIcons[platform.id] || '⚙️'}</span>

@@ -311,21 +311,22 @@ export function Workspace({
       } catch {}
       if (cancelled) return;
       try {
-        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, { personaId: ANAM_PERSONA_ID });
+        // Use session system prompt directly in personaConfig — overrides Anam dashboard persona
+        const personaConfig = {
+          personaId: ANAM_PERSONA_ID,
+          ...(customPromptRef.current ? { systemPrompt: customPromptRef.current } : {}),
+        };
+        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) {
-            setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now());
-            // Inject custom briefing prompt — use ref so we always get latest value even if loaded async
-            const prompt = customPromptRef.current || customPrompt;
-            if (prompt) setTimeout(() => newClient.sendUserMessage(`Context for this session: ${prompt}`), 1200);
-          }
+          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
         });
         attachSubtitleListener(newClient);
         await newClient.streamToVideoElement('ws-avatar-video');
       } catch (err) { console.error('Anam connection failed:', err); if (!cancelled) setIsConnecting(false); }
     }
-    const timer = setTimeout(init, 400);
+    // Delay long enough for session data + systemPrompt to load before creating Anam client
+    const timer = setTimeout(init, 1500);
     return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
@@ -881,19 +882,23 @@ export function Workspace({
         ? `Live sample (4h summer visit 2025): total ${sampleData.total_kg?.toFixed(2)} kg CO2. Operational ${sampleData.operational_kg?.toFixed(2)} kg, overhead ${sampleData.overhead_kg?.toFixed(2)} kg, non-metered ${sampleData.non_metered_kg?.toFixed(2)} kg. Energy mix: ${Object.entries(sampleData.metered_by_source || {}).map(([k, v]) => `${k} ${v.total_kg?.toFixed(3)} kg`).join(', ')}.`
         : '';
 
+      // Save enriched prompt in the UI (for display/editing) but don't re-inject into Anam —
+      // the systemPrompt is already set on the Anam client at session start.
+      // Only send live API data as a supplementary fact message if Anam is already connected.
       if (sessionId && liveSample) {
         const rp = await fetch(`/api/demo/session/${sessionId}/generate-prompt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sources: liveSample ? [{ type: 'text', value: liveSample }] : [] }),
+          body: JSON.stringify({ sources: [{ type: 'text', value: liveSample }] }),
         });
         const dp = await rp.json();
         if (dp.prompt) {
           setCustomPrompt(dp.prompt);
           customPromptRef.current = dp.prompt;
-          if (anamClientRef.current) {
-            setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${dp.prompt}`), 300);
-          }
+        }
+        // Inject ONLY the live data snapshot as a brief factual message (not the full persona)
+        if (anamClientRef.current && liveSample) {
+          setTimeout(() => anamClientRef.current?.sendUserMessage(`Live API data for this session: ${liveSample}`), 500);
         }
       }
     } catch {}
