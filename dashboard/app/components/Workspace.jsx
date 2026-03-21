@@ -1481,10 +1481,9 @@ export function Workspace({
           </div>
         )}
       </div>
-    </div>
 
-    {/* ── Deploy Standalone Modal ── */}
-    {showDeployModal && (
+      {/* ── Deploy Standalone Modal ── */}
+      {showDeployModal && (
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} onClick={() => setShowDeployModal(false)}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: 420, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.25rem' }}>Deploy Standalone</div>
@@ -1528,5 +1527,6 @@ export function Workspace({
         <span style={{ color: '#2e7d32', fontWeight: 600 }}>Context loaded:</span> {contextApiData.title}
       </div>
     )}
+    </div>
   );
 }
