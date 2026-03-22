@@ -1305,6 +1305,14 @@ export function Workspace({
       {/* Right: Hub content — scrollable */}
       <div className="ws-right" ref={rightPanelRef} style={{ overflowY: rightTab === 'canvas' ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', gap: rightTab === 'canvas' ? 0 : undefined }}>
 
+        {/* ── Hub / Canvas tab switcher — always visible ── */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 1.5rem 0.25rem' }}>
+          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, padding: 3, gap: 2 }}>
+            <button onClick={() => setRightTab('hub')} style={{ padding: '3px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', background: rightTab === 'hub' ? '#1a1a1a' : 'transparent', color: rightTab === 'hub' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Hub</button>
+            <button onClick={() => setRightTab('canvas')} style={{ padding: '3px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', background: rightTab === 'canvas' ? '#1a1a1a' : 'transparent', color: rightTab === 'canvas' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Canvas</button>
+          </div>
+        </div>
+
         {rightTab === 'canvas' ? (
           <CanvasTab sessionId={sessionId} workerId={null} />
         ) : (<>
@@ -1319,11 +1327,6 @@ export function Workspace({
               <div className="ws-live-badge"><span className="ws-live-dot" /><span className="ws-live-text">Live Data</span></div>
             )}
             {tilesLoading && <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', fontFamily: 'monospace' }}>researching…</span>}
-            {/* Hub / Canvas tab switcher */}
-            <div style={{ marginLeft: 'auto', display: 'flex', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 8, padding: 3, gap: 2, flexShrink: 0 }}>
-              <button onClick={() => setRightTab('hub')} style={{ padding: '3px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', background: rightTab === 'hub' ? '#1a1a1a' : 'transparent', color: rightTab === 'hub' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Hub</button>
-              <button onClick={() => setRightTab('canvas')} style={{ padding: '3px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'inherit', background: rightTab === 'canvas' ? '#1a1a1a' : 'transparent', color: rightTab === 'canvas' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Canvas</button>
-            </div>
           </div>
           {tilesData?.lastUpdated && <div className="ws-updated">Updated {new Date(tilesData.lastUpdated).toLocaleDateString()}</div>}
         </div>
