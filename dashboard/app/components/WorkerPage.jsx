@@ -1441,7 +1441,7 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Canvas Tab ─────────────────────────────────────────────────────────────── */
-function CanvasTab({ sessionId, workerId }) {
+export function CanvasTab({ sessionId, workerId }) {
   const [cards, setCards] = useState([]);
   const [transform, setTransform] = useState({ x: 60, y: 60, scale: 1 });
   const [flipped, setFlipped] = useState({});

@@ -4,7 +4,7 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
-import { PlatformPreviewCard } from './WorkerPage';
+import { PlatformPreviewCard, CanvasTab } from './WorkerPage';
 import { getWorkerPhoto, getWorkerCode } from './WorkerConfig';
 
 const ANAM_API_KEY = "NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9";
@@ -227,6 +227,7 @@ export function Workspace({
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptGenerating, setPromptGenerating] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
+  const [rightTab, setRightTab] = useState('hub'); // 'hub' | 'canvas'
   const [sessionOpen, setSessionOpen] = useState(false); // collapsible session config panel
   const [platformPopped, setPlatformPopped] = useState(false); // pop-out platform overlay
   const [linkCopied, setLinkCopied] = useState(false); // magic link copy feedback
@@ -1302,7 +1303,17 @@ export function Workspace({
       </div>
 
       {/* Right: Hub content — scrollable */}
-      <div className="ws-right" ref={rightPanelRef} style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div className="ws-right" ref={rightPanelRef} style={{ overflowY: rightTab === 'canvas' ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column', gap: rightTab === 'canvas' ? 0 : undefined }}>
+
+        {/* ── Hub / Canvas tab switcher ── */}
+        <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 20, display: 'flex', background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(10px)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 9, padding: 3, gap: 2 }}>
+          <button onClick={() => setRightTab('hub')} style={{ padding: '3px 11px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.03em', background: rightTab === 'hub' ? '#1a1a1a' : 'transparent', color: rightTab === 'hub' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Hub</button>
+          <button onClick={() => setRightTab('canvas')} style={{ padding: '3px 11px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.03em', background: rightTab === 'canvas' ? '#1a1a1a' : 'transparent', color: rightTab === 'canvas' ? '#fff' : 'rgba(0,0,0,0.4)', transition: 'all 0.15s' }}>Canvas</button>
+        </div>
+
+        {rightTab === 'canvas' ? (
+          <CanvasTab sessionId={sessionId} workerId={null} />
+        ) : (<>
 
         {/* ── Research section ── */}
         <div className="ws-research-header">
@@ -1570,6 +1581,7 @@ export function Workspace({
             )}
           </div>
         )}
+        </>)}
       </div>
 
       {/* ── Platform pop-out overlay — covers right panel only, left panel stays visible ── */}
