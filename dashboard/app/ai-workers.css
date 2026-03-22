@@ -5196,7 +5196,7 @@ body {
 .wkp-platform-frame {
   flex: 1;
   min-height: 180px;
-  max-height: 260px;
+  max-height: 540px;
   overflow: hidden;
   position: relative;
   background: #f8f8f8;

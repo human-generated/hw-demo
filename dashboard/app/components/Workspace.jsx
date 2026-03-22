@@ -1477,7 +1477,7 @@ export function Workspace({
             ) : (
               <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
                 {builtPlatforms.map(p => (
-                  <div key={p.id || p.name} style={{ flex: '0 0 280px', height: 280, display: 'flex', flexDirection: 'column' }}>
+                  <div key={p.id || p.name} style={{ flex: '0 0 480px', height: 600, display: 'flex', flexDirection: 'column' }}>
                     <PlatformPreviewCard platform={p} sessionId={sessionId} companyName={companyName} />
                   </div>
                 ))}
