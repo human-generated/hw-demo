@@ -218,8 +218,18 @@ export function PlatformPreviewCard({ platform, sessionId, companyName, style })
     ? platform.url.replace(/^https?:\/\//, '').replace(/\/$/, '')
     : `${slug}.humans.ai/${platform.name.toLowerCase()}`;
   // External platforms (Streamlit, etc.) must load directly — no proxy
+  // Streamlit needs ?embedded=true to bypass auth redirect loop in iframes
+  function embedUrl(url) {
+    if (!url) return url;
+    if (url.includes('streamlit.app') || url.includes('streamlit.io')) {
+      const u = new URL(url);
+      u.searchParams.set('embedded', 'true');
+      return u.toString();
+    }
+    return url;
+  }
   const proxyUrl = platform.external || !platform.sandboxId
-    ? platform.url
+    ? embedUrl(platform.url)
     : (sessionId && platform.id ? `/api/demo/platform-proxy/${sessionId}/${platform.id}/` : platform.url);
   const isBuilt = !!(platform.url || platform.sandboxId || platform.status === 'deployed');
   const platformIcons = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', messaging: '💬', ecommerce: '🛒', hr: '🏢', billing: '💳' };
