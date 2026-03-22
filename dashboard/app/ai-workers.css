@@ -5209,6 +5209,16 @@ body {
   transform-origin: top left;
 }
 
+/* Pop-out overlay — remove height constraints so the card fills the screen */
+.ws-platform-popped .wkp-platform-card {
+  height: 100%;
+  border-radius: 0;
+}
+.ws-platform-popped .wkp-platform-frame {
+  max-height: none;
+  flex: 1;
+}
+
 .wkp-platform-chat {
   display: flex;
   flex-direction: column;

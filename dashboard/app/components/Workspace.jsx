@@ -227,6 +227,10 @@ export function Workspace({
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptGenerating, setPromptGenerating] = useState(false);
   const [promptSaved, setPromptSaved] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false); // collapsible session config panel
+  const [platformPopped, setPlatformPopped] = useState(false); // pop-out platform overlay
+  const [linkCopied, setLinkCopied] = useState(false); // magic link copy feedback
+  const [sessionContextApiUrl, setSessionContextApiUrl] = useState(''); // stored for Fetch API Data button
   const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
@@ -363,6 +367,9 @@ export function Workspace({
           setCustomPrompt(savedPrompt);
           customPromptRef.current = savedPrompt;
         }
+
+        // Store contextApiUrl for "Fetch API Data" button
+        if (sessionD.contextApiUrl) setSessionContextApiUrl(sessionD.contextApiUrl);
 
         // Load context API (enriches prompt with live data)
         if (sessionD.contextApiUrl && !contextApiData) {
@@ -1006,7 +1013,21 @@ export function Workspace({
             </button>
           )}
           {sessionId && (
-            <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId.slice(0, 16)}</span>
+            <>
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/?hub=${sessionId}&lock=true`;
+                  navigator.clipboard?.writeText(url).catch(() => {});
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                }}
+                title="Copy magic link for this demo"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: linkCopied ? 'rgba(52,199,89,0.1)' : 'rgba(0,0,0,0.06)', border: `1px solid ${linkCopied ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.12)'}`, borderRadius: 7, fontSize: '0.65rem', fontWeight: 600, color: linkCopied ? '#2e7d32' : 'rgba(0,0,0,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                {linkCopied ? '✓ Copied' : '🔗 Link'}
+              </button>
+              <span onClick={() => navigator.clipboard?.writeText(sessionId).catch(() => {})} title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '10px', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', userSelect: 'all', letterSpacing: '0.04em' }}>{sessionId.slice(0, 16)}</span>
+            </>
           )}
           <label className="wkp-nav-toggle">
             <input type="checkbox" checked={videoEnabled} onChange={e => setVideoEnabled(e.target.checked)} />
@@ -1121,71 +1142,97 @@ export function Workspace({
           </form>
         </div>
 
-        {/* ── AI Persona panel — per-demo, persisted to server ── */}
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
-              {companyName ? `✦ ${companyName} Persona` : 'AI Persona'}
+        {/* ── Session Settings panel (collapsible) ── */}
+        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+          <button
+            onClick={() => setSessionOpen(v => !v)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 12px', fontFamily: 'inherit' }}
+          >
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: sessionOpen ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+              ⚙ Session Settings
+              {customPrompt && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34c759', display: 'inline-block' }} />}
             </span>
-            <button
-              onClick={() => autoGeneratePrompt()}
-              disabled={promptGenerating}
-              title="Re-generate from session research + API data"
-              style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 3 }}>
-              {promptGenerating ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : '↺'}
-              {promptGenerating ? '…' : '↺ Generate'}
-            </button>
-            <button onClick={() => setBriefingOpen(v => !v)} title="Add custom sources"
-              style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.4)' }}>
-              + Sources
-            </button>
-            <button onClick={savePrompt} disabled={!customPrompt.trim()} title="Save persona for this demo"
-              style={{ fontSize: '0.65rem', padding: '3px 10px', background: promptSaved ? 'rgba(52,199,89,0.15)' : '#1a1a1a', border: promptSaved ? '1px solid rgba(52,199,89,0.3)' : '1px solid transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: promptSaved ? '#2e7d32' : '#fff', fontWeight: 600, transition: 'all 0.2s' }}>
-              {promptSaved ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
-          <textarea
-            value={customPrompt}
-            onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; setPromptSaved(false); }}
-            placeholder={`Describe the AI persona for ${companyName || 'this demo'}… (edit and Save, or use ↺ Generate)`}
-            rows={4}
-            style={{ width: '100%', fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.3)', boxSizing: 'border-box' }}
-          />
-          {briefingOpen && (
-            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.35)', fontFamily: 'inherit' }}>Add extra context (text, URL, or Google Drive) to improve the prompt:</div>
-              {briefingSources.map((src, i) => (
-                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                  <select value={src.type} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, type: e.target.value } : s))}
-                    style={{ fontSize: '0.68rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.8)', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
-                    <option value="text">Text</option>
-                    <option value="url">URL</option>
-                    <option value="drive">Drive</option>
-                  </select>
-                  {src.type === 'text' ? (
-                    <textarea value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
-                      placeholder="Paste notes, agenda, context…" rows={2}
-                      style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
-                  ) : (
-                    <input value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
-                      placeholder={src.type === 'drive' ? 'Google Drive share URL…' : 'https://…'}
-                      style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
-                  )}
-                  {briefingSources.length > 1 && (
-                    <button onClick={() => setBriefingSources(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', fontSize: '14px', padding: '4px', flexShrink: 0 }}>✕</button>
-                  )}
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setBriefingSources(prev => [...prev, { type: 'text', value: '' }])}
-                  style={{ fontSize: '0.7rem', padding: '4px 10px', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}>
-                  + Source
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: sessionOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', opacity: 0.3 }}>
+              <path d="M2 4l4 4 4-4" stroke="#000" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {sessionOpen && (
+            <div style={{ padding: '0 12px 10px' }}>
+              {/* AI Persona */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
+                  {companyName ? `✦ ${companyName} Persona` : 'AI Persona'}
+                </span>
+                <button
+                  onClick={() => autoGeneratePrompt()}
+                  disabled={promptGenerating}
+                  title="Re-generate from session research + API data"
+                  style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  {promptGenerating ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : '↺'}
+                  {promptGenerating ? '…' : 'Generate'}
                 </button>
-                <button onClick={handleGeneratePrompt} disabled={promptGenerating || !briefingSources.some(s => s.value.trim())}
-                  style={{ flex: 1, fontSize: '0.75rem', padding: '5px 10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: promptGenerating ? 0.6 : 1 }}>
-                  {promptGenerating ? 'Generating…' : '✦ Generate from Sources'}
+                <button onClick={() => setBriefingOpen(v => !v)} title="Add custom sources"
+                  style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.4)' }}>
+                  + Sources
+                </button>
+                <button onClick={savePrompt} disabled={!customPrompt.trim()} title="Save persona for this demo"
+                  style={{ fontSize: '0.65rem', padding: '3px 10px', background: promptSaved ? 'rgba(52,199,89,0.15)' : '#1a1a1a', border: promptSaved ? '1px solid rgba(52,199,89,0.3)' : '1px solid transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: promptSaved ? '#2e7d32' : '#fff', fontWeight: 600, transition: 'all 0.2s' }}>
+                  {promptSaved ? '✓ Saved' : 'Save'}
                 </button>
               </div>
+              <textarea
+                value={customPrompt}
+                onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; setPromptSaved(false); }}
+                placeholder={`Describe the AI persona for ${companyName || 'this demo'}… (edit and Save, or use Generate)`}
+                rows={4}
+                style={{ width: '100%', fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.3)', boxSizing: 'border-box' }}
+              />
+              {briefingOpen && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.35)', fontFamily: 'inherit' }}>Add extra context (text, URL, or Google Drive) to improve the prompt:</div>
+                  {briefingSources.map((src, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                      <select value={src.type} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, type: e.target.value } : s))}
+                        style={{ fontSize: '0.68rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.8)', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
+                        <option value="text">Text</option>
+                        <option value="url">URL</option>
+                        <option value="drive">Drive</option>
+                      </select>
+                      {src.type === 'text' ? (
+                        <textarea value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
+                          placeholder="Paste notes, agenda, context…" rows={2}
+                          style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
+                      ) : (
+                        <input value={src.value} onChange={e => setBriefingSources(prev => prev.map((s, j) => j === i ? { ...s, value: e.target.value } : s))}
+                          placeholder={src.type === 'drive' ? 'Google Drive share URL…' : 'https://…'}
+                          style={{ flex: 1, fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '6px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.8)', outline: 'none' }} />
+                      )}
+                      {briefingSources.length > 1 && (
+                        <button onClick={() => setBriefingSources(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.3)', fontSize: '14px', padding: '4px', flexShrink: 0 }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => setBriefingSources(prev => [...prev, { type: 'text', value: '' }])}
+                      style={{ fontSize: '0.7rem', padding: '4px 10px', background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}>
+                      + Source
+                    </button>
+                    <button onClick={handleGeneratePrompt} disabled={promptGenerating || !briefingSources.some(s => s.value.trim())}
+                      style={{ flex: 1, fontSize: '0.75rem', padding: '5px 10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: promptGenerating ? 0.6 : 1 }}>
+                      {promptGenerating ? 'Generating…' : '✦ Generate from Sources'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {/* Fetch API Data button — visible when contextApiUrl is configured */}
+              {sessionContextApiUrl && (
+                <button
+                  onClick={() => loadContextApi(sessionContextApiUrl, '')}
+                  style={{ marginTop: 8, width: '100%', fontSize: '0.72rem', padding: '5px 10px', background: contextApiData ? 'rgba(52,199,89,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${contextApiData ? 'rgba(52,199,89,0.25)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', color: contextApiData ? '#2e7d32' : 'rgba(0,0,0,0.5)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                >
+                  {contextApiData ? '✓ API Data Loaded' : '⬇ Fetch API Data'}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1391,15 +1438,20 @@ export function Workspace({
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <SectionHead label="Live Platforms" badge="Deployed" />
             {builtPlatforms.length === 1 ? (
-              // Single platform — show large with reload/open controls
+              // Single platform — show large with reload/open/pop-out controls
               <div style={{ padding: '0 1.5rem 1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 6 }}>
                   <a href={builtPlatforms[0].url} target="_blank" rel="noopener noreferrer"
                     style={{ fontSize: '0.68rem', padding: '3px 10px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, color: 'rgba(0,0,0,0.5)', textDecoration: 'none', fontFamily: 'inherit', fontWeight: 500 }}>
                     Open ↗
                   </a>
+                  <button
+                    onClick={() => setPlatformPopped(true)}
+                    style={{ fontSize: '0.68rem', padding: '3px 10px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, color: 'rgba(0,0,0,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>
+                    Pop out ⤢
+                  </button>
                 </div>
-                <div style={{ height: 520 }}>
+                <div style={{ height: 1100 }}>
                   <PlatformPreviewCard platform={builtPlatforms[0]} sessionId={sessionId} companyName={companyName} />
                 </div>
               </div>
@@ -1513,6 +1565,26 @@ export function Workspace({
           </div>
         )}
       </div>
+
+      {/* ── Platform pop-out overlay ── */}
+      {platformPopped && builtPlatforms.length > 0 && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '8px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)', background: '#fafafa', flexShrink: 0 }}>
+            <a href={builtPlatforms[0].url} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '0.72rem', padding: '4px 12px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 7, color: 'rgba(0,0,0,0.5)', textDecoration: 'none', fontFamily: 'inherit', fontWeight: 500 }}>
+              Open ↗
+            </a>
+            <button
+              onClick={() => setPlatformPopped(false)}
+              style={{ fontSize: '0.72rem', padding: '4px 12px', background: '#1a1a1a', border: 'none', borderRadius: 7, color: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+              Close ✕
+            </button>
+          </div>
+          <div className="ws-platform-popped" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <PlatformPreviewCard platform={builtPlatforms[0]} sessionId={sessionId} companyName={companyName} />
+          </div>
+        </div>
+      )}
 
       {/* ── Deploy Standalone Modal ── */}
       {showDeployModal && (

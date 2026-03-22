@@ -206,7 +206,7 @@ function TiltCard({ children, className }) {
 
 /* ─── Tab Components (all data-driven) ──────────────────────────────────────── */
 
-export function PlatformPreviewCard({ platform, sessionId, companyName }) {
+export function PlatformPreviewCard({ platform, sessionId, companyName, style }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
@@ -250,7 +250,7 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
   }
 
   return (
-    <div className="wkp-browser wkp-platform-card">
+    <div className="wkp-browser wkp-platform-card" style={style}>
       {/* Toolbar */}
       <div className="wkp-browser-toolbar wkp-platform-toolbar">
         <div className="wkp-browser-dots">

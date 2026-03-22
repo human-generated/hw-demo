@@ -770,6 +770,7 @@ function AppInner() {
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
+  const [hubLocked, setHubLocked] = useState(false); // true when ?lock=true — hides back/switcher
   const [showHubPicker, setShowHubPicker] = useState(false); // shown after login
   const [showWizard, setShowWizard] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
@@ -963,6 +964,7 @@ function AppInner() {
           setHubSessionId(hubParam);
           setHubCompanyName(hd?.company?.name || hd?.company || null);
           setShowHubPicker(false);
+          if (searchParams.get('lock') === 'true') setHubLocked(true);
           setAiView('workspace');
           // Also load main session from localStorage so dashboard still works
         }
@@ -1663,7 +1665,7 @@ function AppInner() {
               onGoWorkers={() => setAiView('workers')}
               onGoPlatforms={() => setShowPlatforms(true)}
               onGoAbout={() => setShowAbout(true)}
-              onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
+              onBackToDashboard={hubLocked ? undefined : () => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
               onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
               onCompanyName={(name) => { if (name) setHubCompanyName(name); }}
             />
