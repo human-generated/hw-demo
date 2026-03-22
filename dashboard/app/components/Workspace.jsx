@@ -1015,11 +1015,17 @@ export function Workspace({
           {sessionId && (
             <>
               <button
-                onClick={() => {
-                  const url = `${window.location.origin}/?hub=${sessionId}&lock=true`;
-                  navigator.clipboard?.writeText(url).catch(() => {});
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 2000);
+                onClick={async () => {
+                  try {
+                    const r = await fetch(`/api/demo/session/${sessionId}/access-token`);
+                    const d = await r.json();
+                    if (d.token) {
+                      const url = `${window.location.origin}/?access=${d.token}`;
+                      navigator.clipboard?.writeText(url).catch(() => {});
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }
+                  } catch {}
                 }}
                 title="Copy magic link for this demo"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: linkCopied ? 'rgba(52,199,89,0.1)' : 'rgba(0,0,0,0.06)', border: `1px solid ${linkCopied ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.12)'}`, borderRadius: 7, fontSize: '0.65rem', fontWeight: 600, color: linkCopied ? '#2e7d32' : 'rgba(0,0,0,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}
@@ -1566,9 +1572,9 @@ export function Workspace({
         )}
       </div>
 
-      {/* ── Platform pop-out overlay ── */}
+      {/* ── Platform pop-out overlay — covers right panel only, left panel stays visible ── */}
       {platformPopped && builtPlatforms.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'absolute', top: 0, left: 400, right: 0, bottom: 0, zIndex: 100, background: '#fff', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '8px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)', background: '#fafafa', flexShrink: 0 }}>
             <a href={builtPlatforms[0].url} target="_blank" rel="noopener noreferrer"
               style={{ fontSize: '0.72rem', padding: '4px 12px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 7, color: 'rgba(0,0,0,0.5)', textDecoration: 'none', fontFamily: 'inherit', fontWeight: 500 }}>

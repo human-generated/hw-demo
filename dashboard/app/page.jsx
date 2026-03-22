@@ -759,9 +759,12 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
 function AppInner() {
   const searchParams = useSearchParams();
   // AI Workers Hub view: null | 'login' | 'home' | 'workspace' | 'workers' | 'worker-page'
-  // Start at login unless a direct ?hub= URL was provided
+  // Start at login unless a direct ?hub= or ?access= URL was provided
   const [aiView, setAiView] = useState(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('hub')) return null;
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('hub') || p.get('access')) return null;
+    }
     return 'login';
   });
   const [selectedWorker, setSelectedWorker] = useState(null);
@@ -954,6 +957,24 @@ function AppInner() {
 
   async function initSession() {
     try {
+      // Check for ?access=<token> magic link — resolves to a session without login
+      const accessToken = searchParams.get('access');
+      if (accessToken && !hubInitRef.current) {
+        hubInitRef.current = true;
+        const ar = await fetch(`/api/demo/resolve-access/${accessToken}`);
+        if (ar.ok) {
+          const ad = await ar.json();
+          setHubSessionId(ad.sessionId);
+          setHubCompanyName(ad.companyName || null);
+          setHubLocked(true);
+          setShowHubPicker(false);
+          setAiView('workspace');
+          return;
+        }
+        // Invalid token — fall through to normal login flow
+        hubInitRef.current = false;
+      }
+
       // Check for ?hub= URL param — auto-open hub with that session (only once)
       const hubParam = searchParams.get('hub');
       if (hubParam && !hubInitRef.current) {
