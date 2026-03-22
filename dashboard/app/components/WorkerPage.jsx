@@ -283,7 +283,7 @@ export function PlatformPreviewCard({ platform, sessionId, companyName }) {
       <div className="wkp-platform-frame">
         {isBuilt ? (
           <iframe
-            src={platform.external ? `${proxyUrl}${proxyUrl.includes('?') ? '&' : '?'}embedded=true` : proxyUrl}
+            src={proxyUrl}
             title={platform.name}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             className="wkp-platform-iframe"

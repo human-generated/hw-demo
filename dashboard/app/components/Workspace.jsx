@@ -226,6 +226,7 @@ export function Workspace({
   const [briefingSources, setBriefingSources] = useState([{ type: 'text', value: '' }]);
   const [customPrompt, setCustomPrompt] = useState('');
   const [promptGenerating, setPromptGenerating] = useState(false);
+  const [promptSaved, setPromptSaved] = useState(false);
   const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
@@ -848,6 +849,7 @@ export function Workspace({
 
   async function autoGeneratePrompt() {
     if (!sessionId) return;
+    setPromptGenerating(true);
     try {
       const r = await fetch(`/api/demo/session/${sessionId}/generate-prompt`, {
         method: 'POST',
@@ -858,10 +860,23 @@ export function Workspace({
       if (d.prompt) {
         setCustomPrompt(d.prompt);
         customPromptRef.current = d.prompt;
-        if (anamClientRef.current) {
-          setTimeout(() => anamClientRef.current?.sendUserMessage(`Context for this session: ${d.prompt}`), 300);
-        }
+        setPromptSaved(true);
+        setTimeout(() => setPromptSaved(false), 2000);
       }
+    } catch {}
+    setPromptGenerating(false);
+  }
+
+  async function savePrompt() {
+    if (!sessionId || !customPrompt.trim()) return;
+    try {
+      await fetch(`/api/demo/session/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { systemPrompt: customPrompt } }),
+      });
+      setPromptSaved(true);
+      setTimeout(() => setPromptSaved(false), 2000);
     } catch {}
   }
 
@@ -1106,11 +1121,11 @@ export function Workspace({
           </form>
         </div>
 
-        {/* ── System Prompt panel — always visible, per-demo ── */}
+        {/* ── AI Persona panel — per-demo, persisted to server ── */}
         <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', padding: '8px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
             <span style={{ fontSize: '0.68rem', fontWeight: 700, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
-              {customPrompt ? '✦ AI Persona' : 'AI Persona'}
+              {companyName ? `✦ ${companyName} Persona` : 'AI Persona'}
             </span>
             <button
               onClick={() => autoGeneratePrompt()}
@@ -1118,17 +1133,21 @@ export function Workspace({
               title="Re-generate from session research + API data"
               style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: 3 }}>
               {promptGenerating ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : '↺'}
-              {promptGenerating ? 'Generating…' : 'Re-generate'}
+              {promptGenerating ? '…' : '↺ Generate'}
             </button>
             <button onClick={() => setBriefingOpen(v => !v)} title="Add custom sources"
               style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.4)' }}>
               + Sources
             </button>
+            <button onClick={savePrompt} disabled={!customPrompt.trim()} title="Save persona for this demo"
+              style={{ fontSize: '0.65rem', padding: '3px 10px', background: promptSaved ? 'rgba(52,199,89,0.15)' : '#1a1a1a', border: promptSaved ? '1px solid rgba(52,199,89,0.3)' : '1px solid transparent', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: promptSaved ? '#2e7d32' : '#fff', fontWeight: 600, transition: 'all 0.2s' }}>
+              {promptSaved ? '✓ Saved' : 'Save'}
+            </button>
           </div>
           <textarea
             value={customPrompt}
-            onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; }}
-            placeholder="Describe this demo's AI persona… (auto-generated from research + APIs)"
+            onChange={e => { setCustomPrompt(e.target.value); customPromptRef.current = e.target.value; setPromptSaved(false); }}
+            placeholder={`Describe the AI persona for ${companyName || 'this demo'}… (edit and Save, or use ↺ Generate)`}
             rows={4}
             style={{ width: '100%', fontSize: '0.75rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', resize: 'vertical', background: 'rgba(255,255,255,0.85)', outline: 'none', lineHeight: 1.5, color: customPrompt ? '#1a1a1a' : 'rgba(0,0,0,0.3)', boxSizing: 'border-box' }}
           />
@@ -1372,9 +1391,17 @@ export function Workspace({
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)' }}>
             <SectionHead label="Live Platforms" badge="Deployed" />
             {builtPlatforms.length === 1 ? (
-              // Single platform — show large
-              <div style={{ padding: '0 1.5rem 1rem', height: 520 }}>
-                <PlatformPreviewCard platform={builtPlatforms[0]} sessionId={sessionId} companyName={companyName} />
+              // Single platform — show large with reload/open controls
+              <div style={{ padding: '0 1.5rem 1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 6 }}>
+                  <a href={builtPlatforms[0].url} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: '0.68rem', padding: '3px 10px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, color: 'rgba(0,0,0,0.5)', textDecoration: 'none', fontFamily: 'inherit', fontWeight: 500 }}>
+                    Open ↗
+                  </a>
+                </div>
+                <div style={{ height: 520 }}>
+                  <PlatformPreviewCard platform={builtPlatforms[0]} sessionId={sessionId} companyName={companyName} />
+                </div>
               </div>
             ) : (
               <div style={{ padding: '0 1.5rem 1rem', display: 'flex', gap: 12, overflowX: 'auto' }}>
