@@ -820,7 +820,6 @@ export function Workspace({
       if (isConnected && anamClientRef.current) anamClientRef.current.sendUserMessage(`Research ${text} for me.`);
       researchTriggered.current = true;
       startResearch(text);
-      // Propagate company name up if callback available
       onCompanyName?.(text);
       return;
     }
@@ -829,19 +828,58 @@ export function Workspace({
       anamClientRef.current.sendUserMessage(text);
     }
     setOrchestratorLoading(true);
+
+    // Add streaming placeholder message
+    const streamId = ++msgSeqRef.current;
+    setMessages(prev => [...prev, { id: streamId, author: 'ALEXANDRA', text: '…', time: 'Just now', isUser: false, streaming: true }]);
+    const updateStream = (t) => setMessages(prev => prev.map(m => m.id === streamId ? { ...m, text: t, streaming: true } : m));
+    const finalizeStream = (t) => setMessages(prev => prev.map(m => m.id === streamId ? { ...m, text: t, streaming: false } : m));
+
     try {
-      // Prepend context API summary on first message if available
       const contextPrefix = contextApiData && !messages.some(m => m.author === 'YOU') ? `[Context: ${contextApiData.summaryHint || contextApiData.description || ''}]\n\n` : '';
       const res = await fetch('/api/demo/orchestrate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: contextPrefix + text, sessionId: sessionId || 'workspace-session' }),
+        body: JSON.stringify({ message: contextPrefix + text, sessionId: sessionId || 'workspace-session', stream: true }),
       });
-      const data = await res.json();
-      if (data.reply || data.message) {
-        addMsg('ALEXANDRA', data.reply || data.message);
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '', rawAccum = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const blocks = buf.split('\n\n');
+        buf = blocks.pop();
+        for (const block of blocks) {
+          for (const line of block.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const ev = JSON.parse(line.slice(6));
+              if (ev.type === 'text') {
+                rawAccum += ev.delta;
+                // Extract message field live from partial JSON
+                const m = rawAccum.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)/);
+                if (m && m[1]) {
+                  const live = m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                  updateStream(live);
+                }
+              } else if (ev.type === 'status') {
+                updateStream(ev.message);
+              } else if (ev.type === 'done') {
+                finalizeStream(ev.reply || ev.message || '…');
+              } else if (ev.type === 'error') {
+                finalizeStream('Error: ' + ev.message);
+              }
+            } catch {}
+          }
+        }
       }
-    } catch {}
+    } catch (err) {
+      finalizeStream('Error: ' + err.message);
+    }
     setOrchestratorLoading(false);
   }
 
@@ -1124,10 +1162,10 @@ export function Workspace({
                   <span className="ws-msg-author">{msg.author}</span>
                   <span className="ws-msg-time">{msg.time}</span>
                 </div>
-                <div className="ws-msg-bubble">{msg.text}</div>
+                <div className="ws-msg-bubble">{msg.text}{msg.streaming && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', verticalAlign: 'text-bottom', marginLeft: 1, animation: 'ws-blink 0.8s step-end infinite', opacity: 0.7 }} />}</div>
               </div>
             ))}
-            {orchestratorLoading && (
+            {orchestratorLoading && !messages.some(m => m.streaming) && (
               <div className="ws-msg">
                 <div className="ws-msg-meta"><span className="ws-msg-author">ALEXANDRA</span></div>
                 <div className="ws-msg-bubble" style={{ opacity: 0.5 }}>Thinking…</div>
@@ -1314,7 +1352,7 @@ export function Workspace({
         </div>
 
         {rightTab === 'canvas' ? (
-          <CanvasTab sessionId={sessionId} workerId={null} />
+          <CanvasTab sessionId={sessionId} workerId={null} onSkillResult={(text) => addMsg('ALEXANDRA', text)} />
         ) : (<>
 
         {/* ── Research section ── */}

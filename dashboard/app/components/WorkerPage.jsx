@@ -1451,7 +1451,7 @@ function BusinessImpactTab({ cfg, onPutInProduction }) {
 }
 
 /* ─── Canvas Tab ─────────────────────────────────────────────────────────────── */
-export function CanvasTab({ sessionId, workerId }) {
+export function CanvasTab({ sessionId, workerId, onSkillResult }) {
   const [cards, setCards] = useState([]);
   const [transform, setTransform] = useState({ x: 60, y: 60, scale: 1 });
   const [flipped, setFlipped] = useState({});
@@ -1630,10 +1630,13 @@ export function CanvasTab({ sessionId, workerId }) {
     if (!orchInput.trim() || orchLoading) return;
     const task = orchInput.trim(); setOrchInput(''); setOrchLoading(true);
     try {
-      await fetch('/api/demo/skill-agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, task, workerId }) });
+      const r = await fetch('/api/demo/skill-agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, task, workerId }) });
+      const d = await r.json();
+      if (onSkillResult && (d.result || d.message)) {
+        onSkillResult(d.result || d.message);
+      }
     } catch {}
     setOrchLoading(false);
-    // Always reload after response — SSE may have raced or sessionId may differ
     loadArtifacts();
   }
 
