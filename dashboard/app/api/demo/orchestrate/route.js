@@ -1,3 +1,5 @@
+export const maxDuration = 300; // 5 minutes — needed for long skill agent / platform agent calls
+
 const MASTER = 'http://159.65.205.244:3000';
 export async function POST(req) {
   try {
