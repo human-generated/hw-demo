@@ -207,7 +207,7 @@ export function Workspace({
   // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
-    { id: 1, author: 'ALEXANDRA', text: companyName ? `Starting research on ${companyName}…` : `What company are we presenting to today?`, time: 'Just now', isUser: false },
+    { id: 1, author: 'ALEXANDRA', text: companyName ? `Starting research on ${companyName}…` : `What company are we presenting to today?`, time: 'Just now', isUser: false, _isDefault: true },
   ]);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
 
@@ -404,6 +404,15 @@ export function Workspace({
         if (savedPrompt) {
           setCustomPrompt(savedPrompt);
           customPromptRef.current = savedPrompt;
+          // Extract the avatar's opening greeting from the system prompt to show in chat
+          // Look for the quoted greeting between the first pair of " characters after "greet"
+          const greetMatch = savedPrompt.match(/greet.*?["""]([^"""]{20,})["""]/s) ||
+                             savedPrompt.match(/opening greeting[^"""]*["""]([^"""]{20,})["""]/si);
+          const greeting = greetMatch ? greetMatch[1].trim() : null;
+          // Replace the default placeholder with the actual greeting (or a neutral ready message)
+          setMessages(prev => prev.map(m =>
+            m._isDefault ? { ...m, text: greeting || 'Ready. How can I help you today?', _isDefault: false } : m
+          ));
         }
 
         // Avatar role label (configurable per demo)

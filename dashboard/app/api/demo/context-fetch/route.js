@@ -8,8 +8,7 @@ export async function GET(req) {
 
   try {
     // Fetch OpenAPI spec + a live sample in parallel
-    const today = new Date();
-    const sampleDate = `${today.getFullYear()}-06-15`;
+    const sampleDate = `2025-06-15`;
     const [specRes, sampleRes] = await Promise.allSettled([
       fetch(`${apiUrl}/openapi.json`, { signal: AbortSignal.timeout(8000) }),
       fetch(`${apiUrl}/api/footprint?date=${sampleDate}&entry_hour=10&exit_hour=14`, { signal: AbortSignal.timeout(8000) }),
@@ -18,7 +17,11 @@ export async function GET(req) {
     const spec = specRes.status === 'fulfilled' ? await specRes.value.json() : {};
     let sampleData = null;
     if (sampleRes.status === 'fulfilled') {
-      try { sampleData = await sampleRes.value.json(); } catch {}
+      try {
+        const sd = await sampleRes.value.json();
+        // Only use if it looks like a real footprint response (has total_kg)
+        if (sd && typeof sd.total_kg === 'number') sampleData = sd;
+      } catch {}
     }
 
     // Build context summary from spec
