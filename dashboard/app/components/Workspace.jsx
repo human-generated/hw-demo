@@ -278,6 +278,7 @@ export function Workspace({
   const chatEndRef = useRef(null);
   const researchTriggered = useRef(false);
   const rightPanelRef = useRef(null);
+  const emissionCardSentRef = useRef(false);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -348,6 +349,32 @@ export function Workspace({
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [isConnected, callStartTime]);
+
+  // ── Auto-emit carbon footprint card after 60s of call ─────────────────────
+  useEffect(() => {
+    if (!isConnected || elapsed < 60 || emissionCardSentRef.current) return;
+    emissionCardSentRef.current = true;
+    const visitHours = elapsed / 3600;
+    const KG_PER_HOUR = 2.8;
+    const CAT_VALUE_EUR = 0.16;
+    const INT_ROI = 0.06;
+    // Use live API sample if available (scale from 4h sample), else use formula
+    const apiKg = contextApiData?.sampleData?.total_kg;
+    const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
+    const emKgStr = emissionsKg.toFixed(2);
+    const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
+    const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
+    const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
+    const mins = Math.round(elapsed / 60);
+    const card = `**Your Carbon Footprint — ${mins} min visit**\n\nYour visit has generated approximately **${emKgStr} kg of CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost (CAT → burn) | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year total return | €${lifetime25EUR} |\n\nBy offsetting, your CAT tokens convert to **INT tokens** — micro-investments in Therme's solar infrastructure that generate dividends for you. Would you like to offset your visit?`;
+    addMsg('ALEXANDRA', card);
+    // Inject into Anam voice
+    if (anamClientRef.current) {
+      setTimeout(() => anamClientRef.current?.sendUserMessage(
+        `The visitor has been here for ${mins} minutes. Their carbon footprint is approximately ${emKgStr} kg CO2 — that is ${emKgStr} CAT tokens. Offset cost is €${offsetEUR}. Please present this to them and offer the CAT token offset, explaining they would receive INT tokens earning €${annualDivEUR} per year.`
+      ), 1000);
+    }
+  }, [elapsed, isConnected, contextApiData]);
 
   // ── Session init — restore existing state, then trigger research if needed ──
   useEffect(() => {
@@ -697,15 +724,31 @@ export function Workspace({
 
   function renderMarkdown(text) {
     if (!text) return '';
-    return text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/###\s+(.+)/g, '<strong style="display:block;font-size:0.82rem;margin-top:8px;margin-bottom:2px;color:#1a1a1a">$1</strong>')
-      .replace(/##\s+(.+)/g, '<strong style="display:block;margin-top:6px;margin-bottom:2px">$1</strong>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^- (.+)/gm, '<span style="display:block;padding-left:12px">· $1</span>')
-      .replace(/\n\n/g, '<br/><br/>')
-      .replace(/\n/g, '<br/>');
+    let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Tables
+    s = s.replace(/(?:^|\n)((?:\|.+\|\n?)+)/g, (_, block) => {
+      const rows = block.trim().split('\n');
+      let html = '<table style="border-collapse:collapse;font-size:0.74rem;margin:6px 0;width:100%">';
+      let isHdr = true;
+      for (const row of rows) {
+        const cells = row.split('|').filter((_, i, a) => i > 0 && i < a.length - 1).map(c => c.trim());
+        if (cells.every(c => /^[-: ]+$/.test(c))) { isHdr = false; continue; }
+        const tag = isHdr ? 'th' : 'td';
+        const cs = isHdr ? 'padding:4px 8px;border:1px solid rgba(0,0,0,0.12);background:rgba(0,0,0,0.04);font-weight:700;text-align:left' : 'padding:3px 8px;border:1px solid rgba(0,0,0,0.08)';
+        html += '<tr>' + cells.map(c => `<${tag} style="${cs}">${c}</${tag}>`).join('') + '</tr>';
+      }
+      return html + '</table>';
+    });
+    s = s.replace(/### (.+)/g, '<strong style="display:block;font-size:0.82rem;margin:8px 0 3px;color:#111">$1</strong>');
+    s = s.replace(/## (.+)/g, '<strong style="display:block;font-size:0.85rem;margin:6px 0 3px">$1</strong>');
+    s = s.replace(/# (.+)/g, '<strong style="display:block;font-size:0.9rem;margin:6px 0 3px">$1</strong>');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    s = s.replace(/^- (.+)/gm, '<span style="display:block;padding-left:14px">· $1</span>');
+    s = s.replace(/^\d+\. (.+)/gm, '<span style="display:block;padding-left:14px">$1</span>');
+    s = s.replace(/\n\n/g, '<br/><br/>');
+    s = s.replace(/\n/g, '<br/>');
+    return s;
   }
 
   function addMsg(author, text) {
@@ -1194,6 +1237,34 @@ export function Workspace({
                 <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
                 </button>
+                <button className="ws-call-btn" disabled={!isConnected} title="Calculate carbon footprint"
+                  style={{ background: 'rgba(52,199,89,0.85)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0, padding: '0 6px', minWidth: 34, gap: 2 }}
+                  onClick={() => {
+                    emissionCardSentRef.current = false;
+                    setElapsed(e => e); // re-trigger effect by resetting flag
+                    // Force immediate calculation
+                    const visitHours = Math.max(elapsed, 60) / 3600;
+                    const KG_PER_HOUR = 2.8;
+                    const CAT_VALUE_EUR = 0.16;
+                    const INT_ROI = 0.06;
+                    const apiKg = contextApiData?.sampleData?.total_kg;
+                    const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
+                    const emKgStr = emissionsKg.toFixed(2);
+                    const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
+                    const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
+                    const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
+                    const mins = Math.max(Math.round(elapsed / 60), 1);
+                    const card = `**Carbon Footprint — ${mins} min visit**\n\nApproximately **${emKgStr} kg CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year return | €${lifetime25EUR} |\n\nOffset now to convert CAT → INT tokens and earn dividends from Therme's solar infrastructure.`;
+                    addMsg('ALEXANDRA', card);
+                    if (anamClientRef.current) {
+                      setTimeout(() => anamClientRef.current?.sendUserMessage(
+                        `The visitor has been here for ${mins} minutes. Their footprint is ${emKgStr} kg CO2 (${emKgStr} CAT tokens). Offset cost is €${offsetEUR}. Please present this and pitch the CAT token offset, mentioning INT token dividends of €${annualDivEUR} per year.`
+                      ), 500);
+                    }
+                  }}
+                >
+                  🌿
+                </button>
                 <button className="ws-call-btn ws-call-btn--end" onClick={handleEndCall} disabled={!isConnected}>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
@@ -1216,7 +1287,9 @@ export function Workspace({
                   <span className="ws-msg-author">{msg.author}</span>
                   <span className="ws-msg-time">{msg.time}</span>
                 </div>
-                <div className="ws-msg-bubble">{msg.text}{msg.streaming && <span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', verticalAlign: 'text-bottom', marginLeft: 1, animation: 'ws-blink 0.8s step-end infinite', opacity: 0.7 }} />}</div>
+                {msg.streaming
+                  ? <div className="ws-msg-bubble">{msg.text}<span style={{ display: 'inline-block', width: 2, height: '1em', background: 'currentColor', verticalAlign: 'text-bottom', marginLeft: 1, animation: 'ws-blink 0.8s step-end infinite', opacity: 0.7 }} /></div>
+                  : <div className="ws-msg-bubble" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }} />}
               </div>
             ))}
             {orchestratorLoading && !messages.some(m => m.streaming) && (
