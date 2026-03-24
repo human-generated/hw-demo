@@ -238,6 +238,8 @@ export function Workspace({
   const [drivePromptData, setDrivePromptData] = useState(null);
   const [driveWorkersSetup, setDriveWorkersSetup] = useState(false);
   const [avatarRole, setAvatarRole] = useState('Orchestrator · Humans.AI');
+  // True once session data (including systemPrompt) has been fetched — Anam init waits for this
+  const [sessionDataReady, setSessionDataReady] = useState(!sessionId); // no sessionId = ready immediately
   const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
@@ -338,10 +340,12 @@ export function Workspace({
         await newClient.streamToVideoElement('ws-avatar-video');
       } catch (err) { console.error('Anam connection failed:', err); if (!cancelled) setIsConnecting(false); }
     }
-    // Delay long enough for session data + systemPrompt to load before creating Anam client
-    const timer = setTimeout(init, 1500);
+    // Wait for session data (systemPrompt) to be ready before connecting Anam.
+    // Small extra delay (300ms) for camera getUserMedia to settle.
+    if (!sessionDataReady) return;
+    const timer = setTimeout(init, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, []);
+  }, [sessionDataReady]);
 
   useEffect(() => {
     if (!isConnected || !callStartTime) return;
@@ -404,6 +408,9 @@ export function Workspace({
 
         // Avatar role label (configurable per demo)
         if (sessionD.settings?.avatarRole) setAvatarRole(sessionD.settings.avatarRole);
+
+        // Signal that session data (including systemPrompt) is ready — Anam can now start
+        setSessionDataReady(true);
 
         // Store contextApiUrl for "Fetch API Data" button
         if (sessionD.contextApiUrl) setSessionContextApiUrl(sessionD.contextApiUrl);
