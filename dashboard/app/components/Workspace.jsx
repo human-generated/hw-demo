@@ -229,7 +229,13 @@ export function Workspace({
   const [sessionOpen, setSessionOpen] = useState(false); // collapsible session config panel
   const [platformPopped, setPlatformPopped] = useState(false); // pop-out platform overlay
   const [linkCopied, setLinkCopied] = useState(false); // magic link copy feedback
-  const [sessionContextApiUrl, setSessionContextApiUrl] = useState(''); // stored for Fetch API Data button
+  const [sessionApis, setSessionApis] = useState([]); // [{id,url,label}]
+  const [showAddApi, setShowAddApi] = useState(false);
+  const [addApiInput, setAddApiInput] = useState({ url: '', label: '' });
+  const [footprintParams, setFootprintParams] = useState({ date: '2025-06-15', entry_hour: 10, exit_hour: 14 });
+  const [footprintResult, setFootprintResult] = useState(null);
+  const [footprintLoading, setFootprintLoading] = useState(false);
+  const [showFootprintForm, setShowFootprintForm] = useState(null); // api id or null
   const [driveFolder, setDriveFolder] = useState('');
   const [drivePromptStyle, setDrivePromptStyle] = useState('medium');
   const [driveSyncing, setDriveSyncing] = useState(false);
@@ -379,15 +385,17 @@ export function Workspace({
     const KG_PER_HOUR = 2.8;
     const CAT_VALUE_EUR = 0.16;
     const INT_ROI = 0.06;
-    // Use live API sample if available (scale from 4h sample), else use formula
-    const apiKg = contextApiData?.sampleData?.total_kg;
-    const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
+    // Prefer real computed footprint, else scale from 4h sample, else formula
+    const emissionsKg = footprintResult?.total_kg
+      || (contextApiData?.sampleData?.total_kg ? contextApiData.sampleData.total_kg * visitHours / 4 : null)
+      || (visitHours * KG_PER_HOUR);
     const emKgStr = emissionsKg.toFixed(2);
     const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
     const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
     const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
     const mins = Math.round(elapsed / 60);
-    const card = `**Your Carbon Footprint — ${mins} min visit**\n\nYour visit has generated approximately **${emKgStr} kg of CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost (CAT → burn) | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year total return | €${lifetime25EUR} |\n\nBy offsetting, your CAT tokens convert to **INT tokens** — micro-investments in Therme's solar infrastructure that generate dividends for you. Would you like to offset your visit?`;
+    const durLabel = footprintResult ? `${footprintResult.duration_hours}h` : `${mins} min`;
+    const card = `**Your Carbon Footprint — ${durLabel} visit**\n\nYour visit has generated approximately **${emKgStr} kg of CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost (CAT → burn) | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year total return | €${lifetime25EUR} |\n\nBy offsetting, your CAT tokens convert to **INT tokens** — micro-investments in Therme's solar infrastructure that generate dividends for you. Would you like to offset your visit?`;
     addMsg('ALEXANDRA', card);
     // Inject into Anam voice
     if (isConnected) {
@@ -429,16 +437,24 @@ export function Workspace({
         // Signal that session data (including systemPrompt) is ready — Anam can now start
         setSessionDataReady(true);
 
-        // Store contextApiUrl for "Fetch API Data" button
-        if (sessionD.contextApiUrl) setSessionContextApiUrl(sessionD.contextApiUrl);
+        // Load connected APIs — prefer persisted list, fall back to legacy contextApiUrl
+        const savedApis = sessionD.settings?.contextApis;
+        const apis = savedApis?.length
+          ? savedApis
+          : sessionD.contextApiUrl
+            ? [{ id: 'default', url: sessionD.contextApiUrl, label: sessionD.contextApiSummary || 'Context API' }]
+            : [];
+        setSessionApis(apis);
         // Drive knowledge base
         if (sessionD.driveFolder) setDriveFolder(sessionD.driveFolder);
         if (sessionD.drivePrompt) setDrivePromptData(sessionD.drivePrompt);
         if (sessionD.workers && sessionD.workers.some(w => w.id && w.id.includes('drive-parser'))) setDriveWorkersSetup(true);
 
-        // Load context API (enriches prompt with live data)
-        if (sessionD.contextApiUrl && !contextApiData) {
-          loadContextApi(sessionD.contextApiUrl, sessionD.contextApiSummary);
+        // Load first API (enriches prompt with live data)
+        const primaryApi = (savedApis?.length ? savedApis : null)?.[0] ||
+          (sessionD.contextApiUrl ? { url: sessionD.contextApiUrl } : null);
+        if (primaryApi && !contextApiData) {
+          loadContextApi(primaryApi.url, sessionD.contextApiSummary);
         } else if (!savedPrompt && (sessionD.researchSummary || sessionD.contextApiSummary)) {
           // No saved prompt but session has research — auto-generate
           autoGeneratePrompt();
@@ -1079,6 +1095,79 @@ export function Workspace({
     } catch {}
   }
 
+  // ── Connected APIs management ───────────────────────────────────────────────
+  async function saveApis(apis) {
+    if (!sessionId) return;
+    await fetch(`/api/demo/session/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { contextApis: apis } }),
+    });
+  }
+
+  async function addApi() {
+    const url = addApiInput.url.trim();
+    if (!url) return;
+    let label = addApiInput.label.trim();
+    if (!label) { try { label = new URL(url).hostname; } catch { label = url.slice(0, 30); } }
+    const newApi = { id: Date.now().toString(), url, label };
+    const newApis = [...sessionApis, newApi];
+    setSessionApis(newApis);
+    setShowAddApi(false);
+    setAddApiInput({ url: '', label: '' });
+    await saveApis(newApis);
+    loadContextApi(url, '');
+  }
+
+  function removeApi(id) {
+    const newApis = sessionApis.filter(a => a.id !== id);
+    setSessionApis(newApis);
+    saveApis(newApis);
+  }
+
+  function isFootprintApi(api) {
+    return api.url.includes('spa-dec-api') || api.url.includes('/api/footprint');
+  }
+
+  async function computeFootprint(api) {
+    setFootprintLoading(true);
+    try {
+      const { date, entry_hour, exit_hour } = footprintParams;
+      const r = await fetch(`/api/demo/footprint?date=${date}&entry_hour=${entry_hour}&exit_hour=${exit_hour}`);
+      const d = await r.json();
+      if (d.total_kg != null) {
+        setFootprintResult(d);
+        setContextApiData(prev => ({ ...(prev || { apiUrl: api.url }), sampleData: d }));
+        const card = buildFootprintCard(d);
+        addMsg('ALEXANDRA', card);
+        if (isConnected) {
+          const sources = Object.entries(d.metered_by_source || {})
+            .map(([k, v]) => `${k} ${v.total_kg.toFixed(2)} kg`)
+            .join(', ');
+          setTimeout(() => sendText(
+            `The visitor's real carbon footprint for a ${d.duration_hours}h visit: ${d.total_kg.toFixed(2)} kg CO2 total (operational ${d.operational_kg.toFixed(2)}, overhead ${d.overhead_kg.toFixed(2)}, non-metered ${d.non_metered_kg.toFixed(2)}). Energy: ${sources}. That is ${d.total_kg.toFixed(2)} CAT tokens. Please present this breakdown and pitch the offset.`
+          ), 500);
+        }
+      }
+    } catch (e) { console.error('computeFootprint error:', e); }
+    setFootprintLoading(false);
+    setShowFootprintForm(null);
+  }
+
+  function buildFootprintCard(d) {
+    const CAT = 0.16, ROI = 0.06;
+    const offset = (d.total_kg * CAT).toFixed(2);
+    const annual = (d.total_kg * CAT * ROI).toFixed(3);
+    const life25 = (d.total_kg * CAT * ROI * 25).toFixed(2);
+    const sources = Object.entries(d.metered_by_source || {})
+      .map(([k, v]) => `| ${k.charAt(0).toUpperCase() + k.slice(1)} | ${v.total_kg.toFixed(3)} |`)
+      .join('\n');
+    const nonM = Object.entries(d.non_metered_by_category || {})
+      .map(([k, v]) => `| ${k} | ${v.toFixed(3)} |`)
+      .join('\n');
+    return `**Carbon Footprint — ${d.duration_hours}h visit**\n\n**Total: ${d.total_kg.toFixed(2)} kg CO₂** = ${d.total_kg.toFixed(2)} CAT tokens\n\n| Category | kg CO₂ |\n|---|---|\n| Operational | ${d.operational_kg.toFixed(2)} |\n| Overhead | ${d.overhead_kg.toFixed(2)} |\n| Non-metered | ${d.non_metered_kg.toFixed(2)} |\n\n**Energy mix:**\n| Source | kg CO₂ |\n|---|---|\n${sources}\n\n**Offset economics:**\n| | |\n|---|---|\n| CAT offset cost | €${offset} |\n| Annual INT dividend | €${annual} |\n| 25-year return | €${life25} |\n\nOffset your CAT tokens → INT tokens earn solar dividends from Therme's infrastructure.`;
+  }
+
   async function handleDeployStandalone(vercelToken) {
     setDeployStatus({ status: 'deploying' });
     setShowDeployModal(false);
@@ -1255,27 +1344,27 @@ export function Workspace({
                 <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
                 </button>
-                <button className="ws-call-btn" disabled={!isConnected} title="Calculate carbon footprint"
+                <button className="ws-call-btn" disabled={!isConnected} title="Compute & show carbon footprint"
                   style={{ background: 'rgba(52,199,89,0.85)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0, padding: '0 6px', minWidth: 34, gap: 2 }}
                   onClick={() => {
-                    emissionCardSentRef.current = false;
-                    setElapsed(e => e); // re-trigger effect by resetting flag
-                    // Force immediate calculation
-                    const visitHours = Math.max(elapsed, 60) / 3600;
-                    const KG_PER_HOUR = 2.8;
-                    const CAT_VALUE_EUR = 0.16;
-                    const INT_ROI = 0.06;
-                    const apiKg = contextApiData?.sampleData?.total_kg;
-                    const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
-                    const emKgStr = emissionsKg.toFixed(2);
-                    const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
-                    const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
-                    const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
-                    const mins = Math.max(Math.round(elapsed / 60), 1);
-                    const card = `**Carbon Footprint — ${mins} min visit**\n\nApproximately **${emKgStr} kg CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year return | €${lifetime25EUR} |\n\nOffset now to convert CAT → INT tokens and earn dividends from Therme's solar infrastructure.`;
-                    addMsg('ALEXANDRA', card);
-                    if (isConnected) {
-                      setTimeout(() => sendText(
+                    // If footprint already computed, show that card; otherwise use formula
+                    if (footprintResult) {
+                      addMsg('ALEXANDRA', buildFootprintCard(footprintResult));
+                      if (isConnected) setTimeout(() => sendText(
+                        `The visitor's computed carbon footprint is ${footprintResult.total_kg.toFixed(2)} kg CO2 for a ${footprintResult.duration_hours}h visit. Please present the CAT token offset opportunity.`
+                      ), 500);
+                    } else {
+                      const visitHours = Math.max(elapsed, 60) / 3600;
+                      const KG_PER_HOUR = 2.8, CAT_VALUE_EUR = 0.16, INT_ROI = 0.06;
+                      const apiKg = contextApiData?.sampleData?.total_kg;
+                      const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
+                      const emKgStr = emissionsKg.toFixed(2);
+                      const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
+                      const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
+                      const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
+                      const mins = Math.max(Math.round(elapsed / 60), 1);
+                      addMsg('ALEXANDRA', `**Carbon Footprint — ${mins} min visit**\n\nApproximately **${emKgStr} kg CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year return | €${lifetime25EUR} |\n\nOffset now to convert CAT → INT tokens and earn dividends from Therme's solar infrastructure.`);
+                      if (isConnected) setTimeout(() => sendText(
                         `The visitor has been here for ${mins} minutes. Their footprint is ${emKgStr} kg CO2 (${emKgStr} CAT tokens). Offset cost is €${offsetEUR}. Please present this and pitch the CAT token offset, mentioning INT token dividends of €${annualDivEUR} per year.`
                       ), 500);
                     }
@@ -1414,15 +1503,107 @@ export function Workspace({
                   </div>
                 </div>
               )}
-              {/* Fetch API Data button — visible when contextApiUrl is configured */}
-              {sessionContextApiUrl && (
-                <button
-                  onClick={() => loadContextApi(sessionContextApiUrl, '')}
-                  style={{ marginTop: 8, width: '100%', fontSize: '0.72rem', padding: '5px 10px', background: contextApiData ? 'rgba(52,199,89,0.1)' : 'rgba(0,0,0,0.05)', border: `1px solid ${contextApiData ? 'rgba(52,199,89,0.25)' : 'rgba(0,0,0,0.1)'}`, borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', color: contextApiData ? '#2e7d32' : 'rgba(0,0,0,0.5)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
-                >
-                  {contextApiData ? '✓ API Data Loaded' : '⬇ Fetch API Data'}
-                </button>
-              )}
+              {/* ── Connected APIs ── */}
+              <div style={{ marginTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: sessionApis.length ? '#1a1a1a' : 'rgba(0,0,0,0.35)', flex: 1 }}>
+                    📡 Connected APIs
+                    {sessionApis.length > 0 && <span style={{ marginLeft: 5, fontSize: '0.6rem', fontWeight: 600, color: '#2e7d32', background: 'rgba(52,199,89,0.12)', borderRadius: 4, padding: '1px 5px' }}>{sessionApis.length}</span>}
+                  </span>
+                  <button
+                    onClick={() => setShowAddApi(v => !v)}
+                    title="Add API"
+                    style={{ fontSize: '0.75rem', fontWeight: 700, lineHeight: 1, padding: '2px 7px', background: showAddApi ? '#1a1a1a' : 'rgba(0,0,0,0.06)', color: showAddApi ? '#fff' : 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >+</button>
+                </div>
+
+                {showAddApi && (
+                  <div style={{ display: 'flex', gap: 5, marginBottom: 7, alignItems: 'flex-start' }}>
+                    <input
+                      value={addApiInput.url} onChange={e => setAddApiInput(p => ({ ...p, url: e.target.value }))}
+                      placeholder="https://api.example.com"
+                      style={{ flex: 2, fontSize: '0.72rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '5px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.9)', outline: 'none', minWidth: 0 }}
+                    />
+                    <input
+                      value={addApiInput.label} onChange={e => setAddApiInput(p => ({ ...p, label: e.target.value }))}
+                      placeholder="Label"
+                      style={{ flex: 1, fontSize: '0.72rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 7, padding: '5px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.9)', outline: 'none', minWidth: 0 }}
+                    />
+                    <button onClick={addApi} disabled={!addApiInput.url.trim()}
+                      style={{ fontSize: '0.72rem', padding: '5px 10px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, flexShrink: 0 }}>
+                      Add
+                    </button>
+                  </div>
+                )}
+
+                {sessionApis.map(api => {
+                  const isFP = isFootprintApi(api);
+                  const fpOpen = showFootprintForm === api.id;
+                  return (
+                    <div key={api.id} style={{ marginBottom: 6, background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.07)', borderRadius: 8, padding: '6px 8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: contextApiData?.apiUrl === api.url ? '#34c759' : 'rgba(0,0,0,0.15)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#1a1a1a', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={api.url}>{api.label}</span>
+                        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                          {isFP ? (
+                            <button
+                              onClick={() => setShowFootprintForm(fpOpen ? null : api.id)}
+                              style={{ fontSize: '0.65rem', padding: '2px 7px', background: fpOpen ? '#1a1a1a' : 'rgba(52,199,89,0.1)', color: fpOpen ? '#fff' : '#2e7d32', border: `1px solid ${fpOpen ? 'transparent' : 'rgba(52,199,89,0.25)'}`, borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}
+                            >⚡ Compute</button>
+                          ) : (
+                            <button
+                              onClick={() => loadContextApi(api.url, '')}
+                              style={{ fontSize: '0.65rem', padding: '2px 7px', background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}
+                            >Fetch</button>
+                          )}
+                          <button onClick={() => removeApi(api.id)}
+                            style={{ fontSize: '0.65rem', padding: '2px 5px', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.25)', fontFamily: 'inherit' }}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.3)', marginTop: 2, paddingLeft: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{api.url}</div>
+
+                      {isFP && fpOpen && (
+                        <div style={{ marginTop: 7, display: 'flex', gap: 5, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <label style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>Date (2025)</label>
+                            <input type="date" value={footprintParams.date}
+                              min="2025-01-01" max="2025-12-31"
+                              onChange={e => setFootprintParams(p => ({ ...p, date: e.target.value }))}
+                              style={{ fontSize: '0.7rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.9)' }} />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <label style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>Entry</label>
+                            <input type="number" value={footprintParams.entry_hour} min={0} max={22}
+                              onChange={e => setFootprintParams(p => ({ ...p, entry_hour: +e.target.value }))}
+                              style={{ width: 52, fontSize: '0.7rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.9)' }} />
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <label style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>Exit</label>
+                            <input type="number" value={footprintParams.exit_hour} min={1} max={23}
+                              onChange={e => setFootprintParams(p => ({ ...p, exit_hour: +e.target.value }))}
+                              style={{ width: 52, fontSize: '0.7rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.9)' }} />
+                          </div>
+                          <button onClick={() => computeFootprint(api)} disabled={footprintLoading}
+                            style={{ fontSize: '0.72rem', padding: '5px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {footprintLoading ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : null}
+                            {footprintLoading ? 'Computing…' : 'Compute'}
+                          </button>
+                        </div>
+                      )}
+
+                      {isFP && footprintResult && !fpOpen && (
+                        <div style={{ marginTop: 4, paddingLeft: 11, fontSize: '0.65rem', color: '#2e7d32', fontWeight: 600 }}>
+                          ✓ {footprintResult.total_kg.toFixed(2)} kg CO₂ · {footprintResult.duration_hours}h visit computed
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {sessionApis.length === 0 && !showAddApi && (
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.3)', padding: '3px 0', fontStyle: 'italic' }}>No APIs connected — click + to add one</div>
+                )}
+              </div>
               {/* ── Drive Knowledge Base ── */}
               <div style={{ marginTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 10 }}>
                 <div style={{ fontSize: '0.68rem', fontWeight: 700, color: drivePromptData ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
