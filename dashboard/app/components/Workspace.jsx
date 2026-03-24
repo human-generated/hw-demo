@@ -1,14 +1,15 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
+import { useWorkerSession } from './useWorkerSession';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
 import { PlatformPreviewCard, CanvasTab } from './WorkerPage';
 import { getWorkerPhoto, getWorkerCode } from './WorkerConfig';
 
-const ANAM_API_KEY = "NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9";
 const ANAM_PERSONA_ID = "6ccddf38-aed1-4bbb-9809-fc92986eb436";
+// Stable worker identity for the orchestrator avatar (LiveKit room name scoped per session)
+const WORKSPACE_WORKER = { id: 'orchestrator', name: 'Alexandra Seaman', personaId: ANAM_PERSONA_ID };
 const PHOTO_URL = "https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png";
 
 const BARS = [
@@ -211,16 +212,13 @@ export function Workspace({
   ]);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
 
-  // ── Anam/call state ────────────────────────────────────────────────────────
-  const [isConnecting, setIsConnecting] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
-  const [micMuted, setMicMuted] = useState(false);
-  const [cameraOn, setCameraOn] = useState(!!cameraStream);
+  // ── Call state ─────────────────────────────────────────────────────────────
+  const [videoEnabled, setVideoEnabled] = useState(true);
   const [callStartTime, setCallStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [subtitleText, setSubtitleText] = useState('');
   const [avatarMuted, setAvatarMuted] = useState(false);
-  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [cameraOn, setCameraOn] = useState(false);
   // ── Briefing / knowledge panel ─────────────────────────────────────────────
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [briefingSources, setBriefingSources] = useState([{ type: 'text', value: '' }]);
@@ -273,84 +271,81 @@ export function Workspace({
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [vercelTokenInput, setVercelTokenInput] = useState('');
 
-  const anamClientRef = useRef(anamClient);
-  const cameraStreamRef = useRef(cameraStream);
+  const cameraStreamRef = useRef(null);
   const cameraVideoRef = useRef(null);
-  const subtitleTimerRef = useRef(null);
+  const avatarVideoRef = useRef(null);
   const msgSeqRef = useRef(2);
   const chatEndRef = useRef(null);
   const researchTriggered = useRef(false);
   const rightPanelRef = useRef(null);
   const emissionCardSentRef = useRef(false);
 
+  // ── LiveKit + Anam worker session ──────────────────────────────────────────
+  const {
+    connected: isConnected,
+    connecting: isConnecting,
+    micMuted,
+    videoTrack,
+    agentText,
+    needsAudioResume,
+    resumeAudio,
+    sendText,
+    updatePrompt,
+    toggleMute,
+    disconnect: disconnectCall,
+    interrupt,
+    audioElRef,
+  } = useWorkerSession({
+    worker: WORKSPACE_WORKER,
+    sessionId,
+    enabled: sessionDataReady,
+    audioEnabled: true,
+    videoEnabled,
+    systemPrompt: customPrompt || undefined,
+    personaId: ANAM_PERSONA_ID,
+  });
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  // ── Anam connection ────────────────────────────────────────────────────────
+  // ── Attach avatar video track (LiveKit) ────────────────────────────────────
   useEffect(() => {
+    const el = avatarVideoRef.current;
+    if (!el || !videoTrack) return;
+    videoTrack.attach(el);
+    return () => { try { videoTrack.detach(el); } catch {} };
+  }, [videoTrack]);
+
+  // ── Subtitles from agent speech ────────────────────────────────────────────
+  useEffect(() => {
+    if (!agentText) return;
+    setSubtitleText(agentText);
+    const t = setTimeout(() => setSubtitleText(''), 5000);
+    return () => clearTimeout(t);
+  }, [agentText]);
+
+  // ── Trigger opening greeting after connection ───────────────────────────────
+  useEffect(() => {
+    if (!isConnected) return;
+    setCallStartTime(Date.now());
+    setTimeout(() => sendText('[START_PRESENTATION]'), 1200);
+  }, [isConnected]);
+
+  // ── User camera PiP ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isConnected) return;
     let cancelled = false;
-    function attachSubtitleListener(client) {
-      client.addListener('MESSAGE_STREAM_EVENT_RECEIVED', (evt) => {
-        if (evt.content && evt.role !== 'user') {
-          setSubtitleText(prev => {
-            const words = prev ? prev.split(' ') : [];
-            words.push(evt.content);
-            if (words.length > 8) words.shift();
-            return words.join(' ');
-          });
-          if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
-          subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 4000);
-        }
-      });
-    }
-    async function init() {
-      if (cameraStreamRef.current && cameraVideoRef.current) {
-        cameraVideoRef.current.srcObject = cameraStreamRef.current;
-      }
-      if (anamClientRef.current) {
-        attachSubtitleListener(anamClientRef.current);
-        if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
-        const videoEl = document.getElementById('ws-avatar-video');
-        if (videoEl && avatarStream) {
-          videoEl.srcObject = avatarStream;
-          videoEl.muted = false;
-          videoEl.play().catch(() => {});
-        } else if (videoEl) {
-          try { await anamClientRef.current.streamToVideoElement('ws-avatar-video'); } catch {}
-        }
-        return;
-      }
-      if (cancelled) return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (!cancelled) { cameraStreamRef.current = stream; setCameraOn(true); if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream; }
-      } catch {}
-      if (cancelled) return;
-      try {
-        // Use session system prompt directly in personaConfig — overrides Anam dashboard persona
-        const personaConfig = {
-          personaId: ANAM_PERSONA_ID,
-          ...(customPromptRef.current ? { systemPrompt: customPromptRef.current } : {}),
-        };
-        const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
-        anamClientRef.current = newClient;
-        newClient.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) {
-            setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now());
-            // Trigger the scripted opening — the system prompt instructs the avatar to
-            // begin with the presentation greeting when it receives this signal.
-            setTimeout(() => newClient.sendUserMessage('[START_PRESENTATION]'), 1200);
-          }
-        });
-        attachSubtitleListener(newClient);
-        await newClient.streamToVideoElement('ws-avatar-video');
-      } catch (err) { console.error('Anam connection failed:', err); if (!cancelled) setIsConnecting(false); }
-    }
-    // Wait for session data (systemPrompt) to be ready before connecting Anam.
-    // Small extra delay (300ms) for camera getUserMedia to settle.
-    if (!sessionDataReady) return;
-    const timer = setTimeout(init, 300);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [sessionDataReady]);
+    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+      if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+      cameraStreamRef.current = stream;
+      setCameraOn(true);
+      if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+      cameraStreamRef.current = null;
+    };
+  }, [isConnected]);
 
   useEffect(() => {
     if (!isConnected || !callStartTime) return;
@@ -379,8 +374,8 @@ export function Workspace({
     const card = `**Your Carbon Footprint — ${mins} min visit**\n\nYour visit has generated approximately **${emKgStr} kg of CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost (CAT → burn) | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year total return | €${lifetime25EUR} |\n\nBy offsetting, your CAT tokens convert to **INT tokens** — micro-investments in Therme's solar infrastructure that generate dividends for you. Would you like to offset your visit?`;
     addMsg('ALEXANDRA', card);
     // Inject into Anam voice
-    if (anamClientRef.current) {
-      setTimeout(() => anamClientRef.current?.sendUserMessage(
+    if (isConnected) {
+      setTimeout(() => sendText(
         `The visitor has been here for ${mins} minutes. Their carbon footprint is approximately ${emKgStr} kg CO2 — that is ${emKgStr} CAT tokens. Offset cost is €${offsetEUR}. Please present this to them and offer the CAT token offset, explaining they would receive INT tokens earning €${annualDivEUR} per year.`
       ), 1000);
     }
@@ -830,12 +825,7 @@ export function Workspace({
     if (el && cameraStreamRef.current) el.srcObject = cameraStreamRef.current;
   }, []);
 
-  const handleToggleMute = useCallback(() => {
-    const client = anamClientRef.current;
-    if (!client) return;
-    if (micMuted) { client.unmuteInputAudio(); setMicMuted(false); }
-    else { client.muteInputAudio(); setMicMuted(true); }
-  }, [micMuted]);
+  const handleToggleMute = useCallback(() => toggleMute(), [toggleMute]);
 
   const handleToggleCamera = useCallback(async () => {
     if (cameraOn) {
@@ -850,16 +840,16 @@ export function Workspace({
   }, [cameraOn]);
 
   const handleEndCall = useCallback(() => {
-    anamClientRef.current?.stopStreaming(); anamClientRef.current = null;
+    disconnectCall();
     cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null;
-    setIsConnected(false); setCameraOn(false); setCallStartTime(null);
-  }, []);
+    setCameraOn(false); setCallStartTime(null);
+  }, [disconnectCall]);
 
   const handleToggleAvatarMute = useCallback(() => {
-    const videoEl = document.getElementById('ws-avatar-video');
-    if (!videoEl) return;
-    const next = !avatarMuted; videoEl.muted = next; setAvatarMuted(next);
-  }, [avatarMuted]);
+    const el = audioElRef.current;
+    if (!el) return;
+    const next = !avatarMuted; el.muted = next; setAvatarMuted(next);
+  }, [avatarMuted, audioElRef]);
 
   async function handleGeneratePrompt() {
     const filled = briefingSources.filter(s => s.value.trim());
@@ -921,11 +911,7 @@ export function Workspace({
   }
 
   function handleInterrupt() {
-    // Mute + unmute rapidly to signal interruption to Anam
-    const client = anamClientRef.current;
-    if (!client) return;
-    client.muteOutputAudio?.();
-    setTimeout(() => client.unmuteOutputAudio?.(), 200);
+    interrupt();
     window.speechSynthesis?.cancel();
   }
 
@@ -939,16 +925,14 @@ export function Workspace({
     // If no company name yet, treat first message as the company name
     if (!companyName && !researchTriggered.current) {
       addMsg('ALEXANDRA', `Got it — researching **${text}** now. This will take a moment…`);
-      if (isConnected && anamClientRef.current) anamClientRef.current.sendUserMessage(`Research ${text} for me.`);
+      if (isConnected) sendText(`Research ${text} for me.`);
       researchTriggered.current = true;
       startResearch(text);
       onCompanyName?.(text);
       return;
     }
 
-    if (isConnected && anamClientRef.current) {
-      anamClientRef.current.sendUserMessage(text);
-    }
+    if (isConnected) sendText(text);
     setOrchestratorLoading(true);
 
     // Add streaming placeholder message
@@ -1080,8 +1064,8 @@ export function Workspace({
           customPromptRef.current = dp.prompt;
         }
         // Inject ONLY the live data snapshot as a brief factual message (not the full persona)
-        if (anamClientRef.current && liveSample) {
-          setTimeout(() => anamClientRef.current?.sendUserMessage(`Live API data for this session: ${liveSample}`), 500);
+        if (isConnected && liveSample) {
+          setTimeout(() => sendText(`Live API data for this session: ${liveSample}`), 500);
         }
       }
     } catch {}
@@ -1220,7 +1204,8 @@ export function Workspace({
                 backgroundImage: `radial-gradient(ellipse 61% 61% at 50% 39%, rgba(242,248,244,0) 0%, rgba(242,248,244,0) 30%, rgba(242,248,244,0) 65%, rgba(242,248,244,1) 100%), url(${PHOTO_URL})`,
                 backgroundSize: 'auto, cover', backgroundPosition: '0% 0%, center', filter: 'contrast(1.06)',
               }} />
-              <video id="ws-avatar-video" autoPlay playsInline className="ws-badge-video" style={{ display: isConnected && videoEnabled ? 'block' : 'none' }} />
+              <video ref={avatarVideoRef} autoPlay playsInline className="ws-badge-video" style={{ display: isConnected && videoEnabled ? 'block' : 'none' }} />
+              {audioElRef && <audio ref={audioElRef} autoPlay />}
               {isConnected && <div className="ws-badge-video-fade" />}
               <button className={`ws-avatar-mute ${avatarMuted ? 'ws-avatar-mute--on' : ''} ${isConnected ? '' : 'ws-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1281,8 +1266,8 @@ export function Workspace({
                     const mins = Math.max(Math.round(elapsed / 60), 1);
                     const card = `**Carbon Footprint — ${mins} min visit**\n\nApproximately **${emKgStr} kg CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year return | €${lifetime25EUR} |\n\nOffset now to convert CAT → INT tokens and earn dividends from Therme's solar infrastructure.`;
                     addMsg('ALEXANDRA', card);
-                    if (anamClientRef.current) {
-                      setTimeout(() => anamClientRef.current?.sendUserMessage(
+                    if (isConnected) {
+                      setTimeout(() => sendText(
                         `The visitor has been here for ${mins} minutes. Their footprint is ${emKgStr} kg CO2 (${emKgStr} CAT tokens). Offset cost is €${offsetEUR}. Please present this and pitch the CAT token offset, mentioning INT token dividends of €${annualDivEUR} per year.`
                       ), 500);
                     }
