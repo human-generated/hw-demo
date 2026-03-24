@@ -237,6 +237,7 @@ export function Workspace({
   const [driveSyncing, setDriveSyncing] = useState(false);
   const [drivePromptData, setDrivePromptData] = useState(null);
   const [driveWorkersSetup, setDriveWorkersSetup] = useState(false);
+  const [avatarRole, setAvatarRole] = useState('Orchestrator · Humans.AI');
   const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
@@ -400,6 +401,9 @@ export function Workspace({
           setCustomPrompt(savedPrompt);
           customPromptRef.current = savedPrompt;
         }
+
+        // Avatar role label (configurable per demo)
+        if (sessionD.settings?.avatarRole) setAvatarRole(sessionD.settings.avatarRole);
 
         // Store contextApiUrl for "Fetch API Data" button
         if (sessionD.contextApiUrl) setSessionContextApiUrl(sessionD.contextApiUrl);
@@ -1211,7 +1215,7 @@ export function Workspace({
                   <span className="ws-badge-name" onClick={onOpenWorkerProfile} style={{ cursor: onOpenWorkerProfile ? 'pointer' : undefined }}>
                     Alexandra{'\n'}Seaman
                   </span>
-                  <span className="ws-badge-role">Orchestrator · Humans.AI</span>
+                  <span className="ws-badge-role">{avatarRole}</span>
                 </div>
                 {cameraOn && (
                   <div className="ws-badge-camera-pip">
