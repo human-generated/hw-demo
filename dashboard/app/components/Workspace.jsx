@@ -232,6 +232,11 @@ export function Workspace({
   const [platformPopped, setPlatformPopped] = useState(false); // pop-out platform overlay
   const [linkCopied, setLinkCopied] = useState(false); // magic link copy feedback
   const [sessionContextApiUrl, setSessionContextApiUrl] = useState(''); // stored for Fetch API Data button
+  const [driveFolder, setDriveFolder] = useState('');
+  const [drivePromptStyle, setDrivePromptStyle] = useState('medium');
+  const [driveSyncing, setDriveSyncing] = useState(false);
+  const [drivePromptData, setDrivePromptData] = useState(null);
+  const [driveWorkersSetup, setDriveWorkersSetup] = useState(false);
   const customPromptRef = useRef(''); // ref so Anam closure always reads latest value
 
   // ── Demo Fix chat ──────────────────────────────────────────────────────────
@@ -371,6 +376,10 @@ export function Workspace({
 
         // Store contextApiUrl for "Fetch API Data" button
         if (sessionD.contextApiUrl) setSessionContextApiUrl(sessionD.contextApiUrl);
+        // Drive knowledge base
+        if (sessionD.driveFolder) setDriveFolder(sessionD.driveFolder);
+        if (sessionD.drivePrompt) setDrivePromptData(sessionD.drivePrompt);
+        if (sessionD.workers && sessionD.workers.some(w => w.id && w.id.includes('drive-parser'))) setDriveWorkersSetup(true);
 
         // Load context API (enriches prompt with live data)
         if (sessionD.contextApiUrl && !contextApiData) {
@@ -701,6 +710,51 @@ export function Workspace({
 
   function addMsg(author, text) {
     setMessages(prev => [...prev, { id: ++msgSeqRef.current, author, text, time: 'Just now', isUser: author === 'YOU' }]);
+  }
+
+  async function syncDriveFolder() {
+    if (driveSyncing || !sessionId || !driveFolder) return;
+    setDriveSyncing(true);
+    try {
+      const r = await fetch(`/api/demo/session/${sessionId}/sync-drive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderUrl: driveFolder }),
+      });
+      const d = await r.json();
+      if (d.result) {
+        const promptData = { ...d.result, lastSynced: new Date().toISOString() };
+        setDrivePromptData(promptData);
+        // Refresh tiles
+        const tr = await fetch(`/api/demo/research/${sessionId}/tiles`);
+        const td = await tr.json();
+        if (!td.error && td.tiles?.length > 0) setTilesData(td);
+        addMsg('ALEXANDRA', `Drive sync complete — ${d.files} document${d.files !== 1 ? 's' : ''} parsed. Knowledge base updated with exact values.`);
+      } else {
+        addMsg('ALEXANDRA', d.message || d.error || 'Drive sync error');
+      }
+    } catch (e) {
+      addMsg('ALEXANDRA', 'Drive sync error: ' + e.message);
+    }
+    setDriveSyncing(false);
+  }
+
+  async function setupDriveWorkers() {
+    if (!sessionId) return;
+    try {
+      const r = await fetch(`/api/demo/session/${sessionId}/setup-drive-workers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setDriveWorkersSetup(true);
+        addMsg('ALEXANDRA', '2 workers deployed: Drive Document Parser (daily sync) and Prompt QA Reviewer.');
+      }
+    } catch (e) {
+      console.error('Setup workers error', e);
+    }
   }
 
   const attachCamera = useCallback(el => {
@@ -1278,6 +1332,74 @@ export function Workspace({
                   {contextApiData ? '✓ API Data Loaded' : '⬇ Fetch API Data'}
                 </button>
               )}
+              {/* ── Drive Knowledge Base ── */}
+              <div style={{ marginTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: 10 }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: drivePromptData ? '#1a1a1a' : 'rgba(0,0,0,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  📁 Drive Knowledge Base
+                  {drivePromptData && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#34c759', display: 'inline-block' }} />}
+                </div>
+                <div style={{ display: 'flex', gap: 5, alignItems: 'center', marginBottom: 6 }}>
+                  <input
+                    value={driveFolder}
+                    onChange={e => setDriveFolder(e.target.value)}
+                    placeholder="Google Drive folder URL…"
+                    style={{ flex: 1, fontSize: '0.72rem', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 7, padding: '5px 8px', fontFamily: 'inherit', background: 'rgba(255,255,255,0.85)', outline: 'none' }}
+                  />
+                  <button
+                    onClick={syncDriveFolder}
+                    disabled={driveSyncing || !driveFolder.trim()}
+                    style={{ fontSize: '0.68rem', padding: '4px 10px', background: driveSyncing ? 'rgba(0,0,0,0.04)' : '#1a1a1a', color: driveSyncing ? 'rgba(0,0,0,0.4)' : '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    {driveSyncing ? <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.2)', borderTopColor: '#555', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} /> : '↻'}
+                    {driveSyncing ? 'Syncing…' : 'Sync'}
+                  </button>
+                </div>
+                {drivePromptData && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
+                      <span style={{ fontSize: '0.65rem', color: 'rgba(0,0,0,0.4)' }}>Style:</span>
+                      {['short', 'medium', 'long'].map(s => (
+                        <button key={s} onClick={() => setDrivePromptStyle(s)}
+                          style={{ fontSize: '0.63rem', padding: '2px 7px', borderRadius: 5, border: '1px solid rgba(0,0,0,0.12)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: drivePromptStyle === s ? 700 : 400, background: drivePromptStyle === s ? '#1a1a1a' : 'transparent', color: drivePromptStyle === s ? '#fff' : 'rgba(0,0,0,0.45)' }}>
+                          {s}
+                        </button>
+                      ))}
+                      {drivePromptData.qa && (
+                        <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: drivePromptData.qa.approved ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                          {drivePromptData.qa.approved ? '✓' : '⚠'} QA {drivePromptData.qa.score}/100
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.6)', lineHeight: 1.45, maxHeight: 80, overflowY: 'auto', background: 'rgba(0,0,0,0.02)', borderRadius: 7, padding: '6px 8px', marginBottom: 5, border: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'pre-wrap', cursor: 'default' }}>
+                      {drivePromptData[drivePromptStyle] || '(not generated)'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button onClick={() => { const p = drivePromptData[drivePromptStyle]; if (p) { setCustomPrompt(p); customPromptRef.current = p; setPromptSaved(false); } }}
+                        style={{ fontSize: '0.63rem', padding: '3px 8px', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}>
+                        ↑ Apply to Persona
+                      </button>
+                      <button onClick={() => navigator.clipboard?.writeText(drivePromptData.functions || '')}
+                        style={{ fontSize: '0.63rem', padding: '3px 8px', background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: 'rgba(0,0,0,0.5)' }}>
+                        Copy Functions
+                      </button>
+                      {!driveWorkersSetup ? (
+                        <button onClick={setupDriveWorkers}
+                          style={{ fontSize: '0.63rem', padding: '3px 8px', background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', color: '#2e7d32', fontWeight: 600, marginLeft: 'auto' }}>
+                          ⚡ Setup Workers
+                        </button>
+                      ) : (
+                        <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#2e7d32' }}>✓ Workers active</span>
+                      )}
+                    </div>
+                    {drivePromptData.lastSynced && (
+                      <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.28)', marginTop: 5 }}>
+                        Synced {new Date(drivePromptData.lastSynced).toLocaleString()}
+                        {drivePromptData.tiles && ` · ${drivePromptData.tiles.length} tiles`}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
