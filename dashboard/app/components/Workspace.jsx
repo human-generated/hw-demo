@@ -334,7 +334,12 @@ export function Workspace({
         const newClient = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
         anamClientRef.current = newClient;
         newClient.addListener('VIDEO_PLAY_STARTED', () => {
-          if (!cancelled) { setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now()); }
+          if (!cancelled) {
+            setIsConnecting(false); setIsConnected(true); setCallStartTime(Date.now());
+            // Trigger the scripted opening — the system prompt instructs the avatar to
+            // begin with the presentation greeting when it receives this signal.
+            setTimeout(() => newClient.sendUserMessage('[START_PRESENTATION]'), 1200);
+          }
         });
         attachSubtitleListener(newClient);
         await newClient.streamToVideoElement('ws-avatar-video');
