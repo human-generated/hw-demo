@@ -208,7 +208,7 @@ export function Workspace({
   // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([
-    { id: 1, author: 'ALEXANDRA', text: companyName ? `Starting research on ${companyName}…` : `What company are we presenting to today?`, time: 'Just now', isUser: false, _isDefault: true },
+    { id: 1, author: 'ALEXANDRA', text: sessionId ? 'Connecting…' : (companyName ? `Starting research on ${companyName}…` : `What company are we presenting to today?`), time: 'Just now', isUser: false, _isDefault: true },
   ]);
   const [orchestratorLoading, setOrchestratorLoading] = useState(false);
 
@@ -279,6 +279,7 @@ export function Workspace({
   const researchTriggered = useRef(false);
   const rightPanelRef = useRef(null);
   const emissionCardSentRef = useRef(false);
+  const lastAgentMarkdownRef = useRef('');
 
   // ── LiveKit + Anam worker session ──────────────────────────────────────────
   const {
@@ -287,6 +288,7 @@ export function Workspace({
     micMuted,
     videoTrack,
     agentText,
+    agentMarkdown,
     needsAudioResume,
     resumeAudio,
     sendText,
@@ -322,6 +324,20 @@ export function Workspace({
     const t = setTimeout(() => setSubtitleText(''), 5000);
     return () => clearTimeout(t);
   }, [agentText]);
+
+  // ── Show agent voice replies in chat (markdown-rendered) ──────────────────
+  useEffect(() => {
+    if (!agentMarkdown || agentMarkdown === lastAgentMarkdownRef.current) return;
+    lastAgentMarkdownRef.current = agentMarkdown;
+    setMessages(prev => {
+      const hasDefault = prev.some(m => m._isDefault);
+      if (hasDefault) {
+        // Replace the initial placeholder with the actual agent greeting
+        return prev.map(m => m._isDefault ? { ...m, text: agentMarkdown, _isDefault: false } : m);
+      }
+      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: agentMarkdown, time: 'Just now', isUser: false }];
+    });
+  }, [agentMarkdown]);
 
   // ── Trigger opening greeting after connection ───────────────────────────────
   useEffect(() => {
@@ -404,15 +420,7 @@ export function Workspace({
         if (savedPrompt) {
           setCustomPrompt(savedPrompt);
           customPromptRef.current = savedPrompt;
-          // Extract the avatar's opening greeting from the system prompt to show in chat
-          // Look for the quoted greeting between the first pair of " characters after "greet"
-          const greetMatch = savedPrompt.match(/greet.*?["""]([^"""]{20,})["""]/s) ||
-                             savedPrompt.match(/opening greeting[^"""]*["""]([^"""]{20,})["""]/si);
-          const greeting = greetMatch ? greetMatch[1].trim() : null;
-          // Replace the default placeholder with the actual greeting (or a neutral ready message)
-          setMessages(prev => prev.map(m =>
-            m._isDefault ? { ...m, text: greeting || 'Ready. How can I help you today?', _isDefault: false } : m
-          ));
+          // Initial message will be replaced by agent's first reply (via agentMarkdown effect)
         }
 
         // Avatar role label (configurable per demo)

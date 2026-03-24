@@ -22,6 +22,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(!!enabled);
   const [agentText, setAgentText] = useState('');
+  const [agentMarkdown, setAgentMarkdown] = useState('');
   const [videoTrack, setVideoTrack] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
@@ -76,7 +77,15 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
         room.on(RoomEvent.DataReceived, (payload) => {
           try {
             const msg = JSON.parse(new TextDecoder().decode(payload));
-            if (msg.type === 'agent_text' && msg.text) {
+            if (msg.type === 'agent_reply' && msg.markdown) {
+              // Rich markdown reply from agent — used for chat display
+              setAgentMarkdown(msg.markdown);
+              // Also update subtitle text (stripped)
+              const stripped = msg.markdown
+                .replace(/\*\*/g, '').replace(/[#*|`_]/g, '')
+                .replace(/\n+/g, ' ').trim().slice(0, 200);
+              setAgentText(stripped);
+            } else if (msg.type === 'agent_text' && msg.text) {
               setAgentText(msg.text);
               // Fallback to browser TTS if no audio track
               if (!room._agentAudioTrack) {
@@ -309,6 +318,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     setConnected(false);
     setVideoTrack(null);
     setAgentText('');
+    setAgentMarkdown('');
     setNeedsAudioResume(false);
   }, []);
 
@@ -344,6 +354,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     connected,
     connecting,
     agentText,
+    agentMarkdown,
     videoTrack,
     micMuted,
     needsAudioResume,
