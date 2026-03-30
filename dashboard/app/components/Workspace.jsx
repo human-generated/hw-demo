@@ -296,6 +296,7 @@ export function Workspace({
     videoTrack,
     agentText,
     agentMarkdown,
+    agentAction,
     needsAudioResume,
     resumeAudio,
     sendText,
@@ -328,33 +329,42 @@ export function Workspace({
   useEffect(() => {
     if (!agentMarkdown || agentMarkdown === lastAgentMarkdownRef.current) return;
     lastAgentMarkdownRef.current = agentMarkdown;
-
-    // Extract and strip voice action markers e.g. <<ACTION:build_platforms>>
-    const actionMatch = agentMarkdown.match(/<<ACTION:([^>]+)>>/);
-    const cleanMarkdown = agentMarkdown.replace(/<<ACTION:[^>]+>>/g, '').trim();
-
     setMessages(prev => {
       const hasDefault = prev.some(m => m._isDefault);
       if (hasDefault) {
-        return prev.map(m => m._isDefault ? { ...m, text: cleanMarkdown, _isDefault: false } : m);
+        return prev.map(m => m._isDefault ? { ...m, text: agentMarkdown, _isDefault: false } : m);
       }
-      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: cleanMarkdown, time: 'Just now', isUser: false }];
+      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: agentMarkdown, time: 'Just now', isUser: false }];
     });
-
-    // Trigger voice-driven actions
-    if (actionMatch) {
-      const actionType = actionMatch[1];
-      setTimeout(() => {
-        if (actionType === 'build_platforms' && proposedPlatforms.length > 0) {
-          handleBuildPlatforms();
-        } else if (actionType === 'propose_workers') {
-          proposeWorkers();
-        } else if (actionType === 'start_research' || actionType === 'full_setup') {
-          // research is typically already in progress via startResearch
-        }
-      }, 800);
-    }
   }, [agentMarkdown]);
+
+  // ── Handle voice-driven actions from agent (build platforms, propose workers…) ──
+  const lastAgentActionTsRef = useRef(0);
+  useEffect(() => {
+    if (!agentAction || agentAction._ts <= lastAgentActionTsRef.current) return;
+    lastAgentActionTsRef.current = agentAction._ts;
+    const { type, params } = agentAction;
+
+    if (type === 'build_platforms') {
+      const voicePlatforms = params?.platforms;
+      if (voicePlatforms?.length) {
+        // Use the specific platforms the user asked for
+        const list = voicePlatforms.map(p => ({ ...p, _selected: true }));
+        setProposedPlatforms(list);
+        setTimeout(() => handleBuildPlatforms(list), 600);
+      } else if (proposedPlatforms.length > 0) {
+        // Fall back to research-proposed platforms
+        setTimeout(() => handleBuildPlatforms(), 600);
+      }
+    } else if (type === 'propose_workers') {
+      setTimeout(() => proposeWorkers(), 600);
+    } else if (type === 'full_setup') {
+      // full_setup: build platforms from research, then propose workers
+      if (proposedPlatforms.length > 0) {
+        setTimeout(() => handleBuildPlatforms(), 600);
+      }
+    }
+  }, [agentAction]);
 
   // ── Sync customPrompt changes to shared agent ──────────────────────────────
   useEffect(() => {
@@ -587,8 +597,8 @@ export function Workspace({
     } catch {}
   }
 
-  async function handleBuildPlatforms() {
-    const selected = proposedPlatforms.filter(p => p._selected !== false);
+  async function handleBuildPlatforms(overrideList) {
+    const selected = overrideList || proposedPlatforms.filter(p => p._selected !== false);
     if (!selected.length) return;
     setHubPhase(P.PLATFORMS_BUILDING);
     setBuildingMsg('Discovering platform APIs…');

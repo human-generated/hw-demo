@@ -24,6 +24,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
   const [agentText, setAgentText] = useState('');
   const [agentMarkdown, setAgentMarkdown] = useState('');
   const [videoTrack, setVideoTrack] = useState(null);
+  const [agentAction, setAgentAction] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
   const [needsAudioResume, setNeedsAudioResume] = useState(false);
@@ -78,7 +79,9 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
         room.on(RoomEvent.DataReceived, (payload) => {
           try {
             const msg = JSON.parse(new TextDecoder().decode(payload));
-            if (msg.type === 'agent_reply' && msg.markdown) {
+            if (msg.type === 'voice_action' && msg.action) {
+              setAgentAction({ ...msg.action, _ts: Date.now() });
+            } else if (msg.type === 'agent_reply' && msg.markdown) {
               // Rich markdown reply from agent — used for chat display
               setAgentMarkdown(msg.markdown);
               // Also update subtitle text (stripped)
@@ -358,6 +361,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     connecting,
     agentText,
     agentMarkdown,
+    agentAction,
     videoTrack,
     micMuted,
     needsAudioResume,
