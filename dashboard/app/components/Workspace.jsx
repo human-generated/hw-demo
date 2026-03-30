@@ -945,6 +945,10 @@ export function Workspace({
     if (!text || orchestratorLoading) return;
     addMsg('YOU', text);
     setChatInput('');
+    // Log user message to conv-log
+    if (sessionId) {
+      fetch(`/api/demo/session/${sessionId}/conv-log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'user', text: text.slice(0, 600), workerId: 'orchestrator', page: 'hub' }) }).catch(() => {});
+    }
 
     // If no company name yet, treat first message as the company name
     if (!companyName && !researchTriggered.current) {
@@ -1011,6 +1015,14 @@ export function Workspace({
       finalizeStream('Error: ' + err.message);
     }
     setOrchestratorLoading(false);
+    // Log final agent reply to conv-log
+    setMessages(prev => {
+      const last = [...prev].reverse().find(m => m.author === 'ALEXANDRA' && !m.streaming);
+      if (last && sessionId) {
+        fetch(`/api/demo/session/${sessionId}/conv-log`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'assistant', text: (last.text || '').slice(0, 600), workerId: 'orchestrator', page: 'hub' }) }).catch(() => {});
+      }
+      return prev;
+    });
   }
 
   function handleFileUpload(e) {
