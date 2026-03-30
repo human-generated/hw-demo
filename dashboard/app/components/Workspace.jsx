@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
+import { CreditBadge } from './CreditBadge';
 import { PlatformPreviewCard, CanvasTab } from './WorkerPage';
 import { getWorkerPhoto, getWorkerCode } from './WorkerConfig';
 
@@ -206,6 +207,7 @@ export function Workspace({
   workerSession,
   onSystemPromptChange,
   credit = 10,
+  usage = { voice: 0, llm: 0, platforms: 0 },
   addCost,
   creditBlocked = false,
 }) {
@@ -1334,7 +1336,7 @@ export function Workspace({
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           )}
-          <div className="ws-menu-avatar">S</div>
+          <CreditBadge credit={credit} usage={usage} />
         </div>
       </nav>
 

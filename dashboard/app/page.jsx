@@ -1839,6 +1839,7 @@ function AppInner() {
               onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
               onCompanyName={(name) => { if (name) setHubCompanyName(name); }}
               credit={sessionCredit}
+              usage={sessionUsage}
               addCost={addCost}
               creditBlocked={creditBlocked}
             />
