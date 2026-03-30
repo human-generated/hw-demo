@@ -1820,12 +1820,15 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [callEnabled, setCallEnabled] = useState(false);
   const [promptEditing, setPromptEditing] = useState(false);
   const [promptDraft, setPromptDraft] = useState('');
-  // Live Tiles
-  const [activeTile, setActiveTile] = useState(null); // tile id
+  // Live Tiles — dynamically generated from conversation
+  const [liveTiles, setLiveTiles] = useState([]);
+  const [tilesLoading, setTilesLoading] = useState(false);
+  const [activeTile, setActiveTile] = useState(null); // tile id (for expanded forms)
   const [roiInputs, setRoiInputs] = useState({ investment: 1000, rate: 6, years: 25 });
   const [fpParams, setFpParams] = useState({ date: '2025-06-15', entry_hour: 10, exit_hour: 14 });
   const [fpResult, setFpResult] = useState(null);
   const [fpLoading, setFpLoading] = useState(false);
+  const lastTileGenRef = useRef(0);
 
   // Build system prompt for this worker
   const systemPrompt = useMemo(() => {
@@ -1903,6 +1906,24 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   }, [isConnected, callStartTime]);
 
   const timeStr = `${Math.floor(elapsed/60)}:${(elapsed%60).toString().padStart(2,'0')}`;
+
+  // Generate live tiles after each agent reply
+  useEffect(() => {
+    if (!isConnected || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.isUser) return; // only after agent messages
+    const now = Date.now();
+    if (now - lastTileGenRef.current < 3000) return; // throttle
+    lastTileGenRef.current = now;
+    setTilesLoading(true);
+    fetch('/api/demo/live-tiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: messages.slice(-8), workerName: worker.name, companyName }),
+    }).then(r => r.json()).then(d => {
+      if (d.tiles?.length) setLiveTiles(d.tiles);
+    }).catch(() => {}).finally(() => setTilesLoading(false));
+  }, [messages]);
 
   const handleToggleMute = useCallback(() => {
     resumeAudio();
@@ -2120,42 +2141,46 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
             <FlutedGlass className="wkp-badge-glass" size={0.95} shape="zigzag" angle={0} distortionShape="cascade" distortion={1} shift={0} blur={0.34} edges={0.25} stretch={0} scale={1} fit="cover" highlights={0} shadows={0.25} colorBack="#00000000" colorHighlight="#FFFFFF" colorShadow="#FFFFFF" />
           </div>
 
-          {/* ── Live Tiles ── */}
-          {isConnected && (
+          {/* ── Live Tiles — AI-generated from conversation ── */}
+          {isConnected && (liveTiles.length > 0 || tilesLoading) && (
             <div style={{ padding: '8px 10px 0', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(0,0,0,0.3)', marginBottom: 6 }}>Live Tiles</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(0,0,0,0.3)' }}>Live Tiles</span>
+                {tilesLoading && <span style={{ width: 8, height: 8, border: '1.5px solid rgba(0,0,0,0.12)', borderTopColor: '#34c759', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />}
+              </div>
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
-                {/* Simulate ROI */}
-                <div style={{ flexShrink: 0, background: activeTile === 'roi' ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.7)', border: `1px solid ${activeTile === 'roi' ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: '7px 10px', minWidth: 120, cursor: 'pointer' }}
-                  onClick={() => setActiveTile(activeTile === 'roi' ? null : 'roi')}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>📈 Simulate ROI</div>
-                  <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>Investment returns</div>
-                </div>
-                {/* Carbon Footprint */}
-                <div style={{ flexShrink: 0, background: activeTile === 'fp' ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.7)', border: `1px solid ${activeTile === 'fp' ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: '7px 10px', minWidth: 130, cursor: 'pointer' }}
-                  onClick={() => setActiveTile(activeTile === 'fp' ? null : 'fp')}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>🌿 Carbon Footprint</div>
-                  <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>{fpResult ? `${fpResult.total_kg.toFixed(2)} kg CO₂` : 'Compute visit'}</div>
-                </div>
-                {/* Quick Actions */}
-                {[{ id: 'summary', label: '💬 Summarise', msg: 'Please summarise what we have discussed so far.' },
-                  { id: 'next', label: '→ Next Steps', msg: 'What are the recommended next steps for the visitor?' },
-                  { id: 'benefits', label: '✦ Key Benefits', msg: 'What are the key benefits of the CAT token and INT token offset programme?' },
-                ].map(qa => (
-                  <div key={qa.id} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '7px 10px', minWidth: 110, cursor: 'pointer' }}
-                    onClick={() => { lkSendText(qa.msg); setActiveTile(null); }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a' }}>{qa.label}</div>
-                    <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>Ask avatar</div>
-                  </div>
-                ))}
+                {liveTiles.map(tile => {
+                  const isActive = activeTile === tile.id;
+                  const isData = tile.type === 'data';
+                  return (
+                    <div key={tile.id}
+                      style={{ flexShrink: 0, background: isActive ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.75)', border: `1px solid ${isActive ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: '7px 10px', minWidth: isData ? 100 : 120, cursor: isData ? 'default' : 'pointer', transition: 'all 0.15s' }}
+                      onClick={() => {
+                        if (isData) return;
+                        if (tile.action === 'speak') { lkSendText(tile.message); return; }
+                        if (tile.action === 'simulate_roi') {
+                          if (tile.params) setRoiInputs(p => ({ ...p, ...tile.params }));
+                          setActiveTile(isActive ? null : tile.id);
+                        } else if (tile.action === 'compute_footprint') {
+                          if (tile.params) setFpParams(p => ({ ...p, ...tile.params }));
+                          setActiveTile(isActive ? null : tile.id);
+                        }
+                      }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>{tile.icon} {tile.label}</div>
+                      {isData
+                        ? <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#2e7d32', lineHeight: 1.2 }}>{tile.value}</div>
+                        : <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>{tile.description}</div>}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Expanded: ROI Simulator */}
-              {activeTile === 'roi' && (
+              {activeTile && liveTiles.find(t => t.id === activeTile)?.action === 'simulate_roi' && (
                 <div style={{ background: 'rgba(52,199,89,0.04)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>ROI Simulator — CAT → INT Token</div>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>ROI Simulator</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                    {[['Investment (€)', 'investment', 100, 100000], ['Annual Rate (%)', 'rate', 1, 30], ['Years', 'years', 1, 50]].map(([lbl, key, mn, mx]) => (
+                    {[['Investment (€)', 'investment', 1, 1000000], ['Annual Rate (%)', 'rate', 0.1, 50], ['Years', 'years', 1, 50]].map(([lbl, key, mn, mx]) => (
                       <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <label style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>{lbl}</label>
                         <input type="number" value={roiInputs[key]} min={mn} max={mx}
@@ -2166,12 +2191,12 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                   </div>
                   {(() => {
                     const { investment, rate, years } = roiInputs;
-                    const annualReturn = (investment * rate / 100);
-                    const totalReturn = investment * Math.pow(1 + rate / 100, years) - investment;
-                    const catTokens = investment / (0.16 * 1); // 1 CAT = 0.16 EUR offset cost proxy
+                    const annual = (investment * rate / 100).toFixed(2);
+                    const total = (investment * Math.pow(1 + rate / 100, years) - investment).toFixed(2);
+                    const roiPct = ((total / investment) * 100).toFixed(1);
                     return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '0.68rem' }}>
-                        {[['Annual return', `€${annualReturn.toFixed(2)}`], [`${years}y total`, `€${totalReturn.toFixed(2)}`], ['INT tokens', `≈${catTokens.toFixed(0)}`], ['ROI', `${(totalReturn / investment * 100).toFixed(1)}%`]].map(([k, v]) => (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '0.68rem', marginBottom: 8 }}>
+                        {[['Annual return', `€${annual}`], [`${years}y total`, `€${total}`], ['ROI', `${roiPct}%`]].map(([k, v]) => (
                           <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                             <span style={{ color: 'rgba(0,0,0,0.45)' }}>{k}</span>
                             <span style={{ fontWeight: 700, color: '#2e7d32' }}>{v}</span>
@@ -2180,23 +2205,22 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                       </div>
                     );
                   })()}
-                  <button onClick={() => lkSendText(`The visitor wants to simulate an ROI of €${roiInputs.investment} investment at ${roiInputs.rate}% annual return over ${roiInputs.years} years. Annual return is €${(roiInputs.investment * roiInputs.rate / 100).toFixed(2)}. Please present this as the INT token dividend opportunity.`)}
-                    style={{ marginTop: 8, fontSize: '0.68rem', padding: '4px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                  <button onClick={() => { lkSendText(`Simulate ROI: €${roiInputs.investment} at ${roiInputs.rate}% for ${roiInputs.years} years. Annual return €${(roiInputs.investment * roiInputs.rate / 100).toFixed(2)}, total €${(roiInputs.investment * Math.pow(1 + roiInputs.rate / 100, roiInputs.years) - roiInputs.investment).toFixed(2)}. Please present this opportunity to the visitor.`); setActiveTile(null); }}
+                    style={{ fontSize: '0.68rem', padding: '4px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                     Send to Avatar
                   </button>
                 </div>
               )}
 
               {/* Expanded: Carbon Footprint */}
-              {activeTile === 'fp' && (
+              {activeTile && liveTiles.find(t => t.id === activeTile)?.action === 'compute_footprint' && (
                 <div style={{ background: 'rgba(52,199,89,0.04)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                   <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>Carbon Footprint — SPA-DEC API</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
                     {[['Date', 'date', 'date'], ['Entry h', 'entry_hour', 'number'], ['Exit h', 'exit_hour', 'number']].map(([lbl, key, type]) => (
                       <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <label style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>{lbl}</label>
-                        <input type={type} value={fpParams[key]} min={type === 'number' ? 0 : undefined} max={type === 'number' ? 23 : undefined}
-                          onChange={e => setFpParams(p => ({ ...p, [key]: type === 'number' ? +e.target.value : e.target.value }))}
+                        <input type={type} value={fpParams[key]} onChange={e => setFpParams(p => ({ ...p, [key]: type === 'number' ? +e.target.value : e.target.value }))}
                           style={{ width: type === 'date' ? 120 : 52, fontSize: '0.7rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: '#fff' }} />
                       </div>
                     ))}
@@ -2208,7 +2232,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
                         if (d.total_kg != null) {
                           setFpResult(d);
                           const cat = d.total_kg.toFixed(2), offset = (d.total_kg * 0.16).toFixed(2), div = (d.total_kg * 0.16 * 0.06).toFixed(3);
-                          lkSendText(`Computed carbon footprint: ${d.total_kg.toFixed(2)} kg CO2 for a ${d.duration_hours}h visit. Operational ${d.operational_kg.toFixed(2)}, overhead ${d.overhead_kg.toFixed(2)}, non-metered ${d.non_metered_kg.toFixed(2)}. That is ${cat} CAT tokens. Offset cost €${offset}, annual INT dividend €${div}. Please present this.`);
+                          lkSendText(`Carbon footprint computed: ${cat} kg CO2 for ${d.duration_hours}h visit. Offset cost €${offset}, annual INT dividend €${div}. Please present this.`);
                         }
                       } catch {} setFpLoading(false); setActiveTile(null);
                     }} style={{ fontSize: '0.72rem', padding: '5px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
