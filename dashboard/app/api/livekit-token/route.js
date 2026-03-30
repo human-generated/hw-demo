@@ -17,6 +17,7 @@ export async function POST(req) {
     room: roomName,
     canPublish: true,
     canSubscribe: true,
+    canPublishData: true,
   });
 
   return Response.json({ token: await token.toJwt(), url: LK_URL });

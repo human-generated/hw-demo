@@ -169,7 +169,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
 
         micStreamRef.current = stream;

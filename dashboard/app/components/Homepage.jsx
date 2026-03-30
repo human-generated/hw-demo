@@ -50,7 +50,7 @@ function useCursorTracking(ref) {
   }, [ref]);
 }
 
-const NAV_INSTRUCTION = `\n\nIMPORTANT: When you identify the visitor's company name or domain from what they say, immediately confirm it in one short sentence, then append <<NAV:CompanyName>> at the very end of your response (replace CompanyName with the actual name, no spaces). Example: "Great, let me pull up everything on Therme right away! <<NAV:Therme>>"`;
+const NAV_INSTRUCTION = `\n\nCRITICAL: The moment the visitor mentions ANY company name or domain — even once — you MUST confirm it and append <<NAV:CompanySlug>> at the very end of your reply (replace CompanySlug with the real company name, PascalCase, no spaces). Do NOT ask confirmation questions first. Just confirm and append the marker. Example: visitor says "I work at Global Foods" → you reply "Great, pulling up Global Foods now! <<NAV:GlobalFoods>>"`;
 
 function buildSystemPrompt(session, companyName) {
   const co = session?.company;
@@ -172,7 +172,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     if (!m) return;
     const raw = m[1].trim();
     // Skip placeholder text the LLM might emit from the instruction example
-    const skip = ['CompanyName', 'companyname', 'company', 'placeholder', 'companyname', 'example', 'yourcompany'];
+    const skip = ['CompanyName', 'companyname', 'CompanySlug', 'companyslug', 'company', 'placeholder', 'example', 'yourcompany', 'globalfoods', 'GlobalFoods'];
     if (!raw || skip.includes(raw.toLowerCase())) return;
     console.log('[Homepage] agent detected company, looking up:', raw);
     // Look up domain + ticker before navigating
