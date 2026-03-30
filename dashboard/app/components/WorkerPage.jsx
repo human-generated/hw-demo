@@ -1820,6 +1820,12 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [callEnabled, setCallEnabled] = useState(false);
   const [promptEditing, setPromptEditing] = useState(false);
   const [promptDraft, setPromptDraft] = useState('');
+  // Live Tiles
+  const [activeTile, setActiveTile] = useState(null); // tile id
+  const [roiInputs, setRoiInputs] = useState({ investment: 1000, rate: 6, years: 25 });
+  const [fpParams, setFpParams] = useState({ date: '2025-06-15', entry_hour: 10, exit_hour: 14 });
+  const [fpResult, setFpResult] = useState(null);
+  const [fpLoading, setFpLoading] = useState(false);
 
   // Build system prompt for this worker
   const systemPrompt = useMemo(() => {
@@ -1842,6 +1848,7 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
     updatePrompt,
     toggleMute: lkToggleMute,
     disconnect: lkDisconnect,
+    interrupt: lkInterrupt,
     callTool,
     audioElRef,
   } = useWorkerSession({ worker, sessionId, enabled: callEnabled, audioEnabled, videoEnabled, systemPrompt, personaId: WORKER_PERSONA_IDS[workerCode] });
@@ -2088,9 +2095,17 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
               </div>
               <div className="wkp-call-buttons">
                 {(isConnected || lkConnecting) ? (
-                  <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} title="End call">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                  </button>
+                  <>
+                    <button className={`wkp-call-btn ${micMuted ? 'wkp-call-btn--mic-muted' : 'wkp-call-btn--mic'}`} onClick={() => lkToggleMute()} title={micMuted ? 'Unmute' : 'Mute'}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                    <button className="wkp-call-btn" onClick={() => { lkInterrupt?.(); window.speechSynthesis?.cancel(); }} title="Interrupt" style={{ background: 'rgba(255,149,0,0.9)' }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="#fff" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="#fff" /></svg>
+                    </button>
+                    <button className="wkp-call-btn wkp-call-btn--end" onClick={handleEndCall} title="End call">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                  </>
                 ) : (
                   <button className="wkp-call-btn wkp-call-btn--phone" onClick={() => setCallEnabled(true)} title="Start call">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" fill="#fff"/></svg>
@@ -2104,6 +2119,115 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
             </div>
             <FlutedGlass className="wkp-badge-glass" size={0.95} shape="zigzag" angle={0} distortionShape="cascade" distortion={1} shift={0} blur={0.34} edges={0.25} stretch={0} scale={1} fit="cover" highlights={0} shadows={0.25} colorBack="#00000000" colorHighlight="#FFFFFF" colorShadow="#FFFFFF" />
           </div>
+
+          {/* ── Live Tiles ── */}
+          {isConnected && (
+            <div style={{ padding: '8px 10px 0', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(0,0,0,0.3)', marginBottom: 6 }}>Live Tiles</div>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8 }}>
+                {/* Simulate ROI */}
+                <div style={{ flexShrink: 0, background: activeTile === 'roi' ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.7)', border: `1px solid ${activeTile === 'roi' ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: '7px 10px', minWidth: 120, cursor: 'pointer' }}
+                  onClick={() => setActiveTile(activeTile === 'roi' ? null : 'roi')}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>📈 Simulate ROI</div>
+                  <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>Investment returns</div>
+                </div>
+                {/* Carbon Footprint */}
+                <div style={{ flexShrink: 0, background: activeTile === 'fp' ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.7)', border: `1px solid ${activeTile === 'fp' ? 'rgba(52,199,89,0.3)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, padding: '7px 10px', minWidth: 130, cursor: 'pointer' }}
+                  onClick={() => setActiveTile(activeTile === 'fp' ? null : 'fp')}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 2 }}>🌿 Carbon Footprint</div>
+                  <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)' }}>{fpResult ? `${fpResult.total_kg.toFixed(2)} kg CO₂` : 'Compute visit'}</div>
+                </div>
+                {/* Quick Actions */}
+                {[{ id: 'summary', label: '💬 Summarise', msg: 'Please summarise what we have discussed so far.' },
+                  { id: 'next', label: '→ Next Steps', msg: 'What are the recommended next steps for the visitor?' },
+                  { id: 'benefits', label: '✦ Key Benefits', msg: 'What are the key benefits of the CAT token and INT token offset programme?' },
+                ].map(qa => (
+                  <div key={qa.id} style={{ flexShrink: 0, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 10, padding: '7px 10px', minWidth: 110, cursor: 'pointer' }}
+                    onClick={() => { lkSendText(qa.msg); setActiveTile(null); }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a' }}>{qa.label}</div>
+                    <div style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.4)', marginTop: 2 }}>Ask avatar</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Expanded: ROI Simulator */}
+              {activeTile === 'roi' && (
+                <div style={{ background: 'rgba(52,199,89,0.04)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>ROI Simulator — CAT → INT Token</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                    {[['Investment (€)', 'investment', 100, 100000], ['Annual Rate (%)', 'rate', 1, 30], ['Years', 'years', 1, 50]].map(([lbl, key, mn, mx]) => (
+                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <label style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>{lbl}</label>
+                        <input type="number" value={roiInputs[key]} min={mn} max={mx}
+                          onChange={e => setRoiInputs(p => ({ ...p, [key]: +e.target.value }))}
+                          style={{ width: 80, fontSize: '0.72rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: '#fff' }} />
+                      </div>
+                    ))}
+                  </div>
+                  {(() => {
+                    const { investment, rate, years } = roiInputs;
+                    const annualReturn = (investment * rate / 100);
+                    const totalReturn = investment * Math.pow(1 + rate / 100, years) - investment;
+                    const catTokens = investment / (0.16 * 1); // 1 CAT = 0.16 EUR offset cost proxy
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '0.68rem' }}>
+                        {[['Annual return', `€${annualReturn.toFixed(2)}`], [`${years}y total`, `€${totalReturn.toFixed(2)}`], ['INT tokens', `≈${catTokens.toFixed(0)}`], ['ROI', `${(totalReturn / investment * 100).toFixed(1)}%`]].map(([k, v]) => (
+                          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                            <span style={{ color: 'rgba(0,0,0,0.45)' }}>{k}</span>
+                            <span style={{ fontWeight: 700, color: '#2e7d32' }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  <button onClick={() => lkSendText(`The visitor wants to simulate an ROI of €${roiInputs.investment} investment at ${roiInputs.rate}% annual return over ${roiInputs.years} years. Annual return is €${(roiInputs.investment * roiInputs.rate / 100).toFixed(2)}. Please present this as the INT token dividend opportunity.`)}
+                    style={{ marginTop: 8, fontSize: '0.68rem', padding: '4px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                    Send to Avatar
+                  </button>
+                </div>
+              )}
+
+              {/* Expanded: Carbon Footprint */}
+              {activeTile === 'fp' && (
+                <div style={{ background: 'rgba(52,199,89,0.04)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>Carbon Footprint — SPA-DEC API</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+                    {[['Date', 'date', 'date'], ['Entry h', 'entry_hour', 'number'], ['Exit h', 'exit_hour', 'number']].map(([lbl, key, type]) => (
+                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <label style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.4)', fontFamily: 'inherit' }}>{lbl}</label>
+                        <input type={type} value={fpParams[key]} min={type === 'number' ? 0 : undefined} max={type === 'number' ? 23 : undefined}
+                          onChange={e => setFpParams(p => ({ ...p, [key]: type === 'number' ? +e.target.value : e.target.value }))}
+                          style={{ width: type === 'date' ? 120 : 52, fontSize: '0.7rem', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 6, padding: '4px 6px', fontFamily: 'inherit', background: '#fff' }} />
+                      </div>
+                    ))}
+                    <button disabled={fpLoading} onClick={async () => {
+                      setFpLoading(true);
+                      try {
+                        const r = await fetch(`/api/demo/footprint?date=${fpParams.date}&entry_hour=${fpParams.entry_hour}&exit_hour=${fpParams.exit_hour}`);
+                        const d = await r.json();
+                        if (d.total_kg != null) {
+                          setFpResult(d);
+                          const cat = d.total_kg.toFixed(2), offset = (d.total_kg * 0.16).toFixed(2), div = (d.total_kg * 0.16 * 0.06).toFixed(3);
+                          lkSendText(`Computed carbon footprint: ${d.total_kg.toFixed(2)} kg CO2 for a ${d.duration_hours}h visit. Operational ${d.operational_kg.toFixed(2)}, overhead ${d.overhead_kg.toFixed(2)}, non-metered ${d.non_metered_kg.toFixed(2)}. That is ${cat} CAT tokens. Offset cost €${offset}, annual INT dividend €${div}. Please present this.`);
+                        }
+                      } catch {} setFpLoading(false); setActiveTile(null);
+                    }} style={{ fontSize: '0.72rem', padding: '5px 12px', background: '#34c759', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                      {fpLoading ? '…' : 'Compute'}
+                    </button>
+                  </div>
+                  {fpResult && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 12px', fontSize: '0.68rem' }}>
+                      {[['Total', `${fpResult.total_kg.toFixed(2)} kg`], ['Operational', `${fpResult.operational_kg.toFixed(2)} kg`], ['Overhead', `${fpResult.overhead_kg.toFixed(2)} kg`], ['Non-metered', `${fpResult.non_metered_kg.toFixed(2)} kg`]].map(([k, v]) => (
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                          <span style={{ color: 'rgba(0,0,0,0.45)' }}>{k}</span><span style={{ fontWeight: 700, color: '#2e7d32' }}>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="wkp-chat-messages" ref={chatEndRef}>
             {messages.map(msg => (

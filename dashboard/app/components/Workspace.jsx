@@ -1344,34 +1344,6 @@ export function Workspace({
                 <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
                 </button>
-                <button className="ws-call-btn" disabled={!isConnected} title="Compute & show carbon footprint"
-                  style={{ background: 'rgba(52,199,89,0.85)', fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0, padding: '0 6px', minWidth: 34, gap: 2 }}
-                  onClick={() => {
-                    // If footprint already computed, show that card; otherwise use formula
-                    if (footprintResult) {
-                      addMsg('ALEXANDRA', buildFootprintCard(footprintResult));
-                      if (isConnected) setTimeout(() => sendText(
-                        `The visitor's computed carbon footprint is ${footprintResult.total_kg.toFixed(2)} kg CO2 for a ${footprintResult.duration_hours}h visit. Please present the CAT token offset opportunity.`
-                      ), 500);
-                    } else {
-                      const visitHours = Math.max(elapsed, 60) / 3600;
-                      const KG_PER_HOUR = 2.8, CAT_VALUE_EUR = 0.16, INT_ROI = 0.06;
-                      const apiKg = contextApiData?.sampleData?.total_kg;
-                      const emissionsKg = apiKg ? (apiKg * visitHours / 4) : (visitHours * KG_PER_HOUR);
-                      const emKgStr = emissionsKg.toFixed(2);
-                      const offsetEUR = (emissionsKg * CAT_VALUE_EUR).toFixed(2);
-                      const annualDivEUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI).toFixed(3);
-                      const lifetime25EUR = (emissionsKg * CAT_VALUE_EUR * INT_ROI * 25).toFixed(2);
-                      const mins = Math.max(Math.round(elapsed / 60), 1);
-                      addMsg('ALEXANDRA', `**Carbon Footprint — ${mins} min visit**\n\nApproximately **${emKgStr} kg CO₂** (${emKgStr} CAT tokens).\n\n| | |\n|---|---|\n| Offset cost | €${offsetEUR} |\n| Annual INT dividend | €${annualDivEUR} |\n| 25-year return | €${lifetime25EUR} |\n\nOffset now to convert CAT → INT tokens and earn dividends from Therme's solar infrastructure.`);
-                      if (isConnected) setTimeout(() => sendText(
-                        `The visitor has been here for ${mins} minutes. Their footprint is ${emKgStr} kg CO2 (${emKgStr} CAT tokens). Offset cost is €${offsetEUR}. Please present this and pitch the CAT token offset, mentioning INT token dividends of €${annualDivEUR} per year.`
-                      ), 500);
-                    }
-                  }}
-                >
-                  🌿
-                </button>
                 <button className="ws-call-btn ws-call-btn--end" onClick={handleEndCall} disabled={!isConnected}>
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
