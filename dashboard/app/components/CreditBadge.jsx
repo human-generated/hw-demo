@@ -1,28 +1,45 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 
-export function CreditBadge({ credit = 10, usage = { voice: 0, llm: 0, platforms: 0 } }) {
+export function CreditBadge({ credit = 10, usage = { voice: 0, llm: 0, platforms: 0 }, userInitial = 'D' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
-  const cls = credit <= 0 ? 'credit-zero' : credit < 1 ? 'credit-critical' : credit < 5 ? 'credit-low' : 'credit-ok';
-  const balColor = credit <= 0 ? '#94a3b8' : credit < 1 ? '#b91c1c' : credit < 5 ? '#b45309' : '#15803d';
+
+  // Color ring: green ≥$10, orange $5–$10, red <$5
+  const bg   = credit >= 10 ? '#16a34a' : credit >= 5 ? '#d97706' : '#dc2626';
+  const ring = credit >= 10 ? 'rgba(22,163,74,0.3)' : credit >= 5 ? 'rgba(217,119,6,0.3)' : 'rgba(220,38,38,0.3)';
   const spent = Math.max(0, 10 - credit);
+
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <div className={`credit-badge ${cls}`} onClick={() => setOpen(o => !o)}>
-        ${credit.toFixed(2)}
+      <div
+        onClick={() => setOpen(o => !o)}
+        title={`Credits: $${credit.toFixed(2)}`}
+        style={{
+          width: 30, height: 30, borderRadius: '50%',
+          background: bg,
+          boxShadow: `0 0 0 3px ${ring}`,
+          color: '#fff', fontSize: 12, fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', userSelect: 'none', flexShrink: 0,
+          transition: 'background 0.3s, box-shadow 0.3s',
+        }}
+      >
+        {userInitial}
       </div>
+
       {open && (
         <div className="credit-menu">
           <div className="credit-menu-hd">
             <div className="credit-menu-title">Session Credits</div>
-            <div className="credit-balance" style={{ color: balColor }}>${credit.toFixed(2)}</div>
+            <div className="credit-balance" style={{ color: bg }}>${credit.toFixed(2)}</div>
           </div>
           <div className="credit-menu-body">
             <div className="credit-row"><span className="credit-row-label">🎙️ Voice exchanges</span><span className="credit-row-val">{usage.voice}× −${(usage.voice * 0.018).toFixed(3)}</span></div>
