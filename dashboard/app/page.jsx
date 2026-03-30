@@ -937,13 +937,7 @@ function AppInner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    if (showAbout) {
-      if (hubSessionId) url.searchParams.set('hub', hubSessionId);
-      url.searchParams.set('view', 'about');
-    } else if (showPlatforms) {
-      if (hubSessionId) url.searchParams.set('hub', hubSessionId);
-      url.searchParams.set('view', 'platforms');
-    } else if (aiView && aiView !== 'login' && aiView !== null) {
+    if (aiView && aiView !== 'login' && aiView !== null) {
       if (hubSessionId) url.searchParams.set('hub', hubSessionId);
       url.searchParams.set('view', aiView);
     } else if (!aiView) {
@@ -951,7 +945,7 @@ function AppInner() {
       url.searchParams.delete('hub');
     }
     window.history.replaceState(null, '', url.toString());
-  }, [aiView, hubSessionId, showAbout, showPlatforms]);
+  }, [aiView, hubSessionId]);
 
   // Load hub session workers and handle URL params when hubSessionId changes
   useEffect(() => {
