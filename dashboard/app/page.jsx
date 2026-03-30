@@ -863,10 +863,23 @@ function AppInner() {
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
+  const [sessionCredit, setSessionCredit] = useState(10.00);
+  const [sessionUsage, setSessionUsage] = useState({ voice: 0, llm: 0, platforms: 0 });
+  const addCost = useCallback((amount, type) => {
+    setSessionCredit(prev => Math.max(0, parseFloat((prev - amount).toFixed(4))));
+    setSessionUsage(prev => {
+      const k = type === 'voice' ? 'voice' : type === 'platform' ? 'platforms' : 'llm';
+      return { ...prev, [k]: prev[k] + 1 };
+    });
+  }, []);
+  // Reset credit on new hub session
+  useEffect(() => { setSessionCredit(10.00); setSessionUsage({ voice: 0, llm: 0, platforms: 0 }); }, [hubSessionId]);
+  const creditBlocked = sessionCredit <= 0;
+
   const [hubLocked, setHubLocked] = useState(false); // true when ?lock=true — hides back/switcher
   const [showHubPicker, setShowHubPicker] = useState(false); // shown after login
   const [showWizard, setShowWizard] = useState(false);
-  const [showPlatforms, setShowPlatforms] = useState(false);
+  // showPlatforms removed — use aiView === 'platforms' instead
   const [showAbout, setShowAbout] = useState(false);
   const [hubWorkers, setHubWorkers] = useState([]);
   const [hubWorkerIdParam, setHubWorkerIdParam] = useState(null);
@@ -1788,7 +1801,7 @@ function AppInner() {
               }}
               onGoHub={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
-              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoPlatforms={() => setAiView('platforms')}
               onGoAbout={() => setShowAbout(true)}
               sessionId={hubSessionId}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
@@ -1799,6 +1812,10 @@ function AppInner() {
               onSystemPromptChange={setHubSystemPrompt}
               videoEnabled={hubVideoEnabled}
               onVideoEnabledChange={setHubVideoEnabled}
+              credit={sessionCredit}
+              usage={sessionUsage}
+              addCost={addCost}
+              creditBlocked={creditBlocked}
             />
           )}
           {aiView === 'workspace' && (
@@ -1816,11 +1833,14 @@ function AppInner() {
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
               onGoHub={() => setAiView('workspace')}
               onGoWorkers={() => setAiView('workers')}
-              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoPlatforms={() => setAiView('platforms')}
               onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={hubLocked ? undefined : () => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
               onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
               onCompanyName={(name) => { if (name) setHubCompanyName(name); }}
+              credit={sessionCredit}
+              addCost={addCost}
+              creditBlocked={creditBlocked}
             />
           )}
           {aiView === 'workers' && (
@@ -1839,7 +1859,7 @@ function AppInner() {
               }}
               onGoHome={() => setAiView('home')}
               onGoHub={() => setAiView('workspace')}
-              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoPlatforms={() => setAiView('platforms')}
               onGoAbout={() => setShowAbout(true)}
               sessionId={hubSessionId}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
@@ -1881,23 +1901,23 @@ function AppInner() {
                   window.history.replaceState(null, '', url.toString());
                 }
               }}
-              onGoPlatforms={() => setShowPlatforms(true)}
+              onGoPlatforms={() => setAiView('platforms')}
               onGoAbout={() => setShowAbout(true)}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
             />
           )}
         </div>
       )}
-      {showPlatforms && (
+      {aiView === 'platforms' && (
         <PlatformsView
           sessionId={hubSessionId}
           platforms={hubPlatforms}
           companyName={hubCompanyName}
-          onClose={() => setShowPlatforms(false)}
-          onGoHome={() => { setShowPlatforms(false); setAiView('home'); }}
-          onGoHub={() => { setShowPlatforms(false); setAiView('workspace'); }}
-          onGoWorkers={() => { setShowPlatforms(false); setAiView('workers'); }}
-          onGoAbout={() => { setShowPlatforms(false); setShowAbout(true); }}
+          onClose={() => setAiView('workspace')}
+          onGoHome={() => setAiView('home')}
+          onGoHub={() => setAiView('workspace')}
+          onGoWorkers={() => setAiView('workers')}
+          onGoAbout={() => { setAiView('workspace'); setShowAbout(true); }}
           onPlatformsChange={next => setHubPlatforms(next)}
         />
       )}
@@ -1909,7 +1929,7 @@ function AppInner() {
           onGoHome={() => { setShowAbout(false); setAiView('home'); }}
           onGoHub={() => { setShowAbout(false); setAiView('workspace'); }}
           onGoWorkers={() => { setShowAbout(false); setAiView('workers'); }}
-          onGoPlatforms={() => { setShowAbout(false); setShowPlatforms(true); }}
+          onGoPlatforms={() => { setShowAbout(false); setAiView('platforms'); }}
         />
       )}
       {showSessions && (

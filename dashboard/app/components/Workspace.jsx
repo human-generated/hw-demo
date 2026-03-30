@@ -205,6 +205,9 @@ export function Workspace({
   onCompanyName,
   workerSession,
   onSystemPromptChange,
+  credit = 10,
+  addCost,
+  creditBlocked = false,
 }) {
   // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
@@ -614,7 +617,9 @@ export function Workspace({
       const sr = await fetch(`/api/demo/session/${sessionId}`);
       const sd = await sr.json();
       const deployed = (sd.platforms || []).filter(p => p.status === 'deployed');
-      setBuiltPlatforms(deployed.length > 0 ? deployed : selected.map(p => ({ ...p, status: 'deployed' })));
+      const builtList = deployed.length > 0 ? deployed : selected.map(p => ({ ...p, status: 'deployed' }));
+      setBuiltPlatforms(builtList);
+      if (addCost) builtList.forEach(() => addCost(0.050, 'platform'));
       setHubPhase(P.PLATFORMS_BUILT);
       addMsg('ALEXANDRA', `Platforms are live. ${deployed.length || selected.length} environments ready. Proposing AI workers for your team now…`);
       setTimeout(() => rightPanelRef.current?.scrollTo({ top: rightPanelRef.current.scrollHeight, behavior: 'smooth' }), 300);
@@ -971,6 +976,7 @@ export function Workspace({
     e.preventDefault();
     const text = chatInput.trim();
     if (!text || orchestratorLoading) return;
+    if (creditBlocked) { addMsg('ALEXANDRA', '⚠️ Session credit exhausted. Please top up to continue.'); return; }
     addMsg('YOU', text);
     setChatInput('');
     // Log user message to conv-log
@@ -1043,6 +1049,7 @@ export function Workspace({
       finalizeStream('Error: ' + err.message);
     }
     setOrchestratorLoading(false);
+    if (addCost) addCost(0.010, 'llm');
     // Log final agent reply to conv-log
     setMessages(prev => {
       const last = [...prev].reverse().find(m => m.author === 'ALEXANDRA' && !m.streaming);
