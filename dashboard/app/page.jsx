@@ -5,6 +5,7 @@ import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, 
 import '@xyflow/react/dist/style.css';
 import { Homepage } from './components/Homepage';
 import { Workspace } from './components/Workspace';
+import { useWorkerSession } from './components/useWorkerSession';
 import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { OnboardingFlow } from './components/OnboardingFlow';
@@ -933,6 +934,22 @@ function AppInner() {
   const pollRef = useRef(null);
   const hubInitRef = useRef(false); // only initialize hub from URL once
 
+  // ── Shared worker session (persists across home → workspace transition) ─────
+  const HP_DEFAULT_PROMPT = `You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.\n\nCRITICAL: The moment the visitor mentions ANY company name or domain — even once — you MUST confirm it and append <<NAV:CompanySlug>> at the very end of your reply (replace CompanySlug with the real company name, PascalCase, no spaces). Do NOT ask confirmation questions first. Just confirm and append the marker. Example: visitor says "I work at Global Foods" → you reply "Great, pulling up Global Foods now! <<NAV:GlobalFoods>>"`;
+  const [hubCallEnabled, setHubCallEnabled] = useState(false);
+  const [hubSystemPrompt, setHubSystemPrompt] = useState(HP_DEFAULT_PROMPT);
+  const [hubVideoEnabled, setHubVideoEnabled] = useState(true);
+  const workerSession = useWorkerSession({
+    worker: { id: 'orchestrator', name: 'Alexandra Seaman' },
+    sessionId: hubSessionId || undefined,
+    logSessionId: hubSessionId || undefined,
+    enabled: hubCallEnabled,
+    audioEnabled: true,
+    videoEnabled: hubVideoEnabled,
+    systemPrompt: hubSystemPrompt,
+    personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
+  });
+
   // Keep address bar in sync with current view (for debugging + bookmarking)
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1763,7 +1780,6 @@ function AppInner() {
                 if (client) setHubAnamClient(client);
                 if (camera) setHubCameraStream(camera);
                 if (avatarStream) setHubAvatarStream(avatarStream);
-                // Set URL to reflect workspace navigation (with hub session + view)
                 if (typeof window !== 'undefined' && hubSessionId) {
                   window.history.replaceState(null, '', `?hub=${hubSessionId}&view=workspace`);
                 }
@@ -1775,6 +1791,13 @@ function AppInner() {
               onGoAbout={() => setShowAbout(true)}
               sessionId={hubSessionId}
               onBackToDashboard={() => { setAiView(null); if (typeof window !== 'undefined') { const url = new URL(window.location.href); url.searchParams.delete('hub'); window.history.replaceState(null, '', url.toString()); } }}
+              workerSession={workerSession}
+              callEnabled={hubCallEnabled}
+              onCallEnabled={() => setHubCallEnabled(true)}
+              onCallDisabled={() => setHubCallEnabled(false)}
+              onSystemPromptChange={setHubSystemPrompt}
+              videoEnabled={hubVideoEnabled}
+              onVideoEnabledChange={setHubVideoEnabled}
             />
           )}
           {aiView === 'workspace' && (
@@ -1786,6 +1809,8 @@ function AppInner() {
               anamClient={hubAnamClient}
               cameraStream={hubCameraStream}
               sessionId={hubSessionId}
+              workerSession={workerSession}
+              onSystemPromptChange={setHubSystemPrompt}
               onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
               onGoHub={() => setAiView('workspace')}

@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MeshGradient, LiquidMetal, FlutedGlass, HalftoneDots } from '@paper-design/shaders-react';
 import { InCallCard } from './InCallCard';
 import { DockIcons } from './DockIcons';
-import { useWorkerSession } from './useWorkerSession';
 
 // Keep original Anam persona ID — LiveKit agent uses it server-side
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
@@ -78,18 +77,15 @@ function buildSystemPrompt(session, companyName) {
   return prompt;
 }
 
-export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard }) {
+export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard,
+  workerSession, callEnabled, onCallEnabled, onCallDisabled, onSystemPromptChange, videoEnabled, onVideoEnabledChange }) {
   const [companyName, setCompanyName] = useState('');
   const [ready, setReady] = useState(false);
-  const [callEnabled, setCallEnabled] = useState(false);
-  const [callId, setCallId] = useState('');
   const [companyConfirmed, setCompanyConfirmed] = useState(false);
   const [avatarEnergy, setAvatarEnergy] = useState(0);
   const [subLines, setSubLines] = useState([]); // word-streaming subtitle lines
-  const [systemPrompt, setSystemPrompt] = useState(`You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.${NAV_INSTRUCTION}`);
   const [callStartTime, setCallStartTime] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
-  const [videoEnabled, setVideoEnabled] = useState(true);
 
   const cameraStreamRef = useRef(null);
   const cameraVideoRef = useRef(null);
@@ -107,18 +103,9 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   const {
     connected, connecting, agentText, agentMarkdown, videoTrack, micMuted, needsAudioResume,
     resumeAudio, sendText, updatePrompt, toggleMute, disconnect, interrupt, audioElRef,
-  } = useWorkerSession({
-    worker: ALEXANDRA_WORKER,
-    sessionId: callId || undefined,
-    logSessionId: sessionId || undefined, // route conv logs to the hub session ID for About page
-    enabled: callEnabled,
-    audioEnabled: true,
-    videoEnabled,
-    systemPrompt,
-    personaId: ANAM_PERSONA_ID,
-  });
+  } = workerSession || {};
 
-  useEffect(() => { setReady(true); return () => { disconnect(); cameraStreamRef.current?.getTracks().forEach(t => t.stop()); }; }, []);
+  useEffect(() => { setReady(true); return () => { cameraStreamRef.current?.getTracks().forEach(t => t.stop()); }; }, []);
 
   // Attach avatar video track
   useEffect(() => {
@@ -218,27 +205,24 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   // company-research prompt to avoid bleeding session-specific context (e.g. carbon data).
 
   const handleOpenAvatar = useCallback(async () => {
-    // Fresh ID per call — prevents agent from loading old conversation history
-    setCallId('hp-' + Date.now() + '-' + Math.random().toString(36).slice(2));
     setCompanyConfirmed(false);
-    setCallEnabled(true);
+    onCallEnabled?.();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       cameraStreamRef.current = stream;
       if (cameraVideoRef.current) cameraVideoRef.current.srcObject = stream;
       setCameraOn(true);
     } catch {}
-  }, []);
+  }, [onCallEnabled]);
 
   const handleCloseAvatar = useCallback(() => {
-    setCallEnabled(false);
-    disconnect();
+    onCallDisabled?.();
     cameraStreamRef.current?.getTracks().forEach(t => t.stop());
     cameraStreamRef.current = null;
     setCameraOn(false);
     setSubLines([]);
     setCompanyConfirmed(false);
-  }, [disconnect]);
+  }, [onCallDisabled]);
 
   const handleToggleCamera = useCallback(async () => {
     if (cameraOn) {
@@ -378,7 +362,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
                 </button>
                 <button
                   className={`hp-photo-ctrl-btn hp-photo-ctrl-btn--bl${!videoEnabled ? ' hp-photo-ctrl-btn--muted' : ''}`}
-                  onClick={e => { e.stopPropagation(); setVideoEnabled(v => !v); }}
+                  onClick={e => { e.stopPropagation(); onVideoEnabledChange?.(v => !v); }}
                   aria-label={videoEnabled ? 'Hide video' : 'Show video'}
                   title={videoEnabled ? 'Hide avatar video' : 'Show avatar video'}
                 >

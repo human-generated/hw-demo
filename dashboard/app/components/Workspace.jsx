@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useWorkerSession } from './useWorkerSession';
 import { MeshGradient, LiquidMetal, FlutedGlass } from '@paper-design/shaders-react';
 import { WordsStagger } from './WordsStagger';
 import { DockIcons } from './DockIcons';
@@ -204,6 +203,8 @@ export function Workspace({
   onBackToDashboard,
   onWorkersBuilt,
   onCompanyName,
+  workerSession,
+  onSystemPromptChange,
 }) {
   // ── Chat state ─────────────────────────────────────────────────────────────
   const [chatInput, setChatInput] = useState('');
@@ -287,7 +288,7 @@ export function Workspace({
   const emissionCardSentRef = useRef(false);
   const lastAgentMarkdownRef = useRef('');
 
-  // ── LiveKit + Anam worker session ──────────────────────────────────────────
+  // ── LiveKit + Anam worker session (shared from parent, persists across home→workspace) ──
   const {
     connected: isConnected,
     connecting: isConnecting,
@@ -303,15 +304,7 @@ export function Workspace({
     disconnect: disconnectCall,
     interrupt,
     audioElRef,
-  } = useWorkerSession({
-    worker: WORKSPACE_WORKER,
-    sessionId,
-    enabled: sessionDataReady,
-    audioEnabled: true,
-    videoEnabled,
-    systemPrompt: customPrompt || undefined,
-    personaId: ANAM_PERSONA_ID,
-  });
+  } = workerSession || {};
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -345,12 +338,19 @@ export function Workspace({
     });
   }, [agentMarkdown]);
 
+  // ── Sync customPrompt changes to shared agent ──────────────────────────────
+  useEffect(() => {
+    if (!customPrompt) return;
+    onSystemPromptChange?.(customPrompt);
+    if (isConnected) updatePrompt?.(customPrompt);
+  }, [customPrompt]);
+
   // ── Trigger opening greeting after connection ───────────────────────────────
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !sessionDataReady) return;
     setCallStartTime(Date.now());
-    setTimeout(() => sendText('[START_PRESENTATION]'), 1200);
-  }, [isConnected]);
+    setTimeout(() => sendText?.('[START_PRESENTATION]'), 1200);
+  }, [isConnected, sessionDataReady]);
 
   // ── User camera PiP ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -423,12 +423,12 @@ export function Workspace({
         // Load standalone deploy status
         if (sessionD.deployStandalone) setDeployStatus(sessionD.deployStandalone);
 
-        // Restore saved system prompt immediately (before Anam call fires VIDEO_PLAY_STARTED)
+        // Restore saved system prompt immediately and push to shared agent
         const savedPrompt = sessionD.settings?.systemPrompt;
         if (savedPrompt) {
           setCustomPrompt(savedPrompt);
           customPromptRef.current = savedPrompt;
-          // Initial message will be replaced by agent's first reply (via agentMarkdown effect)
+          onSystemPromptChange?.(savedPrompt);
         }
 
         // Avatar role label (configurable per demo)
