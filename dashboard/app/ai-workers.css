@@ -1088,37 +1088,31 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- Homepage call controls (mute/interrupt row) ---- */
+/* ---- Homepage in-photo control buttons (mute / interrupt) ---- */
 
-.hp-call-controls {
-  position: absolute;
-  top: 748px;
-  left: 50%;
-  translate: -50%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 20;
-  animation: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.hp-call-ctrl-btn {
+.hp-photo-ctrl-btn {
   all: unset;
-  width: 36px;
-  height: 36px;
+  position: absolute;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
-  color: #fff;
-  background: #1a1a1a;
+  z-index: 15;
+  color: #111;
+  transition: background 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-.hp-call-ctrl-btn:hover { transform: scale(1.1); }
-.hp-call-ctrl-btn--muted { background: #ff3b30; }
-.hp-call-ctrl-btn--interrupt { background: #ff9500; }
+.hp-photo-ctrl-btn:hover { background: rgba(255,255,255,0.96); transform: scale(1.12); }
+.hp-photo-ctrl-btn--tr { top: 10px; right: 10px; }
+.hp-photo-ctrl-btn--br { bottom: 10px; right: 10px; }
+.hp-photo-ctrl-btn--muted { background: #ff3b30; color: #fff; }
 
 /* ---- Floating card slot (InCallCard) ---- */
 

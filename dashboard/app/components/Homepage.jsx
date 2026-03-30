@@ -217,11 +217,13 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     const text = companyName.trim();
     if (!text) return;
     if (callEnabled && connected) {
+      // In call: send as message, don't navigate away
       sendText(text);
       setCompanyName('');
+    } else {
+      // Not in call: company name typed → navigate to hub
+      onSubmit?.(text, null, null, null);
     }
-    // Navigate to hub whenever company name is typed (call or not)
-    onSubmit?.(text, null, null, null);
   }
 
   const hubCb = onGoHub || onGoCall;
@@ -287,6 +289,44 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
                 Tap to enable audio
               </button>
             )}
+            {callEnabled && connected && (
+              <>
+                <button
+                  className={`hp-photo-ctrl-btn hp-photo-ctrl-btn--tr${micMuted ? ' hp-photo-ctrl-btn--muted' : ''}`}
+                  onClick={e => { e.stopPropagation(); toggleMute(); }}
+                  aria-label={micMuted ? 'Unmute' : 'Mute'}
+                  title={micMuted ? 'Unmute' : 'Mute'}
+                >
+                  {micMuted ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                      <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                      <path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                      <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                      <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
+                <button
+                  className="hp-photo-ctrl-btn hp-photo-ctrl-btn--br"
+                  onClick={e => { e.stopPropagation(); interrupt(); }}
+                  aria-label="Interrupt"
+                  title="Interrupt"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+                  </svg>
+                </button>
+              </>
+            )}
           </div>
 
           <span className="hp-name">Alexandra{'\n'}Seaman</span>
@@ -301,44 +341,6 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
           <div className="hp-barcode"><BarcodeSvg /></div>
         </div>
       </div>
-
-      {callEnabled && connected && (
-        <div className="hp-call-controls">
-          <button
-            className={`hp-call-ctrl-btn${micMuted ? ' hp-call-ctrl-btn--muted' : ''}`}
-            onClick={toggleMute}
-            aria-label={micMuted ? 'Unmute microphone' : 'Mute microphone'}
-          >
-            {micMuted ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            )}
-          </button>
-          <button
-            className="hp-call-ctrl-btn hp-call-ctrl-btn--interrupt"
-            onClick={interrupt}
-            aria-label="Interrupt"
-            title="Interrupt"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>
-              <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-      )}
 
       {subtitleText && (
         <WordsStagger
