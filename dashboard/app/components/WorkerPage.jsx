@@ -211,6 +211,8 @@ export function PlatformPreviewCard({ platform, sessionId, companyName, style })
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
   const chatEndRef = useRef(null);
 
   const slug = (companyName || 'company').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -235,6 +237,21 @@ export function PlatformPreviewCard({ platform, sessionId, companyName, style })
   const platformIcons = { crm: '👥', support: '🎫', analytics: '📊', erp: '📦', messaging: '💬', ecommerce: '🛒', hr: '🏢', billing: '💳' };
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatHistory]);
+
+  async function handleRestart() {
+    if (restarting || !sessionId) return;
+    setRestarting(true);
+    try {
+      await fetch(`/api/demo/platform-restart/${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: platform.actual_software || platform.name }),
+      });
+      await new Promise(r => setTimeout(r, 5000));
+      setIframeKey(k => k + 1);
+    } catch {}
+    setRestarting(false);
+  }
 
   async function sendChat(e) {
     e.preventDefault();
@@ -276,6 +293,11 @@ export function PlatformPreviewCard({ platform, sessionId, companyName, style })
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             Chat
           </button>
+          {sessionId && platform.sandboxId && (
+            <button className="wkp-platform-action-btn" onClick={handleRestart} disabled={restarting} title="Restart platform server">
+              {restarting ? '…' : '↺'}
+            </button>
+          )}
           <a href={platform.url} target="_blank" rel="noopener noreferrer" className="wkp-platform-action-btn">
             Open ↗
           </a>
@@ -293,6 +315,7 @@ export function PlatformPreviewCard({ platform, sessionId, companyName, style })
       <div className="wkp-platform-frame">
         {isBuilt ? (
           <iframe
+            key={iframeKey}
             src={proxyUrl}
             title={platform.name}
             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
