@@ -348,8 +348,8 @@ export function Workspace({
     if (type === 'build_platforms') {
       const voicePlatforms = params?.platforms;
       if (voicePlatforms?.length) {
-        // Use the specific platforms the user asked for
-        const list = voicePlatforms.map(p => ({ ...p, _selected: true }));
+        // Normalize id from type field (orchestrate may return 'type' instead of 'id')
+        const list = voicePlatforms.map(p => ({ ...p, id: p.id || p.type || 'crm', _selected: true }));
         setProposedPlatforms(list);
         setTimeout(() => handleBuildPlatforms(list), 600);
       } else if (proposedPlatforms.length > 0) {
