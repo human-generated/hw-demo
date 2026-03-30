@@ -167,13 +167,33 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
 
   // Auto-navigate when agent detects company name (<<NAV:CompanyName>> marker)
   useEffect(() => {
-    if (!agentMarkdown) return;
+    if (!agentMarkdown || !connected) return;
     const m = agentMarkdown.match(/<<NAV:([^>]+)>>/);
-    if (m) {
-      const company = m[1].trim();
-      console.log('[Homepage] agent detected company, navigating to hub:', company);
-      onSubmit?.(company, null, null, null);
-    }
+    if (!m) return;
+    const raw = m[1].trim();
+    // Skip placeholder text the LLM might emit from the instruction example
+    const skip = ['CompanyName', 'companyname', 'company', 'placeholder', 'companyname', 'example', 'yourcompany'];
+    if (!raw || skip.includes(raw.toLowerCase())) return;
+    console.log('[Homepage] agent detected company, looking up:', raw);
+    // Look up domain + ticker before navigating
+    fetch('/api/demo/company-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: raw }),
+      signal: AbortSignal.timeout(8000),
+    })
+      .then(r => r.json())
+      .then(info => {
+        const name = info.fullName || raw;
+        const suffix = [info.domain, info.ticker ? `$${info.ticker}` : null].filter(Boolean).join(' · ');
+        const label = suffix ? `${name} (${suffix})` : name;
+        console.log('[Homepage] company lookup result:', info, '→ navigating with:', label);
+        onSubmit?.(label, null, null, null);
+      })
+      .catch(() => {
+        console.log('[Homepage] lookup failed, navigating with raw name:', raw);
+        onSubmit?.(raw, null, null, null);
+      });
   }, [agentMarkdown]);
 
   // Energy animation (tracks when agent is speaking)
@@ -192,18 +212,8 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     return () => { cancelled = true; cancelAnimationFrame(energyRafRef.current); setAvatarEnergy(0); };
   }, [callEnabled, connected]);
 
-  // Feed session info to Alexandra as soon as it's available
-  useEffect(() => {
-    if (!sessionId) return;
-    fetch(`/api/demo/session/${sessionId}`, { cache: 'no-store' })
-      .then(r => r.json())
-      .then(d => {
-        const prompt = buildSystemPrompt(d, companyName);
-        setSystemPrompt(prompt);
-        if (connected) updatePrompt(prompt);
-      })
-      .catch(() => {});
-  }, [sessionId, connected]);
+  // Note: homepage intentionally does NOT load session data — it uses a generic
+  // company-research prompt to avoid bleeding session-specific context (e.g. carbon data).
 
   const handleOpenAvatar = useCallback(async () => {
     // Fresh ID per call — prevents agent from loading old conversation history
@@ -411,6 +421,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
           muted={micMuted} cameraOn={cameraOn}
           onToggleMute={toggleMute} onToggleCamera={handleToggleCamera}
           onEndCall={handleCloseAvatar} onInterrupt={interrupt}
+          onSessions={onBackToDashboard}
           startTime={callStartTime} cameraVideoRef={attachCamera}
         />
       </div>
