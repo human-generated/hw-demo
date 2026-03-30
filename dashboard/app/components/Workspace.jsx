@@ -377,9 +377,9 @@ export function Workspace({
     return () => clearInterval(id);
   }, [isConnected, callStartTime]);
 
-  // ── Auto-emit carbon footprint card after 60s of call ─────────────────────
+  // ── Auto-emit carbon footprint card after 60s of call (Therme sessions only) ─
   useEffect(() => {
-    if (!isConnected || elapsed < 60 || emissionCardSentRef.current) return;
+    if (!isConnected || elapsed < 60 || emissionCardSentRef.current || !contextApiData) return;
     emissionCardSentRef.current = true;
     const visitHours = elapsed / 3600;
     const KG_PER_HOUR = 2.8;

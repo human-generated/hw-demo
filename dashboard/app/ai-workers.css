@@ -1112,6 +1112,7 @@ body {
 .hp-photo-ctrl-btn:hover { background: rgba(255,255,255,0.96); transform: scale(1.12); }
 .hp-photo-ctrl-btn--tr { top: 10px; right: 10px; }
 .hp-photo-ctrl-btn--br { bottom: 10px; right: 10px; }
+.hp-photo-ctrl-btn--bl { bottom: 10px; left: 10px; }
 .hp-photo-ctrl-btn--muted { background: #ff3b30; color: #fff; }
 
 /* ---- Floating card slot (InCallCard) ---- */

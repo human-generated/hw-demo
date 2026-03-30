@@ -521,6 +521,7 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
   const [apiCheckedAt, setApiCheckedAt] = useState(null);
   const [convLog, setConvLog] = useState([]);
   const [convLoading, setConvLoading] = useState(false);
+  const [expandedConvs, setExpandedConvs] = useState({});
 
   useEffect(() => {
     if (!sessionId) return;
@@ -703,35 +704,75 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(0,0,0,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em', flex: 1 }}>
               Conversation Log <span style={{ fontWeight: 400, opacity: 0.6 }}>({convLog.length})</span>
             </div>
+            {sessionId && (
+              <span onClick={e => { navigator.clipboard?.writeText(sessionId).catch(() => {}); const t = e.currentTarget; const orig = t.textContent; t.textContent = 'copied!'; setTimeout(() => { t.textContent = orig; }, 1200); }}
+                title="Click to copy session ID" style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: 'rgba(0,0,0,0.35)', cursor: 'pointer', padding: '2px 6px', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 4, background: 'rgba(0,0,0,0.03)' }}>
+                {sessionId}
+              </span>
+            )}
             <button onClick={loadConvLog} disabled={convLoading} style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: 8, fontSize: '0.7rem', cursor: convLoading ? 'default' : 'pointer', color: 'rgba(0,0,0,0.55)', fontFamily: 'inherit', opacity: convLoading ? 0.6 : 1 }}>
               {convLoading ? 'Loading…' : '↻ Refresh'}
             </button>
-            {convLog.length > 0 && (
-              <button onClick={() => setConvLog([])} style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, fontSize: '0.7rem', cursor: 'pointer', color: '#b91c1c', fontFamily: 'inherit' }}>Clear</button>
-            )}
           </div>
           {convLog.length === 0 && !convLoading && (
             <div style={{ textAlign: 'center', padding: '1rem 0', fontSize: '0.72rem', color: 'rgba(0,0,0,0.28)', fontStyle: 'italic' }}>No conversation history yet for this session.</div>
           )}
-          {convLog.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 420, overflowY: 'auto', padding: '4px 0' }}>
-              {[...convLog].reverse().map((entry, i) => {
-                const isUser = entry.role === 'user';
-                const ts = new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const pageLabel = entry.page || entry.workerId || '';
-                return (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0.5rem 0.75rem', borderRadius: 10, background: isUser ? 'rgba(59,130,246,0.07)' : 'rgba(255,255,255,0.65)', border: isUser ? '1px solid rgba(59,130,246,0.14)' : '1px solid rgba(0,0,0,0.07)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: isUser ? '#2563eb' : '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{isUser ? 'User' : 'Agent'}</span>
-                      {pageLabel && <span style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.3)', background: 'rgba(0,0,0,0.05)', padding: '1px 5px', borderRadius: 4 }}>{pageLabel}</span>}
-                      <span style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.3)', marginLeft: 'auto', fontFamily: 'monospace' }}>{ts}</span>
+          {convLog.length > 0 && (() => {
+            // Group entries by room (each call attempt = one conversation)
+            const groups = [];
+            const seen = new Map();
+            [...convLog].reverse().forEach(entry => {
+              const key = entry.room || entry.page || 'default';
+              if (!seen.has(key)) {
+                seen.set(key, { key, room: entry.room, page: entry.page, entries: [], firstTs: entry.ts });
+                groups.push(seen.get(key));
+              }
+              seen.get(key).entries.push(entry);
+            });
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 520, overflowY: 'auto', padding: '4px 0' }}>
+                {groups.map(group => {
+                  const isExpanded = expandedConvs[group.key] !== false; // expanded by default
+                  const ts = new Date(group.firstTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  const pageLabel = group.page || '';
+                  const shortRoom = group.room ? group.room.slice(-12) : group.key.slice(-12);
+                  return (
+                    <div key={group.key} style={{ border: '1px solid rgba(0,0,0,0.07)', borderRadius: 10, background: 'rgba(255,255,255,0.5)', overflow: 'hidden' }}>
+                      <div onClick={() => setExpandedConvs(prev => ({ ...prev, [group.key]: !isExpanded }))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0.45rem 0.75rem', cursor: 'pointer', userSelect: 'none', borderBottom: isExpanded ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(0,0,0,0.35)', transform: isExpanded ? 'rotate(90deg)' : 'none', display: 'inline-block', transition: 'transform 0.15s' }}>▶</span>
+                        {pageLabel && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: pageLabel === 'homepage' ? '#7c3aed' : '#059669', background: pageLabel === 'homepage' ? 'rgba(124,58,237,0.08)' : 'rgba(5,150,105,0.08)', padding: '1px 5px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{pageLabel}</span>}
+                        <span style={{ fontSize: '0.62rem', color: 'rgba(0,0,0,0.45)', fontWeight: 500 }}>{group.entries.length} message{group.entries.length !== 1 ? 's' : ''}</span>
+                        <span style={{ flex: 1 }} />
+                        <span onClick={e => { e.stopPropagation(); navigator.clipboard?.writeText(group.room || group.key).catch(() => {}); const t = e.currentTarget; const orig = t.textContent; t.textContent = 'copied!'; setTimeout(() => { t.textContent = orig; }, 1200); }}
+                          title="Copy room/conversation ID" style={{ fontFamily: 'monospace', fontSize: '0.55rem', color: 'rgba(0,0,0,0.28)', cursor: 'pointer', padding: '1px 4px', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 3 }}>
+                          {shortRoom}
+                        </span>
+                        <span style={{ fontSize: '0.6rem', color: 'rgba(0,0,0,0.28)', fontFamily: 'monospace' }}>{ts}</span>
+                      </div>
+                      {isExpanded && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0.35rem 0.5rem' }}>
+                          {group.entries.map((entry, i) => {
+                            const isUser = entry.role === 'user';
+                            const ets = new Date(entry.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                            return (
+                              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0.35rem 0.55rem', borderRadius: 7, background: isUser ? 'rgba(59,130,246,0.07)' : 'rgba(0,0,0,0.02)', border: isUser ? '1px solid rgba(59,130,246,0.12)' : '1px solid rgba(0,0,0,0.05)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span style={{ fontSize: '0.62rem', fontWeight: 700, color: isUser ? '#2563eb' : '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{isUser ? 'User' : 'Agent'}</span>
+                                  <span style={{ fontSize: '0.58rem', color: 'rgba(0,0,0,0.28)', marginLeft: 'auto', fontFamily: 'monospace' }}>{ets}</span>
+                                </div>
+                                <div style={{ fontSize: '0.73rem', color: 'rgba(0,0,0,0.7)', lineHeight: 1.5, wordBreak: 'break-word' }}>{entry.text}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.7)', lineHeight: 1.5, wordBreak: 'break-word' }}>{entry.text}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -896,7 +937,13 @@ function AppInner() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    if (aiView && aiView !== 'login' && aiView !== null) {
+    if (showAbout) {
+      if (hubSessionId) url.searchParams.set('hub', hubSessionId);
+      url.searchParams.set('view', 'about');
+    } else if (showPlatforms) {
+      if (hubSessionId) url.searchParams.set('hub', hubSessionId);
+      url.searchParams.set('view', 'platforms');
+    } else if (aiView && aiView !== 'login' && aiView !== null) {
       if (hubSessionId) url.searchParams.set('hub', hubSessionId);
       url.searchParams.set('view', aiView);
     } else if (!aiView) {
@@ -904,7 +951,7 @@ function AppInner() {
       url.searchParams.delete('hub');
     }
     window.history.replaceState(null, '', url.toString());
-  }, [aiView, hubSessionId]);
+  }, [aiView, hubSessionId, showAbout, showPlatforms]);
 
   // Load hub session workers and handle URL params when hubSessionId changes
   useEffect(() => {

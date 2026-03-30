@@ -89,6 +89,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   const [systemPrompt, setSystemPrompt] = useState(`You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.${NAV_INSTRUCTION}`);
   const [callStartTime, setCallStartTime] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [videoEnabled, setVideoEnabled] = useState(true);
 
   const cameraStreamRef = useRef(null);
   const cameraVideoRef = useRef(null);
@@ -112,7 +113,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     logSessionId: sessionId || undefined, // route conv logs to the hub session ID for About page
     enabled: callEnabled,
     audioEnabled: true,
-    videoEnabled: true,
+    videoEnabled,
     systemPrompt,
     personaId: ANAM_PERSONA_ID,
   });
@@ -374,6 +375,25 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
                     <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>
                     <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>
                   </svg>
+                </button>
+                <button
+                  className={`hp-photo-ctrl-btn hp-photo-ctrl-btn--bl${!videoEnabled ? ' hp-photo-ctrl-btn--muted' : ''}`}
+                  onClick={e => { e.stopPropagation(); setVideoEnabled(v => !v); }}
+                  aria-label={videoEnabled ? 'Hide video' : 'Show video'}
+                  title={videoEnabled ? 'Hide avatar video' : 'Show avatar video'}
+                >
+                  {videoEnabled ? (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <path d="M15 10l4.55-2.95A1 1 0 0121 8v8a1 1 0 01-1.45.9L15 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <rect x="1" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                      <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+                      <path d="M15 10l4.55-2.95A1 1 0 0121 8v8a1 1 0 01-1.45.9L15 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <rect x="1" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
                 </button>
               </>
             )}
