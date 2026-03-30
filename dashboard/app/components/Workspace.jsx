@@ -1353,6 +1353,11 @@ export function Workspace({
               <video ref={avatarVideoRef} autoPlay playsInline className="ws-badge-video" style={{ display: isConnected && videoEnabled ? 'block' : 'none' }} />
               {audioElRef && <audio ref={audioElRef} autoPlay />}
               {isConnected && <div className="ws-badge-video-fade" />}
+              {needsAudioResume && (
+                <button onClick={resumeAudio} style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(0,0,0,0.55)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600, borderRadius: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.02em' }}>
+                  Tap to enable audio
+                </button>
+              )}
               <button className={`ws-avatar-mute ${avatarMuted ? 'ws-avatar-mute--on' : ''} ${isConnected ? '' : 'ws-avatar-mute--hidden'}`} onClick={handleToggleAvatarMute}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
