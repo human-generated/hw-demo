@@ -11,7 +11,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  *  - Anam: intercepts TTS audio → lip-synced video track (if videoEnabled)
  *  - Browser: subscribes to audio + video tracks from agent
  */
-export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = true, videoEnabled, systemPrompt, personaId, logSessionId }) {
+export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = true, videoEnabled, systemPrompt, personaId, logSessionId, mode }) {
   const roomRef = useRef(null);
   const dgWsRef = useRef(null);       // Deepgram WebSocket
   const audioCtxRef = useRef(null);   // AudioContext for mic capture
@@ -137,6 +137,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
             videoEnabled,
             personaId: personaId || worker.personaId || '6ccddf38-aed1-4bbb-9809-fc92986eb436',
             systemPrompt,
+            mode: mode || 'workspace',
           }),
         });
         const { token, url } = await resp.json();
@@ -232,17 +233,17 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     };
   }, [connected]);
 
-  // Send prompt update when systemPrompt changes (after connection)
+  // Send prompt update when systemPrompt or mode changes (after connection)
   useEffect(() => {
     if (!connected || !systemPrompt) return;
     const room = roomRef.current;
     if (room) {
       room.localParticipant?.publishData(
-        new TextEncoder().encode(JSON.stringify({ type: 'update_prompt', prompt: systemPrompt })),
+        new TextEncoder().encode(JSON.stringify({ type: 'update_prompt', prompt: systemPrompt, mode: mode || 'workspace' })),
         { reliable: true }
       );
     }
-  }, [connected, systemPrompt]);
+  }, [connected, systemPrompt, mode]);
 
   // Notify agent when videoEnabled changes
   useEffect(() => {

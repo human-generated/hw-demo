@@ -948,6 +948,7 @@ function AppInner() {
     videoEnabled: hubVideoEnabled,
     systemPrompt: hubSystemPrompt,
     personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
+    mode: aiView === 'home' ? 'homepage' : 'workspace',
   });
 
   // Keep address bar in sync with current view (for debugging + bookmarking)

@@ -5,11 +5,11 @@ const LK_API_KEY = process.env.LIVEKIT_API_KEY || 'API5rrq8TTVJ2kR';
 const LK_API_SECRET = process.env.LIVEKIT_API_SECRET || 'n2qZvHrSq9A2Ps1Vhqxf3aB9D6cmc5fX9bUTvp2PgUI';
 
 export async function POST(req) {
-  const { roomName, participantName, sessionId, logSessionId, workerId, videoEnabled, personaId, systemPrompt } = await req.json();
+  const { roomName, participantName, sessionId, logSessionId, workerId, videoEnabled, personaId, systemPrompt, mode } = await req.json();
 
   const token = new AccessToken(LK_API_KEY, LK_API_SECRET, {
     identity: participantName,
-    metadata: JSON.stringify({ sessionId, logSessionId, workerId, videoEnabled, personaId, systemPrompt }),
+    metadata: JSON.stringify({ sessionId, logSessionId, workerId, videoEnabled, personaId, systemPrompt, mode: mode || 'workspace' }),
   });
 
   token.addGrant({
