@@ -58,6 +58,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
 
         room.on(RoomEvent.Connected, async () => {
           if (!cancelled) {
+            console.log('[LiveKit] Room connected:', roomName, '| sessionId:', sessionId, '| workerId:', worker?.id);
             setConnected(true);
             setConnecting(false);
             // Attempt to unlock AudioContext after connection (user gesture already occurred)

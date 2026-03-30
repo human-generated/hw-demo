@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MeshGradient, LiquidMetal, FlutedGlass, HalftoneDots } from '@paper-design/shaders-react';
 import { InCallCard } from './InCallCard';
 import { DockIcons } from './DockIcons';
-import { WordsStagger } from './WordsStagger';
 import { useWorkerSession } from './useWorkerSession';
 
 // Keep original Anam persona ID — LiveKit agent uses it server-side
@@ -51,10 +50,12 @@ function useCursorTracking(ref) {
   }, [ref]);
 }
 
+const NAV_INSTRUCTION = `\n\nIMPORTANT: When you identify the visitor's company name or domain from what they say, immediately confirm it in one short sentence, then append <<NAV:CompanyName>> at the very end of your response (replace CompanyName with the actual name, no spaces). Example: "Great, let me pull up everything on Therme right away! <<NAV:Therme>>"`;
+
 function buildSystemPrompt(session, companyName) {
   const co = session?.company;
   const name = co?.name || companyName || 'the company';
-  let prompt = `You are Alexandra Seaman, HR specialist at Humans.AI. You are speaking with someone from ${name}.`;
+  let prompt = `You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. You are speaking with someone from ${name}. Your goal is to identify their company and gather initial information to prepare a personalised demo.`;
   if (co?.industry) prompt += ` The company operates in the ${co.industry} sector.`;
   if (co?.size) prompt += ` Size: ${co.size}.`;
   if (co?.description) prompt += ` About them: ${co.description}`;
@@ -72,7 +73,8 @@ function buildSystemPrompt(session, companyName) {
     });
     prompt += `Address them by name when appropriate.`;
   }
-  prompt += `\n\nBe warm, professional, and concise. Help them understand how Humans.AI can assist their team.`;
+  prompt += `\n\nKeep responses very short (1-2 sentences). Be warm, professional, and curious about their business.`;
+  prompt += NAV_INSTRUCTION;
   return prompt;
 }
 
@@ -83,8 +85,8 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   const [callId, setCallId] = useState('');
   const [companyConfirmed, setCompanyConfirmed] = useState(false);
   const [avatarEnergy, setAvatarEnergy] = useState(0);
-  const [subtitleText, setSubtitleText] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('You are Alexandra Seaman, HR specialist at Humans.AI. Be warm, professional, and helpful.');
+  const [subLines, setSubLines] = useState([]); // word-streaming subtitle lines
+  const [systemPrompt, setSystemPrompt] = useState(`You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.${NAV_INSTRUCTION}`);
   const [callStartTime, setCallStartTime] = useState(null);
   const [cameraOn, setCameraOn] = useState(false);
 
@@ -96,6 +98,8 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   const badgeGroupRef = useRef(null);
   const energyRafRef = useRef(0);
   const lastWordTimeRef = useRef(0);
+  const wordSeqRef = useRef(0);
+  const lineSeqRef = useRef(0);
 
   useCursorTracking(badgeGroupRef);
 
@@ -128,16 +132,49 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     if (!connected) setCallStartTime(null);
   }, [connected]);
 
-  // Subtitles from agent
+  // Word-streaming subtitle (replicates ai-workers-app per-word blur/opacity animation)
   useEffect(() => {
     if (!agentText || agentText === lastAgentTextRef.current) return;
     lastAgentTextRef.current = agentText;
-    setSubtitleText(agentText);
     setCompanyConfirmed(true);
     lastWordTimeRef.current = Date.now();
+
+    const words = agentText.split(' ').filter(w => w.length > 0);
+    let idx = 0;
+    const intervalId = setInterval(() => {
+      if (idx >= words.length) { clearInterval(intervalId); return; }
+      const word = words[idx++];
+      const wid = ++wordSeqRef.current;
+      setSubLines(prev => {
+        const lines = prev.map(l => ({ ...l, words: [...l.words] }));
+        const last = lines[lines.length - 1];
+        const punctBreak = last?.words.length && /[.!?;]$/.test(last.words[last.words.length - 1].text);
+        const needNewLine = !last || last.words.length >= 6 || punctBreak;
+        if (needNewLine) {
+          lines.push({ id: ++lineSeqRef.current, words: [{ text: word, wid }] });
+        } else {
+          lines[lines.length - 1].words.push({ text: word, wid });
+        }
+        return lines.filter(l => l.words.some(w => wordSeqRef.current - w.wid < 20));
+      });
+      lastWordTimeRef.current = Date.now();
+    }, 85);
+
     if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
-    subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 6000);
+    subtitleTimerRef.current = setTimeout(() => setSubLines([]), 6000);
+    return () => clearInterval(intervalId);
   }, [agentText]);
+
+  // Auto-navigate when agent detects company name (<<NAV:CompanyName>> marker)
+  useEffect(() => {
+    if (!agentMarkdown) return;
+    const m = agentMarkdown.match(/<<NAV:([^>]+)>>/);
+    if (m) {
+      const company = m[1].trim();
+      console.log('[Homepage] agent detected company, navigating to hub:', company);
+      onSubmit?.(company, null, null, null);
+    }
+  }, [agentMarkdown]);
 
   // Energy animation (tracks when agent is speaking)
   useEffect(() => {
@@ -187,7 +224,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     cameraStreamRef.current?.getTracks().forEach(t => t.stop());
     cameraStreamRef.current = null;
     setCameraOn(false);
-    setSubtitleText('');
+    setSubLines([]);
     setCompanyConfirmed(false);
   }, [disconnect]);
 
@@ -218,10 +255,12 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     if (!text) return;
     if (callEnabled && connected) {
       // In call: send as message, don't navigate away
+      console.log('[Homepage] sending text to agent in call:', text);
       sendText(text);
       setCompanyName('');
     } else {
       // Not in call: company name typed → navigate to hub
+      console.log('[Homepage] navigating to hub from text input:', text);
       onSubmit?.(text, null, null, null);
     }
   }
@@ -342,17 +381,29 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
         </div>
       </div>
 
-      {subtitleText && (
-        <WordsStagger
-          key={subtitleText}
-          className="hp-lyrics"
-          style={{ flexDirection: 'row', gap: '0.35em', alignItems: 'baseline', justifyContent: 'center' }}
-          stagger={0.06}
-          speed={0.4}
-        >
-          {subtitleText}
-        </WordsStagger>
-      )}
+      {subLines.length > 0 && (() => {
+        const latestWid = subLines[subLines.length - 1].words[subLines[subLines.length - 1].words.length - 1].wid;
+        const lastLineIdx = subLines.length - 1;
+        return (
+          <div className="hp-lyrics" aria-live="polite">
+            {subLines.map((line, lineIdx) => {
+              const lineAge = lastLineIdx - lineIdx;
+              return (
+                <div key={line.id} className="hp-lyrics-line" style={{ filter: lineAge > 0 ? `blur(${lineAge * 10}px)` : undefined, opacity: Math.max(1 - lineAge * 0.7, 0) }}>
+                  {line.words.map(w => {
+                    const age = latestWid - w.wid;
+                    return (
+                      <span key={w.wid} className="hp-lyrics-word" style={{ filter: `blur(${Math.min(age * 1.2, 10)}px)`, opacity: Math.max(1 - age * 0.06, 0.3) }}>
+                        {w.text}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       <div className="hp-floating-card">
         <InCallCard
@@ -382,7 +433,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
       </form>
 
       {ready && callEnabled && connected && companyConfirmed && (
-        <button className="hp-continue-btn" onClick={() => { onSubmit?.(companyName.trim() || 'the company', null, null, null); }}>
+        <button className="hp-continue-btn" onClick={() => { console.log('[Homepage] Continue button clicked'); onSubmit?.(companyName.trim() || 'the company', null, null, null); }}>
           Continue to Hub
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
