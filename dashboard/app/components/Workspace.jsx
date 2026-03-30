@@ -328,14 +328,32 @@ export function Workspace({
   useEffect(() => {
     if (!agentMarkdown || agentMarkdown === lastAgentMarkdownRef.current) return;
     lastAgentMarkdownRef.current = agentMarkdown;
+
+    // Extract and strip voice action markers e.g. <<ACTION:build_platforms>>
+    const actionMatch = agentMarkdown.match(/<<ACTION:([^>]+)>>/);
+    const cleanMarkdown = agentMarkdown.replace(/<<ACTION:[^>]+>>/g, '').trim();
+
     setMessages(prev => {
       const hasDefault = prev.some(m => m._isDefault);
       if (hasDefault) {
-        // Replace the initial placeholder with the actual agent greeting
-        return prev.map(m => m._isDefault ? { ...m, text: agentMarkdown, _isDefault: false } : m);
+        return prev.map(m => m._isDefault ? { ...m, text: cleanMarkdown, _isDefault: false } : m);
       }
-      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: agentMarkdown, time: 'Just now', isUser: false }];
+      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: cleanMarkdown, time: 'Just now', isUser: false }];
     });
+
+    // Trigger voice-driven actions
+    if (actionMatch) {
+      const actionType = actionMatch[1];
+      setTimeout(() => {
+        if (actionType === 'build_platforms' && proposedPlatforms.length > 0) {
+          handleBuildPlatforms();
+        } else if (actionType === 'propose_workers') {
+          proposeWorkers();
+        } else if (actionType === 'start_research' || actionType === 'full_setup') {
+          // research is typically already in progress via startResearch
+        }
+      }, 800);
+    }
   }, [agentMarkdown]);
 
   // ── Sync customPrompt changes to shared agent ──────────────────────────────

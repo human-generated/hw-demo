@@ -731,7 +731,7 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
               seen.get(key).entries.push(entry);
             });
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 520, overflowY: 'auto', padding: '4px 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '4px 0' }}>
                 {groups.map(group => {
                   const isExpanded = expandedConvs[group.key] !== false; // expanded by default
                   const ts = new Date(group.firstTs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
