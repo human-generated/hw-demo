@@ -892,6 +892,20 @@ function AppInner() {
   const pollRef = useRef(null);
   const hubInitRef = useRef(false); // only initialize hub from URL once
 
+  // Keep address bar in sync with current view (for debugging + bookmarking)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (aiView && aiView !== 'login' && aiView !== null) {
+      if (hubSessionId) url.searchParams.set('hub', hubSessionId);
+      url.searchParams.set('view', aiView);
+    } else if (!aiView) {
+      url.searchParams.delete('view');
+      url.searchParams.delete('hub');
+    }
+    window.history.replaceState(null, '', url.toString());
+  }, [aiView, hubSessionId]);
+
   // Load hub session workers and handle URL params when hubSessionId changes
   useEffect(() => {
     if (!hubSessionId) return;
@@ -1034,7 +1048,8 @@ function AppInner() {
           setHubCompanyName(hd?.company?.name || hd?.company || null);
           setShowHubPicker(false);
           if (searchParams.get('lock') === 'true') setHubLocked(true);
-          setAiView('workspace');
+          // Go to home (homepage) first — user must go through Alexandra before entering workspace
+          setAiView(searchParams.get('view') === 'workspace' ? 'workspace' : 'home');
           // Also load main session from localStorage so dashboard still works
         }
       }
@@ -1652,7 +1667,6 @@ function AppInner() {
             setHubCompanyName(s.company || null);
             setHubWorkers([]);
             setHubWorkflowIdParam(null);
-            if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${s.id}`);
             setShowHubPicker(false);
             setAiView('home'); // start the call / see the experience
           }}
@@ -1665,7 +1679,6 @@ function AppInner() {
                 setHubCompanyName(null);
                 setHubWorkers([]);
                 setHubWorkflowIdParam(null);
-                if (typeof window !== 'undefined') window.history.replaceState(null, '', `?hub=${d.sessionId}`);
               }
             } catch {}
             setShowHubPicker(false);
@@ -1709,6 +1722,10 @@ function AppInner() {
                 if (client) setHubAnamClient(client);
                 if (camera) setHubCameraStream(camera);
                 if (avatarStream) setHubAvatarStream(avatarStream);
+                // Set URL to reflect workspace navigation (with hub session + view)
+                if (typeof window !== 'undefined' && hubSessionId) {
+                  window.history.replaceState(null, '', `?hub=${hubSessionId}&view=workspace`);
+                }
                 setAiView('workspace');
               }}
               onGoHub={() => setAiView('workspace')}

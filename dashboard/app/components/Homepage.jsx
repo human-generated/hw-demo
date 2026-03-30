@@ -109,6 +109,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   } = useWorkerSession({
     worker: ALEXANDRA_WORKER,
     sessionId: callId || undefined,
+    logSessionId: sessionId || undefined, // route conv logs to the hub session ID for About page
     enabled: callEnabled,
     audioEnabled: true,
     videoEnabled: true,
