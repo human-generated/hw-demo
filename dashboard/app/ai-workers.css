@@ -1077,6 +1077,49 @@ body {
   transition: filter 0.4s ease, opacity 0.4s ease;
 }
 
+/* WordsStagger spans inside hp-lyrics */
+.hp-lyrics span {
+  font-family: "MonumentGrotesk-Mono", "Monument Grotesk", "DM Mono", monospace;
+  font-size: 38px;
+  font-weight: 400;
+  color: #000;
+  letter-spacing: -3px;
+  line-height: 1.15;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Homepage call controls (mute/interrupt row) ---- */
+
+.hp-call-controls {
+  position: absolute;
+  top: 748px;
+  left: 50%;
+  translate: -50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  animation: fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hp-call-ctrl-btn {
+  all: unset;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+  color: #fff;
+  background: #1a1a1a;
+}
+
+.hp-call-ctrl-btn:hover { transform: scale(1.1); }
+.hp-call-ctrl-btn--muted { background: #ff3b30; }
+.hp-call-ctrl-btn--interrupt { background: #ff9500; }
+
 /* ---- Floating card slot (InCallCard) ---- */
 
 .hp-floating-card {

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MeshGradient, LiquidMetal, FlutedGlass, HalftoneDots } from '@paper-design/shaders-react';
 import { InCallCard } from './InCallCard';
 import { DockIcons } from './DockIcons';
+import { WordsStagger } from './WordsStagger';
 import { useWorkerSession } from './useWorkerSession';
 
 // Keep original Anam persona ID — LiveKit agent uses it server-side
@@ -79,6 +80,8 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   const [companyName, setCompanyName] = useState('');
   const [ready, setReady] = useState(false);
   const [callEnabled, setCallEnabled] = useState(false);
+  const [callId, setCallId] = useState('');
+  const [companyConfirmed, setCompanyConfirmed] = useState(false);
   const [avatarEnergy, setAvatarEnergy] = useState(0);
   const [subtitleText, setSubtitleText] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('You are Alexandra Seaman, HR specialist at Humans.AI. Be warm, professional, and helpful.');
@@ -97,11 +100,11 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   useCursorTracking(badgeGroupRef);
 
   const {
-    connected, connecting, agentText, videoTrack, micMuted, needsAudioResume,
+    connected, connecting, agentText, agentMarkdown, videoTrack, micMuted, needsAudioResume,
     resumeAudio, sendText, updatePrompt, toggleMute, disconnect, interrupt, audioElRef,
   } = useWorkerSession({
     worker: ALEXANDRA_WORKER,
-    sessionId,
+    sessionId: callId || undefined,
     enabled: callEnabled,
     audioEnabled: true,
     videoEnabled: true,
@@ -130,6 +133,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     if (!agentText || agentText === lastAgentTextRef.current) return;
     lastAgentTextRef.current = agentText;
     setSubtitleText(agentText);
+    setCompanyConfirmed(true);
     lastWordTimeRef.current = Date.now();
     if (subtitleTimerRef.current) clearTimeout(subtitleTimerRef.current);
     subtitleTimerRef.current = setTimeout(() => setSubtitleText(''), 6000);
@@ -165,6 +169,9 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
   }, [sessionId, connected]);
 
   const handleOpenAvatar = useCallback(async () => {
+    // Fresh ID per call — prevents agent from loading old conversation history
+    setCallId('hp-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+    setCompanyConfirmed(false);
     setCallEnabled(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -181,6 +188,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     cameraStreamRef.current = null;
     setCameraOn(false);
     setSubtitleText('');
+    setCompanyConfirmed(false);
   }, [disconnect]);
 
   const handleToggleCamera = useCallback(async () => {
@@ -211,9 +219,9 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
     if (callEnabled && connected) {
       sendText(text);
       setCompanyName('');
-    } else {
-      onSubmit?.(text, null, null, null);
     }
+    // Navigate to hub whenever company name is typed (call or not)
+    onSubmit?.(text, null, null, null);
   }
 
   const hubCb = onGoHub || onGoCall;
@@ -294,14 +302,54 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
         </div>
       </div>
 
-      {subtitleText && (
-        <div className="hp-lyrics" aria-live="polite">
-          <div className="hp-lyrics-line">
-            {subtitleText.split(' ').map((w, i) => (
-              <span key={i} className="hp-lyrics-word">{w}</span>
-            ))}
-          </div>
+      {callEnabled && connected && (
+        <div className="hp-call-controls">
+          <button
+            className={`hp-call-ctrl-btn${micMuted ? ' hp-call-ctrl-btn--muted' : ''}`}
+            onClick={toggleMute}
+            aria-label={micMuted ? 'Unmute microphone' : 'Mute microphone'}
+          >
+            {micMuted ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
+          <button
+            className="hp-call-ctrl-btn hp-call-ctrl-btn--interrupt"
+            onClick={interrupt}
+            aria-label="Interrupt"
+            title="Interrupt"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+              <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+            </svg>
+          </button>
         </div>
+      )}
+
+      {subtitleText && (
+        <WordsStagger
+          key={subtitleText}
+          className="hp-lyrics"
+          style={{ flexDirection: 'row', gap: '0.35em', alignItems: 'baseline', justifyContent: 'center' }}
+          stagger={0.06}
+          speed={0.4}
+        >
+          {subtitleText}
+        </WordsStagger>
       )}
 
       <div className="hp-floating-card">
@@ -331,9 +379,9 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
         </div>
       </form>
 
-      {ready && callEnabled && connected && (
-        <button className="hp-continue-btn" onClick={() => { onSubmit?.(companyName.trim() || 'Meridian Corp.', null, null, null); }}>
-          Continue
+      {ready && callEnabled && connected && companyConfirmed && (
+        <button className="hp-continue-btn" onClick={() => { onSubmit?.(companyName.trim() || 'the company', null, null, null); }}>
+          Continue to Hub
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
