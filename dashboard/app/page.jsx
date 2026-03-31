@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession, SessionProvider } from 'next-auth/react';
 import { ReactFlow, Background, Handle, Position, useNodesState, useEdgesState, MarkerType } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Homepage } from './components/Homepage';
@@ -9,7 +10,8 @@ import { useWorkerSession } from './components/useWorkerSession';
 import { AIWorkers } from './components/AIWorkers';
 import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { OnboardingFlow } from './components/OnboardingFlow';
-import { LoginPage } from './components/LoginPage';
+import { LandingPage } from './components/LandingPage';
+import { SessionsPage } from './components/SessionsPage';
 import { DockIcons } from './components/DockIcons';
 import { MeshGradient } from '@paper-design/shaders-react';
 
@@ -865,22 +867,33 @@ function HubSessionPicker({ onSelect, onNew, onClose }) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const searchParams = useSearchParams();
-  // AI Workers Hub view: null | 'login' | 'home' | 'workspace' | 'workers' | 'worker-page'
-  // Start at login unless a direct ?hub= or ?access= URL was provided
+  const { data: authSession, status: authStatus } = useSession();
+  const isLoggedIn = authStatus === 'authenticated';
+  const [showSessionsPicker, setShowSessionsPicker] = useState(false);
+
+  // AI Workers Hub view: null | 'landing' | 'sessions' | 'home' | 'workspace' | 'workers' | 'worker-page'
   const [aiView, setAiView] = useState(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
       if (p.get('hub') || p.get('access')) return null;
     }
-    return 'login';
+    return 'landing';
   });
+
+  // When auth status resolves, skip landing if already logged in
+  useEffect(() => {
+    if (authStatus === 'loading') return;
+    if (aiView === 'landing' && isLoggedIn) setAiView('sessions');
+    if (aiView === 'sessions' && !isLoggedIn) setAiView('landing');
+  }, [authStatus, isLoggedIn]);
+
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [hubAnamClient, setHubAnamClient] = useState(null);
   const [hubCameraStream, setHubCameraStream] = useState(null);
   const [hubAvatarStream, setHubAvatarStream] = useState(null);
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
-  const [sessionCredit, setSessionCredit] = useState(10.00);
+  const [sessionCredit, setSessionCredit] = useState(5.00);
   const [sessionUsage, setSessionUsage] = useState({ voice: 0, llm: 0, platforms: 0 });
   const addCost = useCallback((amount, type) => {
     setSessionCredit(prev => Math.max(0, parseFloat((prev - amount).toFixed(4))));
@@ -889,8 +902,14 @@ function AppInner() {
       return { ...prev, [k]: prev[k] + 1 };
     });
   }, []);
-  // Reset credit on new hub session
-  useEffect(() => { setSessionCredit(10.00); setSessionUsage({ voice: 0, llm: 0, platforms: 0 }); }, [hubSessionId]);
+  // Load user credits from profile on login
+  useEffect(() => {
+    if (!authSession?.user?.email) return;
+    fetch(`/api/demo/user-profile?email=${encodeURIComponent(authSession.user.email)}`)
+      .then(r => r.json())
+      .then(p => { if (p?.credits != null) setSessionCredit(p.credits); if (p?.usage) setSessionUsage(p.usage); })
+      .catch(() => {});
+  }, [authSession?.user?.email]);
   const creditBlocked = sessionCredit <= 0;
 
   const [hubLocked, setHubLocked] = useState(false); // true when ?lock=true — hides back/switcher
@@ -1796,11 +1815,31 @@ function AppInner() {
       {/* AI Workers Hub overlay */}
       {aiView && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
-          {aiView === 'login' && (
-            <LoginPage
-              onLogin={() => {
-                setAiView(null);
-                setShowHubPicker(true);
+          {aiView === 'landing' && (
+            <LandingPage
+              callEnabled={true}
+              onLogin={() => setAiView('sessions')}
+              onCallTimeout={() => {}}
+            />
+          )}
+          {aiView === 'sessions' && (
+            <SessionsPage
+              user={authSession?.user}
+              onNewSession={async () => {
+                // Create a fresh session
+                try {
+                  const r = await fetch('/api/demo/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: authSession?.user?.email }) });
+                  const d = await r.json();
+                  if (d.id) { setHubSessionId(d.id); setAiView('home'); }
+                } catch { setAiView('home'); }
+              }}
+              onSelectSession={(s) => {
+                setHubSessionId(s.id);
+                setHubCompanyName(s.company?.name || s.company || null);
+                setAiView(s.phase === 'start' ? 'home' : 'workspace');
+              }}
+              onDeleteSession={async (id) => {
+                await fetch(`/api/demo/session/${id}`, { method: 'DELETE' }).catch(() => {});
               }}
             />
           )}
@@ -4280,5 +4319,9 @@ function SettingsPanel() {
 }
 
 export default function App() {
-  return <Suspense><AppInner /></Suspense>;
+  return (
+    <SessionProvider>
+      <Suspense><AppInner /></Suspense>
+    </SessionProvider>
+  );
 }
