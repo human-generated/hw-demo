@@ -511,6 +511,8 @@ function ContactCard({ contact, onRemove, onChange }) {
   );
 }
 
+const DEMO_USER_ID = 'demo@demo.com';
+
 function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWorkers, onGoPlatforms }) {
   const [data, setData] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -524,14 +526,23 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
   const [convLoading, setConvLoading] = useState(false);
   const [expandedConvs, setExpandedConvs] = useState({});
 
+  // Load user profile (persistent) first, then session for company/research data
   useEffect(() => {
+    fetch(`/api/demo/user-profile/${encodeURIComponent(DEMO_USER_ID)}`, { cache: 'no-store' })
+      .then(r => r.json()).then(p => {
+        if (p.email) setEmail(p.email);
+        if (p.phone) setPhone(p.phone);
+        if (p.telegram) setTelegram(p.telegram);
+        if (p.contacts?.length) setContacts(p.contacts);
+      }).catch(() => {});
     if (!sessionId) return;
     fetch(`/api/demo/session/${sessionId}`, { cache: 'no-store' }).then(r => r.json()).then(d => {
       setData(d);
-      setContacts(d.contacts || []);
-      setPhone(d.settings?.phone || '');
-      setEmail(d.settings?.email || '');
-      setTelegram(d.settings?.telegram || '');
+      // Only use session contacts/settings if user profile has none
+      setContacts(prev => prev.length ? prev : (d.contacts || []));
+      setEmail(prev => prev || d.settings?.email || '');
+      setPhone(prev => prev || d.settings?.phone || '');
+      setTelegram(prev => prev || d.settings?.telegram || '');
     }).catch(() => {});
   }, [sessionId]);
 
@@ -561,7 +572,13 @@ function AboutView({ sessionId, companyName, onClose, onGoHome, onGoHub, onGoWor
 
   function save(nextContacts, nextSettings) {
     const s = nextSettings || { phone, email, telegram };
-    fetch(`/api/demo/session/${sessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: s, contacts: nextContacts ?? contacts }) }).catch(() => {});
+    const c = nextContacts ?? contacts;
+    // Persist to session (per-session context)
+    if (sessionId) {
+      fetch(`/api/demo/session/${sessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: s, contacts: c }) }).catch(() => {});
+    }
+    // Persist to user profile (survives across sessions)
+    fetch(`/api/demo/user-profile/${encodeURIComponent(DEMO_USER_ID)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: s.email, phone: s.phone, telegram: s.telegram, contacts: c }) }).catch(() => {});
   }
 
   function importCsv(e) {

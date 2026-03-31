@@ -1837,6 +1837,30 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
   const [workerLoading, setWorkerLoading] = useState(false);
   const [workerPermissions, setWorkerPermissions] = useState(worker.permissions || null);
   const [workerChannels, setWorkerChannels] = useState({ email: '', phone: '', telegram: '' });
+
+  // Load channels from persistent user profile on mount
+  useEffect(() => {
+    fetch('/api/demo/user-profile/demo%40demo.com', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(p => {
+        setWorkerChannels(ch => ({
+          email: ch.email || p.email || '',
+          phone: ch.phone || p.phone || '',
+          telegram: ch.telegram || p.telegram || '',
+        }));
+      }).catch(() => {});
+  }, []);
+
+  // Save channels back to user profile when they change
+  const handleChannelsChange = useCallback((next) => {
+    setWorkerChannels(next);
+    fetch('/api/demo/user-profile/demo%40demo.com', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: next.email, phone: next.phone, telegram: next.telegram }),
+    }).catch(() => {});
+  }, []);
+
   const [activeGuiTask, setActiveGuiTask] = useState(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -2316,16 +2340,16 @@ export function WorkerPage({ worker: workerProp = null, anamClient = null, camer
           {activeTab === 'Overview' && <OverviewTab cfg={cfg} />}
           {activeTab === 'Live Activity' && <LiveActivityTab cfg={cfg} sessionId={sessionId} activeGuiTask={activeGuiTask} onRunGuiAgent={handleRunGuiAgent} />}
           {activeTab === 'Skills' && <SkillsTab cfg={cfg} sessionId={sessionId} workerId={workerId} onRunGuiAgent={handleRunGuiAgent} />}
-          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={setWorkerChannels} onWorkerUpdate={onWorkerUpdate} />}
+          {activeTab === 'Workflows' && <WorkflowsTab cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} defaultExpandedId={defaultExpandedWorkflow} onWorkflowSelect={onWorkflowSelect} channels={workerChannels} onChannelsChange={handleChannelsChange} onWorkerUpdate={onWorkerUpdate} />}
           {activeTab === 'Outputs' && <OutputsTab cfg={cfg} />}
-          {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={setWorkerChannels} />}
+          {activeTab === 'Integrations' && <IntegrationsTab sessionId={sessionId} workerId={workerId} workerPermissions={workerPermissions} onPermissionsChange={setWorkerPermissions} channels={workerChannels} onChannelsChange={handleChannelsChange} />}
           {activeTab === 'Human Team' && <HumanTeamTab cfg={cfg} />}
           {activeTab === 'Technical' && <TechnicalTab cfg={cfg} />}
           {activeTab === 'Business Impact' && <BusinessImpactTab cfg={cfg} onPutInProduction={handlePutInProduction} />}
           {activeTab === 'Canvas' && <CanvasTab sessionId={sessionId} workerId={workerId} />}
 
           {/* Right: Flow Panel — always visible */}
-          <FlowPanel cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} channels={workerChannels} onChannelsChange={setWorkerChannels} />
+          <FlowPanel cfg={cfg} sessionId={sessionId} workerId={workerId} workerName={firstName} channels={workerChannels} onChannelsChange={handleChannelsChange} />
         </div>
       </div>
     </div>
