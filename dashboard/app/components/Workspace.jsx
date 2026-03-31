@@ -206,6 +206,9 @@ export function Workspace({
   onCompanyName,
   workerSession,
   onSystemPromptChange,
+  callEnabled: externalCallEnabled = false,
+  onCallEnabled,
+  onCallDisabled,
   credit = 10,
   usage = { voice: 0, llm: 0, platforms: 0 },
   addCost,
@@ -902,7 +905,8 @@ export function Workspace({
     disconnectCall();
     cameraStreamRef.current?.getTracks().forEach(t => t.stop()); cameraStreamRef.current = null;
     setCameraOn(false); setCallStartTime(null);
-  }, [disconnectCall]);
+    onCallDisabled?.();
+  }, [disconnectCall, onCallDisabled]);
 
   const handleToggleAvatarMute = useCallback(() => {
     const el = audioElRef.current;
@@ -1382,26 +1386,36 @@ export function Workspace({
               </div>
             </div>
             <div className="ws-call-controls">
-              <div className="ws-call-info">
-                <span className={`ws-call-dot ${isConnected ? 'ws-call-dot--active' : ''}`} />
-                <span className="ws-call-label">{isConnected ? 'In Call' : isConnecting ? 'Connecting...' : 'Idle'}</span>
-                <span className="ws-call-time">{isConnected ? timeStr : ''}</span>
-              </div>
-              <div className="ws-call-buttons">
-                <button className={`ws-call-btn ws-call-btn--mic ${micMuted ? 'ws-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected}>
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                </button>
-                {/* Interrupt button */}
-                <button className="ws-call-btn" onClick={handleInterrupt} disabled={!isConnected} title="Interrupt agent" style={{ background: 'rgba(255,149,0,0.9)' }}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="#fff" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="#fff" /></svg>
-                </button>
-                <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
-                </button>
-                <button className="ws-call-btn ws-call-btn--end" onClick={handleEndCall} disabled={!isConnected}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                </button>
-              </div>
+              {!isConnected && !isConnecting ? (
+                <div className="ws-call-buttons">
+                  <button className="ws-call-btn" style={{ background: 'rgba(52,199,89,0.9)', gap: 6, padding: '0 14px', minWidth: 70, fontSize: 12, fontWeight: 600 }} onClick={onCallEnabled}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Call
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="ws-call-info">
+                    <span className={`ws-call-dot ${isConnected ? 'ws-call-dot--active' : ''}`} />
+                    <span className="ws-call-label">{isConnected ? 'In Call' : 'Connecting...'}</span>
+                    <span className="ws-call-time">{isConnected ? timeStr : ''}</span>
+                  </div>
+                  <div className="ws-call-buttons">
+                    <button className={`ws-call-btn ws-call-btn--mic ${micMuted ? 'ws-call-btn--mic-muted' : ''}`} onClick={handleToggleMute} disabled={!isConnected}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" fill="#fff" /><path d="M4 8C4 8 4 11.5 8 11.5C12 11.5 12 8 12 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /><line x1="8" y1="11.5" x2="8" y2="14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                    <button className="ws-call-btn" onClick={handleInterrupt} disabled={!isConnected} title="Interrupt agent" style={{ background: 'rgba(255,149,0,0.9)' }}>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="#fff" /><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="#fff" /></svg>
+                    </button>
+                    <button className="ws-call-btn ws-call-btn--phone" onClick={handleToggleCamera} disabled={!isConnected}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 4.5C2 4.5 4 2 8 2C12 2 14 4.5 14 4.5L12.5 7L10.5 5.5V10.5L12.5 9L14 11.5C14 11.5 12 14 8 14C4 14 2 11.5 2 11.5L3.5 9L5.5 10.5V5.5L3.5 7L2 4.5Z" fill="#fff" /></svg>
+                    </button>
+                    <button className="ws-call-btn ws-call-btn--end" onClick={handleEndCall}>
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
             <div className="ws-badge-top">
               <div className="ws-badge-verif">

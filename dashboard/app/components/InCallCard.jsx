@@ -157,31 +157,6 @@ export function InCallCard({ active = false, muted = false, cameraOn = false, on
               {!cameraOn && <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />}
             </svg>
           </button>
-          {onSessions && (
-            <button className="in-call-action-btn" aria-label="Sessions" title="Sessions" onClick={onSessions}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2"/>
-                <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2"/>
-                <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2"/>
-                <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </button>
-          )}
-          {onInterrupt && (
-            <button className="in-call-action-btn" title="Interrupt agent" onClick={onInterrupt} disabled={!active}
-              style={{ background: 'rgba(255,149,0,0.12)', color: '#ff9500' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
-                <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
-              </svg>
-            </button>
-          )}
-          <button className="in-call-action-btn in-call-action-btn--end"
-            aria-label="End call" onClick={onEndCall} disabled={!active}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
