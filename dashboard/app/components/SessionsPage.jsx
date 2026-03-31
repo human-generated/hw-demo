@@ -86,7 +86,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg viewBox="0 0 19 27" width="11" height="16">
-              <path d={HUMANS_H_PATH} fill="white" />
+              <path d="M4.626,0 L4.626,10.444 C6.294,8.271 8.342,7.623 10.466,7.623 C15.774,7.623 18.125,11.244 18.125,16.771 L18.121,24.668 C16.577,24.833 15.036,25.005 13.496,25.184 L13.499,16.809 C13.499,13.378 11.717,11.930 9.252,11.930 C6.522,11.930 4.626,14.255 4.626,17.076 L4.622,26.305 L0,26.681 L0,0 Z" fill="white" />
             </svg>
           </div>
           <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a1a', letterSpacing: '-0.02em' }}>Humans</span>
