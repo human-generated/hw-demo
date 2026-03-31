@@ -910,6 +910,30 @@ function AppInner() {
       .then(p => { if (p?.credits != null) setSessionCredit(p.credits); if (p?.usage) setSessionUsage(p.usage); })
       .catch(() => {});
   }, [authSession?.user?.email]);
+
+  // Handle Stripe payment success redirect (?payment=success&session_id=...)
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    const sessionId = searchParams.get('session_id');
+    if (payment !== 'success' || !sessionId) return;
+    // Clean URL
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('payment');
+      url.searchParams.delete('session_id');
+      url.searchParams.delete('email');
+      window.history.replaceState(null, '', url.toString());
+    }
+    // Verify with server and refresh credits
+    fetch(`/api/payments/verify?session_id=${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok && d.newBalance != null) {
+          setSessionCredit(d.newBalance);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const creditBlocked = sessionCredit <= 0;
 
   const [hubLocked, setHubLocked] = useState(false); // true when ?lock=true — hides back/switcher
@@ -1872,6 +1896,7 @@ function AppInner() {
               usage={sessionUsage}
               addCost={addCost}
               creditBlocked={creditBlocked}
+              email={authSession?.user?.email || ''}
             />
           )}
           {aiView === 'workspace' && (

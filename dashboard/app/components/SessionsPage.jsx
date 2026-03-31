@@ -106,7 +106,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           >
             <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> New Session
           </button>
-          <CreditBadge credit={credit} usage={usage} userInitial={userInitial} />
+          <CreditBadge credit={credit} usage={usage} userInitial={userInitial} email={user?.email || ''} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
             style={{
