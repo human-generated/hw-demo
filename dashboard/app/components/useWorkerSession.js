@@ -346,11 +346,18 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
   const interrupt = useCallback(() => {
     const room = roomRef.current;
     if (!room) return;
+    // 1. Stop audio playback immediately — kills the echo source so mic opens up
+    if (audioElRef.current) {
+      audioElRef.current.pause();
+      audioElRef.current.currentTime = 0;
+    }
+    window.speechSynthesis?.cancel();
+    // 2. Tell agent to stop and reset
     room.localParticipant?.publishData(
       new TextEncoder().encode(JSON.stringify({ type: 'interrupt' })),
       { reliable: true }
     );
-    window.speechSynthesis?.cancel();
+    console.log('[interrupt] audio stopped, interrupt sent to agent');
   }, []);
 
   const callTool = useCallback(async (name, args) => {
