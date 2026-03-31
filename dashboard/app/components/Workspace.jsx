@@ -9,7 +9,7 @@ import { getWorkerPhoto, getWorkerCode } from './WorkerConfig';
 
 const ANAM_PERSONA_ID = "6ccddf38-aed1-4bbb-9809-fc92986eb436";
 // Stable worker identity for the orchestrator avatar (LiveKit room name scoped per session)
-const WORKSPACE_WORKER = { id: 'orchestrator', name: 'Alexandra Seaman', personaId: ANAM_PERSONA_ID };
+const WORKSPACE_WORKER = { id: 'orchestrator', name: 'Alexandra Middleweek', personaId: ANAM_PERSONA_ID };
 const PHOTO_URL = "https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png";
 
 const BARS = [
@@ -1374,7 +1374,7 @@ export function Workspace({
               <div className="ws-badge-name-row">
                 <div className="ws-badge-name-col">
                   <span className="ws-badge-name" onClick={onOpenWorkerProfile} style={{ cursor: onOpenWorkerProfile ? 'pointer' : undefined }}>
-                    Alexandra{'\n'}Seaman
+                    Alexandra{'\n'}Middleweek
                   </span>
                   <span className="ws-badge-role">{avatarRole}</span>
                 </div>

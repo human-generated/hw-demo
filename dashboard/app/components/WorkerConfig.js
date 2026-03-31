@@ -301,7 +301,7 @@ export const WORKER_CONFIG = {
     },
     humanTeam: {
       peers: [
-        { name: 'Alexandra Seaman', role: 'HR Manager', code: 'HRMANAGER', relation: 'Co-worker', freq: '2x/week' },
+        { name: 'Alexandra Middleweek', role: 'HR Manager', code: 'HRMANAGER', relation: 'Co-worker', freq: '2x/week' },
         { name: 'James Park', role: 'Finance Analyst', code: 'FINANALYS', relation: 'Contract Review', freq: '5x/week' },
         { name: 'Aisha Okonkwo', role: 'Researcher', code: 'RESEARCHER', relation: 'Market Intel', freq: '4x/week' },
       ],
@@ -449,7 +449,7 @@ export const WORKER_CONFIG = {
     },
     humanTeam: {
       peers: [
-        { name: 'Alexandra Seaman', role: 'HR Manager', code: 'HRMANAGER', relation: 'Co-worker', freq: '8x/week' },
+        { name: 'Alexandra Middleweek', role: 'HR Manager', code: 'HRMANAGER', relation: 'Co-worker', freq: '8x/week' },
         { name: 'Marcus Chen', role: 'Sales Rep', code: 'SALESREP0', relation: 'Contract Review', freq: '5x/week' },
         { name: 'James Park', role: 'Finance Analyst', code: 'FINANALYS', relation: 'Compliance', freq: '3x/week' },
       ],
@@ -599,7 +599,7 @@ export const WORKER_CONFIG = {
     humanTeam: {
       peers: [
         { name: 'Marcus Chen', role: 'Sales Rep', code: 'SALESREP0', relation: 'Revenue Forecasting', freq: '5x/week' },
-        { name: 'Alexandra Seaman', role: 'HR Manager', code: 'HRMANAGER', relation: 'Headcount Costs', freq: '3x/week' },
+        { name: 'Alexandra Middleweek', role: 'HR Manager', code: 'HRMANAGER', relation: 'Headcount Costs', freq: '3x/week' },
         { name: 'Aisha Okonkwo', role: 'Researcher', code: 'RESEARCHER', relation: 'Market Sizing', freq: '4x/week' },
       ],
       autonomousPct: 86, escalatedPct: 12, overridePct: 2,
@@ -1212,7 +1212,7 @@ export const WORKER_CONFIG = {
 };
 
 export const DEFAULT_WORKER = {
-  name: 'Alexandra\nSeaman',
+  name: 'Alexandra\nMiddleweek',
   role: 'HR at Humans.AI',
   code: 'HRMANAGER',
   status: 'Active',

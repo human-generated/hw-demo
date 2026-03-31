@@ -7,7 +7,7 @@ import { useWorkerSession } from './useWorkerSession';
 // ── Constants (same as Homepage) ─────────────────────────────────────────────
 const PHOTO_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
 const CLASP_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJWH9TN7PGJARNM3D4GSKEJ.png';
-const ALEXANDRA_WORKER = { id: 'alexandra-homepage', name: 'Alexandra Seaman', role: 'HR at Humans.AI' };
+const ALEXANDRA_WORKER = { id: 'alexandra-homepage', name: 'Alexandra Middleweek', role: 'HR at Humans.AI' };
 const LANDING_PROMPT = `You are Alexandra, HR at Humans — welcoming visitors to the platform. Say hello and ask who they are and what company they work for. Keep responses very short (1-2 sentences).`;
 const CALL_LIMIT_SECS = 60;
 
@@ -258,7 +258,7 @@ export function LandingPage({ onLogin }) {
             )}
           </div>
 
-          <span className="hp-name">Alexandra{'\n'}Seaman</span>
+          <span className="hp-name">Alexandra{'\n'}Middleweek</span>
           <span className="hp-role">HR at Humans.AI</span>
           <div className="hp-status">
             <span className="hp-status-dot" />

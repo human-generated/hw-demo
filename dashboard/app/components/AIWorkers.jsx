@@ -5,7 +5,7 @@ import { DockIcons } from './DockIcons';
 import { WORKER_PHOTOS, guessWorkerCode, getWorkerCode, getWorkerPhoto } from './WorkerConfig';
 
 const WORKERS = [
-  { name: 'Alexandra\nSeaman', role: 'HR at Humans.AI', tilt: -12, code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 },
+  { name: 'Alexandra\nMiddleweek', role: 'HR at Humans.AI', tilt: -12, code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 },
   { name: 'Marcus\nChen', role: 'Sales at Humans.AI', tilt: 8, code: 'SALESREP0', status: 'Active', tasks: 31, rating: 4.7 },
   { name: 'Elena\nVasquez', role: 'Legal at Humans.AI', tilt: -6, code: 'LEGALADV0', status: 'Active', tasks: 18, rating: 4.8 },
   { name: 'James\nPark', role: 'Finance at Humans.AI', tilt: 15, code: 'FINANALYS', status: 'Busy', tasks: 42, rating: 4.6 },

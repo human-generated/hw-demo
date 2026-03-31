@@ -19,7 +19,7 @@ const BARS = [
   { x: 76, w: 2.5 },
 ];
 // Stable fake-worker so useWorkerSession gets a consistent worker.id
-const ALEXANDRA_WORKER = { id: 'alexandra-homepage', name: 'Alexandra Seaman', role: 'HR at Humans.AI' };
+const ALEXANDRA_WORKER = { id: 'alexandra-homepage', name: 'Alexandra Middleweek', role: 'HR at Humans.AI' };
 
 function BarcodeSvg() {
   return (
@@ -55,7 +55,7 @@ const NAV_INSTRUCTION = `\n\nCRITICAL: The moment the visitor mentions ANY compa
 function buildSystemPrompt(session, companyName) {
   const co = session?.company;
   const name = co?.name || companyName || 'the company';
-  let prompt = `You are Alexandra Seaman, HR specialist and company researcher at Humans.AI. You are speaking with someone from ${name}. Your goal is to identify their company and gather initial information to prepare a personalised demo.`;
+  let prompt = `You are Alexandra Middleweek, HR specialist and company researcher at Humans.AI. You are speaking with someone from ${name}. Your goal is to identify their company and gather initial information to prepare a personalised demo.`;
   if (co?.industry) prompt += ` The company operates in the ${co.industry} sector.`;
   if (co?.size) prompt += ` Size: ${co.size}.`;
   if (co?.description) prompt += ` About them: ${co.description}`;
@@ -391,7 +391,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
             )}
           </div>
 
-          <span className="hp-name">Alexandra{'\n'}Seaman</span>
+          <span className="hp-name">Alexandra{'\n'}Middleweek</span>
           <span className="hp-role">HR at Humans.AI</span>
           <div className="hp-status">
             <span className="hp-status-dot" />
