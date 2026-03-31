@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
-import { MeshGradient, HalftoneDots, FlutedGlass, LiquidMetal } from '@paper-design/shaders-react';
+import { MeshGradient, HalftoneDots, FlutedGlass } from '@paper-design/shaders-react';
 import { useWorkerSession } from './useWorkerSession';
 
 // ── Constants (same as Homepage) ─────────────────────────────────────────────
@@ -154,11 +154,10 @@ export function LandingPage({ onLogin }) {
   }
 
   const inp = {
-    flex: 1, padding: '0.6rem 0.8rem', borderRadius: 8,
+    padding: '0.6rem 0.8rem', borderRadius: 8,
     border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.85)',
     fontSize: '0.82rem', fontFamily: "'DM Sans', sans-serif",
     outline: 'none', color: '#1a1a1a', transition: 'border-color 0.15s',
-    minWidth: 0,
   };
 
   return (
@@ -289,83 +288,94 @@ export function LandingPage({ onLogin }) {
         </div>
       </div>
 
-      {/* ── Login form — replaces hp-input-wrap ── */}
-      <div className="hp-input-wrap" style={{ flexDirection: 'column', gap: 0, height: 'auto', padding: 0 }}>
-        {/* Timer */}
-        {callEnabled && !callEnded && timeLeft <= 30 && (
-          <div style={{
-            marginBottom: 8, textAlign: 'center',
-            fontSize: '0.72rem', color: timeLeft <= 10 ? '#ff3b30' : 'rgba(0,0,0,0.45)',
-            fontFamily: "'IBM Plex Mono', monospace",
-          }}>
-            {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} — log in to continue
+      {/* ── Login card — pinned to bottom ── */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        display: 'flex', justifyContent: 'center',
+        padding: '0 16px 28px',
+        zIndex: 10,
+      }}>
+        <div style={{
+          width: '100%', maxWidth: 360,
+          background: 'rgba(255,255,255,0.82)',
+          backdropFilter: 'blur(18px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+          borderRadius: 18,
+          border: '1px solid rgba(255,255,255,0.7)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 1.5px 4px rgba(0,0,0,0.06)',
+          padding: '20px 20px 18px',
+        }}>
+          {/* Timer */}
+          {callEnabled && !callEnded && timeLeft <= 30 && (
+            <div style={{
+              marginBottom: 12, textAlign: 'center',
+              fontSize: '0.71rem', color: timeLeft <= 10 ? '#ff3b30' : 'rgba(0,0,0,0.4)',
+              fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.03em',
+            }}>
+              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} — log in to continue
+            </div>
+          )}
+
+          {/* Google */}
+          <button
+            onClick={handleGoogle}
+            disabled={googleLoading}
+            style={{
+              width: '100%', padding: '0.62rem 1rem', marginBottom: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+              background: '#fff', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 10,
+              fontSize: '0.85rem', fontWeight: 600, color: '#1a1a1a',
+              cursor: googleLoading ? 'default' : 'pointer',
+              fontFamily: "'DM Sans', sans-serif",
+              opacity: googleLoading ? 0.6 : 1, transition: 'background 0.15s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            }}
+            onMouseEnter={e => { if (!googleLoading) e.currentTarget.style.background = '#f5f6f7'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
+          >
+            <GoogleIcon />
+            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+          </button>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
+            <span style={{ fontSize: '0.67rem', color: 'rgba(0,0,0,0.28)', fontWeight: 500, letterSpacing: '0.06em' }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
           </div>
-        )}
 
-        {/* Google */}
-        <button
-          onClick={handleGoogle}
-          disabled={googleLoading}
-          style={{
-            width: '100%', padding: '0.62rem 1rem', marginBottom: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
-            background: '#fff', border: '1px solid rgba(0,0,0,0.13)', borderRadius: 10,
-            fontSize: '0.85rem', fontWeight: 600, color: '#1a1a1a',
-            cursor: googleLoading ? 'default' : 'pointer',
-            fontFamily: "'DM Sans', sans-serif",
-            opacity: googleLoading ? 0.6 : 1, transition: 'background 0.15s',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          }}
-          onMouseEnter={e => { if (!googleLoading) e.currentTarget.style.background = '#f5f6f7'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-        >
-          <GoogleIcon />
-          {googleLoading ? 'Redirecting…' : 'Continue with Google'}
-        </button>
-
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 8 }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
-          <span style={{ fontSize: '0.67rem', color: 'rgba(0,0,0,0.3)', fontWeight: 500, letterSpacing: '0.05em' }}>OR</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
-        </div>
-
-        {/* Email + password row */}
-        <form onSubmit={handleCredentials} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 7 }}>
+          {/* Credentials form */}
+          <form onSubmit={handleCredentials} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
               type="email" value={email} onChange={e => setEmail(e.target.value)}
-              required placeholder="Email" autoComplete="email" style={inp}
+              required placeholder="Email" autoComplete="email" style={{ ...inp, width: '100%', boxSizing: 'border-box' }}
               onFocus={e => (e.target.style.borderColor = 'rgba(52,199,89,0.5)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)}
-              required placeholder="Password" autoComplete="current-password" style={inp}
+              required placeholder="Password" autoComplete="current-password" style={{ ...inp, width: '100%', boxSizing: 'border-box' }}
               onFocus={e => (e.target.style.borderColor = 'rgba(52,199,89,0.5)')}
               onBlur={e => (e.target.style.borderColor = 'rgba(0,0,0,0.1)')}
             />
-          </div>
-          {error && <div style={{ fontSize: '0.72rem', color: '#ff3b30', textAlign: 'center' }}>{error}</div>}
-
-          {/* Submit — same style as hp-submit area */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {error && <div style={{ fontSize: '0.72rem', color: '#ff3b30', textAlign: 'center' }}>{error}</div>}
             <button
               type="submit" disabled={loading || !email || !password}
               style={{
-                flex: 1, padding: '0.62rem',
+                width: '100%', padding: '0.64rem',
                 background: loading ? 'rgba(0,0,0,0.07)' : 'linear-gradient(135deg,#34c759,#30a74f)',
                 color: loading ? 'rgba(0,0,0,0.3)' : '#fff',
                 border: 'none', borderRadius: 10,
                 fontSize: '0.85rem', fontWeight: 600,
                 cursor: loading || !email || !password ? 'default' : 'pointer',
                 fontFamily: "'DM Sans', sans-serif", transition: 'all 0.2s',
+                marginTop: 2,
               }}
             >
               {loading ? 'Signing in…' : 'Sign in →'}
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
