@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { signIn } from 'next-auth/react';
-import { MeshGradient, HalftoneDots, FlutedGlass } from '@paper-design/shaders-react';
+import { HalftoneDots, FlutedGlass } from '@paper-design/shaders-react';
 import { useWorkerSession } from './useWorkerSession';
 
 // ── Constants (same as Homepage) ─────────────────────────────────────────────
@@ -63,7 +63,6 @@ function useCursorTracking(ref) {
 export function LandingPage({ onLogin }) {
   const [ready, setReady] = useState(false);
   const [videoEnabled, setVideoEnabled] = useState(true);
-  const [avatarEnergy, setAvatarEnergy] = useState(0);
   const [timeLeft, setTimeLeft] = useState(CALL_LIMIT_SECS);
   const [callEnded, setCallEnded] = useState(false);
   const [callEnabled, setCallEnabled] = useState(false);
@@ -75,7 +74,6 @@ export function LandingPage({ onLogin }) {
 
   const badgeGroupRef = useRef(null);
   const avatarVideoRef = useRef(null);
-  const energyRafRef = useRef(0);
   const landingSessionId = useRef(`landing-${Date.now()}`);
 
   useCursorTracking(badgeGroupRef);
@@ -107,19 +105,6 @@ export function LandingPage({ onLogin }) {
     const t = setTimeout(() => setReady(true), 200);
     return () => clearTimeout(t);
   }, []);
-
-  // Energy pulse while speaking
-  useEffect(() => {
-    if (!callEnabled || !connected) { setAvatarEnergy(0); return; }
-    let v = 0;
-    function tick() {
-      v = Math.max(0, v - 0.04 + (Math.random() < 0.15 ? Math.random() * 0.3 : 0));
-      setAvatarEnergy(v);
-      energyRafRef.current = requestAnimationFrame(tick);
-    }
-    energyRafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(energyRafRef.current);
-  }, [callEnabled, connected]);
 
   // 1-minute call timeout
   useEffect(() => {
@@ -161,18 +146,8 @@ export function LandingPage({ onLogin }) {
   };
 
   return (
-    <div className={`hp ${ready ? 'hp--ready' : ''}`}>
+    <div className={`hp ${ready ? 'hp--ready' : ''}`} style={{ background: '#EDF1F3' }}>
       {audioElRef && <audio ref={audioElRef} autoPlay playsInline style={{ display: 'none' }} />}
-
-      {/* Background mesh gradient */}
-      <MeshGradient
-        className="hp-bg"
-        speed={0.19 + avatarEnergy * 3}
-        scale={1.51 + avatarEnergy * 1.5}
-        distortion={0.88 + avatarEnergy * 3}
-        swirl={1 + avatarEnergy * 5}
-        colors={['#E0EAFF', '#FFFFFF', '#AEE8E2', '#D4EAED']}
-      />
 
       {/* Humans wordmark SVG watermark in the background */}
       <div style={{
@@ -183,7 +158,7 @@ export function LandingPage({ onLogin }) {
       }}>
         <svg
           viewBox="0 0 156 29" fill="none" preserveAspectRatio="xMidYMid meet"
-          style={{ width: '72%', maxWidth: 900, opacity: 1 }}
+          style={{ width: '92%', maxWidth: 1100, opacity: 1 }}
         >
           <g transform="translate(-38,-51)">
             <g transform="translate(38,51)" fill="#1a1a1a" opacity="0.045">
