@@ -62,8 +62,12 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
             console.log('[LiveKit] Room connected:', roomName, '| sessionId:', sessionId, '| workerId:', worker?.id);
             setConnected(true);
             setConnecting(false);
-            // Attempt to unlock AudioContext after connection (user gesture already occurred)
             try { await room.startAudio(); } catch {}
+            // Publish mic to LiveKit so agent VAD can detect user speech for interruption
+            try {
+              await room.localParticipant.setMicrophoneEnabled(true);
+              console.log('[LiveKit] mic published to room (for agent VAD/interruption)');
+            } catch(e) { console.warn('[LiveKit] mic publish failed:', e); }
           }
         });
         room.on(RoomEvent.Disconnected, () => {
@@ -320,11 +324,12 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     const next = !micMutedRef.current;
     micMutedRef.current = next;
     setMicMuted(next);
-    // Pause/resume the ScriptProcessor by stopping/starting audio tracks
+    // Pause/resume the Deepgram ScriptProcessor
     const stream = micStreamRef.current;
-    if (stream) {
-      stream.getAudioTracks().forEach(t => { t.enabled = !next; });
-    }
+    if (stream) stream.getAudioTracks().forEach(t => { t.enabled = !next; });
+    // Keep LiveKit mic track in sync
+    const room = roomRef.current;
+    try { room?.localParticipant?.setMicrophoneEnabled(!next); } catch {}
   }, []);
 
   const disconnect = useCallback(() => {
