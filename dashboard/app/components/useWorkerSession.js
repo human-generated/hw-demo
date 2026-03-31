@@ -209,11 +209,26 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
           };
         };
 
+        let interruptSent = false;
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
             const transcript = data?.channel?.alternatives?.[0]?.transcript?.trim();
-            if (transcript && data.is_final) {
+            if (!transcript) return;
+            console.log('[STT] user speaking:', transcript, '| final:', data.is_final);
+            if (!data.is_final) {
+              // User is actively speaking — send interrupt immediately (once per utterance)
+              if (!interruptSent) {
+                interruptSent = true;
+                const room = roomRef.current;
+                room?.localParticipant?.publishData(
+                  new TextEncoder().encode(JSON.stringify({ type: 'interrupt' })),
+                  { reliable: true }
+                );
+                console.log('[STT] interrupt sent');
+              }
+            } else {
+              interruptSent = false;
               _publishText(transcript, 'user_speech');
             }
           } catch {}
