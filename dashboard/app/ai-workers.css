@@ -1,3 +1,6 @@
+@property --angle-1 { syntax: "<angle>"; inherits: false; initial-value: -75deg; }
+@property --angle-2 { syntax: "<angle>"; inherits: false; initial-value: -45deg; }
+
 *,
 *::before,
 *::after {
@@ -744,29 +747,108 @@ body {
 
 /* ---- Photo call button ---- */
 
-.hp-photo-call-btn {
-  all: unset;
+/* ── Glass call button (landing + homepage) ── */
+.hp-photo-call-btn-wrap {
   position: absolute;
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #34c759;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
   z-index: 3;
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, background 0.3s ease;
-  box-shadow: 0 4px 16px rgba(52, 199, 89, 0.35);
+  font-size: 13px;
+  width: fit-content;
+  height: fit-content;
 }
 
-.hp-photo-call-btn:hover {
-  background: #2db84e;
-  box-shadow: 0 6px 24px rgba(52, 199, 89, 0.45);
-  transform: translateX(-50%) scale(1.1);
+.hp-photo-call-btn-wrap .glass-btn {
+  all: unset;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  z-index: 3;
+  backdrop-filter: blur(clamp(1px, 0.125em, 4px));
+  background: linear-gradient(-75deg, rgba(255,255,255,0.4), rgba(255,255,255,0.7), rgba(255,255,255,0.4));
+  border-radius: 999vw;
+  padding: 0.6em 1.2em;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  position: relative;
+  box-shadow:
+    inset 0 0.125em 0.125em rgba(0,0,0,0.05),
+    inset 0 -0.125em 0.125em rgba(255,255,255,0.5),
+    0 0.25em 0.125em -0.125em rgba(0,0,0,0.2),
+    inset 0 0 0.1em 0.25em rgba(255,255,255,0.2),
+    0 0 transparent;
+}
+
+.hp-photo-call-btn-wrap .glass-btn:hover {
+  transform: scale(0.94);
+  box-shadow:
+    inset 0 0.125em 0.125em rgba(0,0,0,0.05),
+    inset 0 -0.125em 0.125em rgba(255,255,255,0.5),
+    0 0.15em 0.05em -0.1em rgba(0,0,0,0.25),
+    inset 0 0 0.05em 0.1em rgba(255,255,255,0.5),
+    0 0 transparent;
+}
+
+.hp-photo-call-btn-wrap .glass-btn:active { transform: scale(0.9) rotateX(25deg); }
+
+.hp-photo-call-btn-wrap .glass-btn::after {
+  content: ""; z-index: 1; box-sizing: border-box;
+  background:
+    conic-gradient(from var(--angle-1) at 50% 50%,
+      rgba(0,0,0,0.5), rgba(0,0,0,0) 5% 40%,
+      rgba(0,0,0,0.5) 50%, rgba(0,0,0,0) 60% 95%, rgba(0,0,0,0.5)),
+    linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.5));
+  border-radius: 999vw;
+  width: calc(100% + clamp(1px, 0.0625em, 4px));
+  height: calc(100% + clamp(1px, 0.0625em, 4px));
+  padding: clamp(1px, 0.0625em, 4px);
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1), --angle-1 0.5s;
+  position: absolute;
+  inset: calc(0% - clamp(1px, 0.0625em, 4px) / 2) 0 0 calc(0% - clamp(1px, 0.0625em, 4px) / 2);
+  box-shadow: inset 0 0 0 calc(clamp(1px, 0.0625em, 4px) / 2) rgba(255,255,255,0.5);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.hp-photo-call-btn-wrap .glass-btn:hover::after { --angle-1: -125deg; }
+
+.hp-photo-call-btn-wrap .glass-btn::before {
+  content: ""; z-index: 3;
+  background: linear-gradient(var(--angle-2), rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 40% 50%, rgba(255,255,255,0) 55%);
+  mix-blend-mode: screen; pointer-events: none;
+  background-position: 0%; background-repeat: no-repeat; background-size: 200% 200%;
+  border-radius: 999vw; width: 100%; height: 100%;
+  transition: background-position 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  position: absolute; top: 0; left: 0; overflow: clip;
+}
+.hp-photo-call-btn-wrap .glass-btn:hover::before { background-position: 25%; }
+
+.hp-photo-call-btn-wrap .glass-btn-shadow {
+  filter: blur(clamp(2px, 0.125em, 12px));
+  pointer-events: none;
+  width: calc(100% + 2em); height: calc(100% + 2em);
+  position: absolute; top: -1em; left: -1em; overflow: visible;
+}
+.hp-photo-call-btn-wrap .glass-btn-shadow::after {
+  content: ""; box-sizing: border-box;
+  background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.1));
+  border-radius: 999vw;
+  width: calc(100% - 2.25em); height: calc(100% - 2.25em);
+  padding: 0.125em;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  position: absolute; inset: 1.5em 0 0 1.125em;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.hp-photo-call-btn-wrap:has(button:hover) .glass-btn-shadow { filter: blur(clamp(2px, 0.0625em, 6px)); }
+
+.hp-photo-call-btn-wrap .glass-btn span {
+  position: relative; z-index: 2;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.02em;
+  color: rgba(10,10,10,0.75);
+  transform: translateY(-1px);
+  display: flex; align-items: center; gap: 5px;
 }
 
 /* ---- Photo loading spinner ---- */
