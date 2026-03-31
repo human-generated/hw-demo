@@ -135,7 +135,7 @@ export function LandingPage({ onLogin }) {
 
   async function handleGoogle() {
     setGoogleLoading(true);
-    await signIn('google', { callbackUrl: '/' });
+    await signIn('google', { callbackUrl: window.location.origin + '/' });
   }
 
   const inp = {
