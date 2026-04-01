@@ -62,10 +62,19 @@ export const authOptions = {
       if (user) {
         token.sub = user.id || user.email;
         if (user.image) token.picture = user.image;
-        if (user.email === ADMIN_EMAIL) token.isAdmin = true;
       }
-      // Google raw profile picture (first sign-in)
       if (profile?.picture) token.picture = profile.picture;
+      // Re-check admin on every token refresh so existing sessions pick it up
+      const email = token.email || user?.email;
+      if (email === ADMIN_EMAIL) token.isAdmin = true;
+      // Check server-side isAdmin for promoted users
+      if (email && !token.isAdmin) {
+        try {
+          const r = await fetch(`${MASTER}/api/demo/user-profile?email=${encodeURIComponent(email)}`);
+          const p = await r.json();
+          if (p?.isAdmin) token.isAdmin = true;
+        } catch {}
+      }
       return token;
     },
   },
