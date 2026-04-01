@@ -2,7 +2,7 @@
 import { useState } from 'react';
 
 const HEART_RATE = 500;
-const HEART_WALLET = '0x5d7B6afEF12bA75c80c6Ae9EE1725F03e83699E7';
+const HEART_WALLET = '0x3E72695D2dEa794F5Fe1224855951170a2870f27';
 
 // Stripe wordmark — inlined so it never fails to load
 function StripeLogo() {
@@ -103,20 +103,19 @@ export function PaymentModal({ email, onClose, onSuccess }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
         background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '20px',
         overflowY: 'auto',
+        display: 'flex',
+        padding: '20px',
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose?.(); }}
     >
       <div style={{
         width: '100%', maxWidth: 400,
+        margin: 'auto',
         background: '#fff', borderRadius: 22,
         boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
         padding: '26px 24px 22px',
         fontFamily: "'DM Sans', sans-serif",
-        maxHeight: 'calc(100vh - 40px)',
-        overflowY: 'auto',
       }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22 }}>
