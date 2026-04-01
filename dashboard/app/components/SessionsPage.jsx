@@ -85,7 +85,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
-  const [usage, setUsage] = useState({ voice: 0, llm: 0, platforms: 0 });
+  const [spent, setSpent] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -101,7 +101,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           const r = await fetch(`/api/demo/user-profile?email=${encodeURIComponent(user.email)}`);
           const p = await r.json();
           if (p?.credits != null) setCredit(p.credits);
-          if (p?.usage) setUsage(p.usage);
+          if (p?.usage) setSpent(((p.usage.voice || 0) * 0.018) + ((p.usage.llm || 0) * 0.010) + ((p.usage.platforms || 0) * 0.050));
         } catch {}
       }
       setLoading(false);
@@ -174,7 +174,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           {callEnabled && workerSession && (
             <AvatarLiveTile workerSession={workerSession} />
           )}
-          <CreditBadge credit={credit} usage={usage} userInitial={userInitial} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
+          <CreditBadge credit={credit} spent={spent} userInitial={userInitial} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
             style={{

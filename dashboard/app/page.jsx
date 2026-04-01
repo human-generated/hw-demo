@@ -894,20 +894,17 @@ function AppInner() {
   const [hubSessionId, setHubSessionId] = useState(null);
   const [hubCompanyName, setHubCompanyName] = useState(null);
   const [sessionCredit, setSessionCredit] = useState(5.00);
-  const [sessionUsage, setSessionUsage] = useState({ voice: 0, llm: 0, platforms: 0 });
-  const addCost = useCallback((amount, type) => {
+  const [totalSpent, setTotalSpent] = useState(0);
+  const addCost = useCallback((amount) => {
     setSessionCredit(prev => Math.max(0, parseFloat((prev - amount).toFixed(4))));
-    setSessionUsage(prev => {
-      const k = type === 'voice' ? 'voice' : type === 'platform' ? 'platforms' : 'llm';
-      return { ...prev, [k]: prev[k] + 1 };
-    });
+    setTotalSpent(prev => parseFloat((prev + amount).toFixed(4)));
   }, []);
   // Load user credits from profile on login
   useEffect(() => {
     if (!authSession?.user?.email) return;
     fetch(`/api/demo/user-profile?email=${encodeURIComponent(authSession.user.email)}`)
       .then(r => r.json())
-      .then(p => { if (p?.credits != null) setSessionCredit(p.credits); if (p?.usage) setSessionUsage(p.usage); })
+      .then(p => { if (p?.credits != null) setSessionCredit(p.credits); })
       .catch(() => {});
   }, [authSession?.user?.email]);
 
@@ -1910,7 +1907,7 @@ function AppInner() {
               videoEnabled={hubVideoEnabled}
               onVideoEnabledChange={setHubVideoEnabled}
               credit={sessionCredit}
-              usage={sessionUsage}
+              spent={totalSpent}
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}
@@ -1938,7 +1935,7 @@ function AppInner() {
               onWorkersBuilt={(workers) => { setHubWorkers(workers); }}
               onCompanyName={(name) => { if (name) setHubCompanyName(name); }}
               credit={sessionCredit}
-              usage={sessionUsage}
+              spent={totalSpent}
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}

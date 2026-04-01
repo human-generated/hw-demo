@@ -10,7 +10,7 @@ function StripeLogo() {
   );
 }
 
-export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms: 0 }, userInitial = 'U', email = '', onCreditUpdate }) {
+export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', email = '', onCreditUpdate }) {
   const [open, setOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const ref = useRef(null);
@@ -25,7 +25,6 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
   // Color ring: green ≥$4, orange $1–$4, red <$1
   const bg   = credit >= 4 ? '#16a34a' : credit >= 1 ? '#d97706' : '#dc2626';
   const ring = credit >= 4 ? 'rgba(22,163,74,0.3)' : credit >= 1 ? 'rgba(217,119,6,0.3)' : 'rgba(220,38,38,0.3)';
-  const spent = (usage.voice * 0.018) + (usage.llm * 0.010) + (usage.platforms * 0.050);
 
   return (
     <>
