@@ -80,7 +80,7 @@ function buildSystemPrompt(session, companyName) {
 
 export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWorkers, onGoPlatforms, onGoAbout, sessionId, onBackToDashboard,
   workerSession, callEnabled, onCallEnabled, onCallDisabled, onSystemPromptChange, videoEnabled, onVideoEnabledChange,
-  credit = 10, usage = { voice: 0, llm: 0, platforms: 0 }, addCost, creditBlocked = false, email = '' }) {
+  credit = 10, usage = { voice: 0, llm: 0, platforms: 0 }, addCost, creditBlocked = false, email = '', onCreditUpdate }) {
   const [companyName, setCompanyName] = useState('');
   const [ready, setReady] = useState(false);
   const [companyConfirmed, setCompanyConfirmed] = useState(false);
@@ -487,7 +487,7 @@ export function Homepage({ onSubmit, exiting = false, onGoCall, onGoHub, onGoWor
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           )}
-          <CreditBadge credit={credit} usage={usage} email={email} />
+          <CreditBadge credit={credit} usage={usage} email={email} onCreditUpdate={onCreditUpdate} />
         </div>
       </nav>
     </div>

@@ -81,7 +81,7 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
@@ -174,7 +174,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           {callEnabled && workerSession && (
             <AvatarLiveTile workerSession={workerSession} />
           )}
-          <CreditBadge credit={credit} usage={usage} userInitial={userInitial} email={user?.email || ''} />
+          <CreditBadge credit={credit} usage={usage} userInitial={userInitial} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
             style={{

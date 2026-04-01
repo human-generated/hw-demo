@@ -1865,6 +1865,7 @@ function AppInner() {
               user={authSession?.user}
               workerSession={workerSession}
               callEnabled={hubCallEnabled}
+              onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
               onNewSession={async () => {
                 // Create a fresh session
                 try {
@@ -1913,6 +1914,7 @@ function AppInner() {
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}
+              onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
             />
           )}
           {aiView === 'workspace' && (
@@ -1940,6 +1942,7 @@ function AppInner() {
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}
+              onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
             />
           )}
           {aiView === 'workers' && (

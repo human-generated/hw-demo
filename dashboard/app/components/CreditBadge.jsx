@@ -10,7 +10,7 @@ function StripeLogo() {
   );
 }
 
-export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms: 0 }, userInitial = 'U', email = '' }) {
+export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms: 0 }, userInitial = 'U', email = '', onCreditUpdate }) {
   const [open, setOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const ref = useRef(null);
@@ -72,7 +72,7 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
                   <StripeLogo />
                   <span>Card</span>
                 </div>
-                <div className="credit-pay-pill">$HEART Token</div>
+                <div className="credit-pay-pill">$HEART</div>
               </div>
             </div>
           </div>
@@ -83,6 +83,7 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
         <PaymentModal
           email={email}
           onClose={() => setShowPayment(false)}
+          onSuccess={onCreditUpdate}
         />
       )}
     </>
