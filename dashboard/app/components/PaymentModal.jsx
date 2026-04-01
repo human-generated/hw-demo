@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 const HEART_RATE = 500;
 const HEART_WALLET = '0x3E72695D2dEa794F5Fe1224855951170a2870f27';
@@ -98,7 +99,11 @@ export function PaymentModal({ email, onClose, onSuccess }) {
     setTimeout(() => setCopied(false), 1800);
   }
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 9999,
@@ -286,6 +291,7 @@ export function PaymentModal({ email, onClose, onSuccess }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
