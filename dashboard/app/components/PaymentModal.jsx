@@ -91,7 +91,8 @@ export function PaymentModal({ email, onClose, onSuccess }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '6vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      paddingTop: '12vh', overflowY: 'auto',
     }} onClick={e => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div style={{
         width: 420, background: '#fff', borderRadius: 22,
