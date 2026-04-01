@@ -1,7 +1,72 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import { CreditBadge } from './CreditBadge';
+
+// Small live avatar tile shown in header when call is active
+function AvatarLiveTile({ workerSession }) {
+  const videoRef = useRef(null);
+  const { videoTrack, connected, micMuted, toggleMute, interrupt } = workerSession || {};
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !videoTrack) return;
+    videoTrack.attach(el);
+    return () => { try { videoTrack.detach(el); } catch {} };
+  }, [videoTrack]);
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: 'rgba(0,0,0,0.04)', borderRadius: 12,
+      padding: '5px 12px 5px 5px',
+      border: '1px solid rgba(0,0,0,0.07)',
+    }}>
+      <div style={{
+        width: 38, height: 38, borderRadius: 9, overflow: 'hidden',
+        background: '#c8d4d6', flexShrink: 0, position: 'relative',
+      }}>
+        {connected && videoTrack
+          ? <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : <img src="https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+        }
+        {connected && (
+          <div style={{
+            position: 'absolute', bottom: 3, right: 3,
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#34c759', border: '1.5px solid #fff',
+          }} />
+        )}
+      </div>
+      <div>
+        <div style={{ fontSize: '0.73rem', fontWeight: 600, color: '#1a1a1a', lineHeight: 1.2 }}>Alexandra</div>
+        <div style={{ fontSize: '0.63rem', color: connected ? '#34c759' : 'rgba(0,0,0,0.35)', lineHeight: 1.2 }}>
+          {connected ? '● Live' : '○ Connecting…'}
+        </div>
+      </div>
+      {connected && (
+        <div style={{ display: 'flex', gap: 4, marginLeft: 2 }}>
+          <button
+            onClick={() => toggleMute?.()}
+            title={micMuted ? 'Unmute' : 'Mute'}
+            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', background: micMuted ? 'rgba(255,59,48,0.08)' : 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: micMuted ? '#ff3b30' : 'rgba(0,0,0,0.5)' }}>
+            {micMuted
+              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+            }
+          </button>
+          <button
+            onClick={() => interrupt?.()}
+            title="Interrupt"
+            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.5)' }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 const PHASE_LABELS = { start: 'Starting', research: 'Research', building: 'Building', platforms: 'Platforms', workers: 'Workers' };
@@ -16,7 +81,7 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
@@ -106,6 +171,9 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           >
             <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> New Session
           </button>
+          {callEnabled && workerSession && (
+            <AvatarLiveTile workerSession={workerSession} />
+          )}
           <CreditBadge credit={credit} usage={usage} userInitial={userInitial} email={user?.email || ''} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}

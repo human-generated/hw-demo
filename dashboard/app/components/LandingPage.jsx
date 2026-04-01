@@ -1,15 +1,10 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import { HalftoneDots, FlutedGlass } from '@paper-design/shaders-react';
-import { useWorkerSession } from './useWorkerSession';
 
-// ── Constants (same as Homepage) ─────────────────────────────────────────────
 const PHOTO_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
 const CLASP_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJWH9TN7PGJARNM3D4GSKEJ.png';
-const ALEXANDRA_WORKER = { id: 'alexandra-homepage', name: 'Alexandra Middleweek', role: 'HR at Humans.AI' };
-const LANDING_PROMPT = `You are Alexandra, HR at Humans — welcoming visitors to the platform. Say hello and ask who they are and what company they work for. Keep responses very short (1-2 sentences).`;
-const CALL_LIMIT_SECS = 60;
 
 const BARS = [
   { x: 0, w: 1.5 }, { x: 4, w: 3 }, { x: 9, w: 1 }, { x: 12, w: 2.5 },
@@ -38,7 +33,6 @@ function GoogleIcon() {
   );
 }
 
-// Cursor tracking — same as Homepage
 function useCursorTracking(ref) {
   useEffect(() => {
     const el = ref.current;
@@ -60,12 +54,9 @@ function useCursorTracking(ref) {
   }, [ref]);
 }
 
-export function LandingPage({ onLogin }) {
+// Shared: receives workerSession from AppInner so the session persists across views
+export function LandingPage({ onLogin, workerSession, callEnabled, onCallEnabled, onCallDisabled, videoEnabled, onVideoEnabledChange }) {
   const [ready, setReady] = useState(false);
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(CALL_LIMIT_SECS);
-  const [callEnded, setCallEnded] = useState(false);
-  const [callEnabled, setCallEnabled] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -74,25 +65,13 @@ export function LandingPage({ onLogin }) {
 
   const badgeGroupRef = useRef(null);
   const avatarVideoRef = useRef(null);
-  const landingSessionId = useRef(`landing-${Date.now()}`);
 
   useCursorTracking(badgeGroupRef);
-
-  // Start session
-  const workerSession = useWorkerSession({
-    worker: ALEXANDRA_WORKER,
-    sessionId: landingSessionId.current,
-    enabled: callEnabled,
-    audioEnabled: true,
-    videoEnabled,
-    systemPrompt: LANDING_PROMPT,
-    mode: 'homepage',
-  });
 
   const { connected, connecting, videoTrack, micMuted, needsAudioResume,
     resumeAudio, toggleMute, interrupt, audioElRef } = workerSession || {};
 
-  // Attach video
+  // Attach video track to video element
   useEffect(() => {
     const el = avatarVideoRef.current;
     if (!el || !videoTrack) return;
@@ -100,28 +79,11 @@ export function LandingPage({ onLogin }) {
     return () => { try { videoTrack.detach(el); } catch {} };
   }, [videoTrack]);
 
-  // Ready state (triggers CSS animations)
+  // CSS ready class
   useEffect(() => {
     const t = setTimeout(() => setReady(true), 200);
     return () => clearTimeout(t);
   }, []);
-
-  // 1-minute call timeout
-  useEffect(() => {
-    if (!callEnabled) return;
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setCallEnabled(false);
-          setCallEnded(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [callEnabled]);
 
   async function handleCredentials(e) {
     e.preventDefault();
@@ -149,17 +111,14 @@ export function LandingPage({ onLogin }) {
     <div className={`hp ${ready ? 'hp--ready' : ''}`} style={{ background: '#EDF1F3' }}>
       {audioElRef && <audio ref={audioElRef} autoPlay playsInline style={{ display: 'none' }} />}
 
-      {/* Humans wordmark SVG watermark in the background */}
+      {/* Humans wordmark SVG watermark */}
       <div style={{
         position: 'absolute', inset: 0, display: 'flex',
         alignItems: 'center', justifyContent: 'center',
-        pointerEvents: 'none', zIndex: 0,
-        overflow: 'hidden',
+        pointerEvents: 'none', zIndex: 0, overflow: 'hidden',
       }}>
-        <svg
-          viewBox="0 0 156 29" fill="none" preserveAspectRatio="xMidYMid meet"
-          style={{ width: '92%', maxWidth: 1100, opacity: 1 }}
-        >
+        <svg viewBox="0 0 156 29" fill="none" preserveAspectRatio="xMidYMid meet"
+          style={{ width: '92%', maxWidth: 1100, opacity: 1 }}>
           <g transform="translate(-38,-51)">
             <g transform="translate(38,51)" fill="#1a1a1a" opacity="0.045">
               <path d="M5.23,0 L5.23,11.559 C7.116,9.155 9.431,8.437 11.831,8.437 C17.832,8.437 20.49,12.445 20.49,18.562 L20.485,26.449 C18.74,26.633 16.997,26.825 15.257,27.025 L15.26,18.605 C15.26,14.808 13.246,13.205 10.459,13.205 C7.373,13.205 5.23,15.778 5.23,18.9 L5.225,28.274 C3.48,28.507 1.739,28.75 1.442e-13,29 L0,0 L5.23,0 Z M146.784,8.142 C150.085,8.142 152.571,8.775 155.014,10.884 L152.099,14.259 C150.599,12.867 148.884,12.403 146.87,12.403 C144.384,12.403 143.012,13.162 143.012,14.47 C143.012,15.82 144.255,16.58 146.955,16.748 C150.942,17.002 156,17.887 156,23.414 C156,25.514 155.004,27.448 153.019,28.719 L153.022,28.706 C147.824,27.978 142.601,27.324 137.355,26.746 L137.14,26.536 L139.711,22.866 C141.212,24.511 144.641,25.734 146.998,25.776 C148.97,25.819 150.813,24.806 150.813,23.287 C150.813,21.853 149.613,21.262 146.613,21.094 C142.626,20.798 137.868,19.364 137.868,14.639 C137.868,9.83 142.926,8.142 146.784,8.142 Z M125.186,8.395 C130.158,8.395 134.144,12.066 134.144,18.605 L134.15,26.402 C132.408,26.22 130.663,26.047 128.916,25.882 L128.915,18.647 C128.915,15.483 127.157,13.078 123.814,13.078 C120.599,13.078 118.413,15.736 118.413,18.9 L118.418,24.993 C116.69,24.863 114.961,24.742 113.229,24.629 L113.227,8.691 L117.899,8.691 L118.242,11.517 C120.385,9.45 122.528,8.395 125.186,8.395 Z M29.486,8.733 L29.486,20.74 C29.486,22.741 30.189,24.439 31.552,25.416 L31.548,25.401 C29.445,25.578 27.345,25.768 25.248,25.97 C24.61,24.523 24.256,22.782 24.256,20.782 L24.256,8.733 L29.486,8.733 Z M45.174,8.733 L45.171,24.423 C42.837,24.561 40.508,24.714 38.183,24.881 L38.188,24.898 C39.323,23.822 39.988,22.231 39.988,20.487 L39.988,8.733 L45.174,8.733 Z M97.372,8.227 C100.201,8.227 102.902,9.534 104.102,11.602 L104.273,8.733 L109.288,8.733 L109.293,24.386 C106.841,24.244 104.385,24.118 101.924,24.009 L101.922,24.02 C105.715,20.723 104.356,12.825 97.844,12.825 C94.372,12.825 91.585,15.145 91.585,19.111 C91.585,21.06 92.258,22.621 93.355,23.705 L93.357,23.695 C91.256,23.634 89.152,23.586 87.045,23.549 C86.597,22.259 86.356,20.776 86.356,19.111 C86.356,11.939 91.2,8.184 97.372,8.227 Z M60.257,8.353 C62.786,8.353 65.315,9.366 66.515,12.234 C68.401,9.281 70.844,8.437 73.588,8.437 C79.589,8.437 82.546,12.066 82.546,18.309 L82.551,23.49 C80.884,23.475 79.215,23.468 77.545,23.468 L77.317,23.469 L77.317,18.309 C77.317,15.567 76.16,13.247 73.331,13.247 C70.502,13.247 68.744,15.652 68.744,18.394 L68.744,23.538 C66.997,23.566 65.253,23.602 63.51,23.646 L63.515,18.394 C63.515,15.652 62.057,13.162 59.185,13.162 C56.356,13.162 54.685,15.652 54.685,18.394 L54.68,23.943 C52.935,24.016 51.193,24.097 49.452,24.186 L49.455,8.691 L54.299,8.691 L54.685,11.222 C55.799,9.112 58.242,8.353 60.257,8.353 Z"/>
@@ -168,7 +127,7 @@ export function LandingPage({ onLogin }) {
         </svg>
       </div>
 
-      {/* ── Badge (identical to Homepage) ── */}
+      {/* ── Badge ── */}
       <div className="hp-badge-group" ref={badgeGroupRef}>
         <div className="hp-lanyard-strip" />
         <img src={CLASP_URL} alt="" className="hp-clasp" />
@@ -195,13 +154,13 @@ export function LandingPage({ onLogin }) {
 
           <div
             className={`hp-photo ${callEnabled && connected ? 'hp-photo--video' : ''}`}
-            onClick={!callEnabled ? () => setCallEnabled(true) : undefined}
+            onClick={!callEnabled ? () => onCallEnabled?.() : undefined}
             style={{ backgroundImage: `radial-gradient(ellipse 51.17% 51.17% at 50% 38.76% in oklab, oklab(95.2% -0.008 0.003 / 0%) 0%, oklab(95.2% -0.008 0.003 / 0%) 64.83%, oklab(95.2% -0.008 0.003) 100%), url(${PHOTO_URL})` }}
           >
             {!callEnabled && (
               <div className="hp-photo-call-btn-wrap">
                 <div className="glass-btn-shadow" />
-                <button className="glass-btn" onClick={e => { e.stopPropagation(); setCallEnabled(true); }} aria-label="Start call">
+                <button className="glass-btn" onClick={e => { e.stopPropagation(); onCallEnabled?.(); }} aria-label="Start call">
                   <span>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="rgba(10,10,10,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     Call
@@ -226,7 +185,7 @@ export function LandingPage({ onLogin }) {
             {callEnabled && connected && (
               <>
                 <button className={`hp-photo-ctrl-btn hp-photo-ctrl-btn--tr${micMuted ? ' hp-photo-ctrl-btn--muted' : ''}`}
-                  onClick={e => { e.stopPropagation(); toggleMute(); }} aria-label={micMuted ? 'Unmute' : 'Mute'}>
+                  onClick={e => { e.stopPropagation(); toggleMute?.(); }} aria-label={micMuted ? 'Unmute' : 'Mute'}>
                   {micMuted ? (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                       <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
@@ -252,7 +211,7 @@ export function LandingPage({ onLogin }) {
                   </svg>
                 </button>
                 <button className={`hp-photo-ctrl-btn hp-photo-ctrl-btn--bl${!videoEnabled ? ' hp-photo-ctrl-btn--muted' : ''}`}
-                  onClick={e => { e.stopPropagation(); setVideoEnabled(v => !v); }} aria-label="Toggle video">
+                  onClick={e => { e.stopPropagation(); onVideoEnabledChange?.(v => !v); }} aria-label="Toggle video">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
                     <path d="M15 10l4.55-2.95A1 1 0 0121 8v8a1 1 0 01-1.45.9L15 14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                     <rect x="1" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -292,17 +251,6 @@ export function LandingPage({ onLogin }) {
           boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 1.5px 4px rgba(0,0,0,0.06)',
           padding: '20px 20px 18px',
         }}>
-          {/* Timer */}
-          {callEnabled && !callEnded && timeLeft <= 30 && (
-            <div style={{
-              marginBottom: 12, textAlign: 'center',
-              fontSize: '0.71rem', color: timeLeft <= 10 ? '#ff3b30' : 'rgba(0,0,0,0.4)',
-              fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.03em',
-            }}>
-              {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} — log in to continue
-            </div>
-          )}
-
           {/* Google */}
           <button
             onClick={handleGoogle}

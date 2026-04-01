@@ -1007,11 +1007,21 @@ function AppInner() {
   const pollRef = useRef(null);
   const hubInitRef = useRef(false); // only initialize hub from URL once
 
-  // ── Shared worker session (persists across home → workspace transition) ─────
+  // ── Shared worker session (persists across landing → sessions → home → workspace) ─────
   const HP_DEFAULT_PROMPT = `You are Alexandra Middleweek, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.\n\nCRITICAL: The moment the visitor mentions ANY company name or domain — even once — you MUST confirm it and append <<NAV:CompanySlug>> at the very end of your reply (replace CompanySlug with the real company name, PascalCase, no spaces). Do NOT ask confirmation questions first. Just confirm and append the marker. Example: visitor says "I work at Global Foods" → you reply "Great, pulling up Global Foods now! <<NAV:GlobalFoods>>"`;
+  const LANDING_PROMPT = `You are Alexandra Middleweek, HR specialist at Humans.AI. You are welcoming visitors to the enterprise AI platform. Say hello warmly and ask who they are and what company they work for. Keep responses very short (1-2 sentences).`;
+  const SESSIONS_PROMPT = `You are Alexandra Middleweek, HR specialist at Humans.AI. The user has just logged in. Welcome them and let them know you're here to help start a new session or continue an existing one. Be brief and warm.`;
   const [hubCallEnabled, setHubCallEnabled] = useState(false);
-  const [hubSystemPrompt, setHubSystemPrompt] = useState(HP_DEFAULT_PROMPT);
+  const [hubSystemPrompt, setHubSystemPrompt] = useState(LANDING_PROMPT);
   const [hubVideoEnabled, setHubVideoEnabled] = useState(true);
+
+  // Update avatar's context as the user navigates between views
+  useEffect(() => {
+    if (aiView === 'landing') setHubSystemPrompt(LANDING_PROMPT);
+    else if (aiView === 'sessions') setHubSystemPrompt(SESSIONS_PROMPT);
+    else if (aiView === 'home') setHubSystemPrompt(HP_DEFAULT_PROMPT);
+  }, [aiView]);
+
   const workerSession = useWorkerSession({
     worker: { id: 'orchestrator', name: 'Alexandra Middleweek' },
     sessionId: hubSessionId || undefined,
@@ -1841,14 +1851,20 @@ function AppInner() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9000 }}>
           {aiView === 'landing' && (
             <LandingPage
-              callEnabled={true}
               onLogin={() => setAiView('sessions')}
-              onCallTimeout={() => {}}
+              workerSession={workerSession}
+              callEnabled={hubCallEnabled}
+              onCallEnabled={() => setHubCallEnabled(true)}
+              onCallDisabled={() => setHubCallEnabled(false)}
+              videoEnabled={hubVideoEnabled}
+              onVideoEnabledChange={setHubVideoEnabled}
             />
           )}
           {aiView === 'sessions' && (
             <SessionsPage
               user={authSession?.user}
+              workerSession={workerSession}
+              callEnabled={hubCallEnabled}
               onNewSession={async () => {
                 // Create a fresh session
                 try {
