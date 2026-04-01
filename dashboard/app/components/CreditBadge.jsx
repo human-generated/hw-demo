@@ -25,7 +25,7 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
   // Color ring: green ≥$4, orange $1–$4, red <$1
   const bg   = credit >= 4 ? '#16a34a' : credit >= 1 ? '#d97706' : '#dc2626';
   const ring = credit >= 4 ? 'rgba(22,163,74,0.3)' : credit >= 1 ? 'rgba(217,119,6,0.3)' : 'rgba(220,38,38,0.3)';
-  const spent = Math.max(0, 5 - credit);
+  const spent = (usage.voice * 0.018) + (usage.llm * 0.010) + (usage.platforms * 0.050);
 
   return (
     <>
@@ -53,10 +53,6 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
               <div className="credit-balance" style={{ color: bg }}>${credit.toFixed(2)}</div>
             </div>
             <div className="credit-menu-body">
-              <div className="credit-row"><span className="credit-row-label">Voice exchanges</span><span className="credit-row-val">{usage.voice}× −${(usage.voice * 0.018).toFixed(3)}</span></div>
-              <div className="credit-row"><span className="credit-row-label">AI responses</span><span className="credit-row-val">{usage.llm}× −${(usage.llm * 0.010).toFixed(3)}</span></div>
-              <div className="credit-row"><span className="credit-row-label">Platform builds</span><span className="credit-row-val">{usage.platforms}× −${(usage.platforms * 0.050).toFixed(3)}</span></div>
-              <div className="credit-sep" />
               <div className="credit-row"><span className="credit-row-label" style={{ fontWeight: 700, color: '#374151' }}>Total used</span><span className="credit-row-val">${spent.toFixed(2)}</span></div>
             </div>
             <div className="credit-menu-ft">
@@ -67,13 +63,6 @@ export function CreditBadge({ credit = 5, usage = { voice: 0, llm: 0, platforms:
               >
                 Top Up Credits
               </button>
-              <div className="credit-pay-opts">
-                <div className="credit-pay-pill" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <StripeLogo />
-                  <span>Card</span>
-                </div>
-                <div className="credit-pay-pill">$HEART</div>
-              </div>
             </div>
           </div>
         )}
