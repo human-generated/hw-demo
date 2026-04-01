@@ -1939,6 +1939,7 @@ function AppInner() {
               usage={sessionUsage}
               addCost={addCost}
               creditBlocked={creditBlocked}
+              email={authSession?.user?.email || ''}
             />
           )}
           {aiView === 'workers' && (
