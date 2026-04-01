@@ -5,13 +5,6 @@ import { useState } from 'react';
 const HEART_RATE = 500;
 const HEART_WALLET = '0x5d7B6afEF12bA75c80c6Ae9EE1725F03e83699E7';
 
-function StripeLogo() {
-  return (
-    <svg width="38" height="16" viewBox="0 0 60 25" fill="none" aria-label="Stripe">
-      <path d="M27.67 8.3c0-1.34 1.1-1.86 2.92-1.86 2.61 0 5.91.79 8.52 2.2V3.13C36.6 1.47 33.67.78 30.6.78c-6.03 0-10.04 3.15-10.04 8.4 0 8.2 11.3 6.88 11.3 10.41 0 1.58-1.37 2.1-3.29 2.1-2.84 0-6.47-.94-9.35-3.08v5.65c3.19 1.38 6.4 1.97 9.35 1.97 6.19 0 10.44-3.07 10.44-8.38 0-8.87-11.34-7.28-11.34-9.55zm-18.56 17.8V10.77H14V.8H.29v25.3H9.1zm36.14 0v-9.07c.86.08 1.73.13 2.6.13 7.84 0 12.56-3.96 12.56-10.6C60.41 0 55.86 0 50.93 0c-2.17 0-4.46.13-6.57.44l-.12 25.66h.01zm2.6-14.74V4.9c.42-.05.85-.07 1.27-.07 2.96 0 4.7 1.47 4.7 4.27 0 2.96-1.74 4.27-4.7 4.27-.43 0-.85-.02-1.27-.01z" fill="#635BFF"/>
-    </svg>
-  );
-}
 
 function CardIcon() {
   return (
@@ -219,7 +212,7 @@ export function PaymentModal({ email, onClose, onSuccess }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.45 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5zm7 9H5a1 1 0 00-1 1v9a1 1 0 001 1h14a1 1 0 001-1v-9a1 1 0 00-1-1z" fill="#6b7280"/></svg>
               <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Secured by</span>
-              <StripeLogo />
+              <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" style={{ height: 18, objectFit: 'contain' }} />
             </div>
           </>
         )}
