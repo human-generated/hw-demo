@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 // $HEART token — 1 USD = 500 HEART (placeholder rate, update as needed)
 const HEART_RATE = 500;
-const HEART_WALLET = '0x000000000000000000000000000000000000dEaD'; // TODO: replace with real wallet
+const HEART_WALLET = '0x5d7B6afEF12bA75c80c6Ae9EE1725F03e83699E7';
 
 function StripeLogo() {
   return (
@@ -98,7 +98,7 @@ export function PaymentModal({ email, onClose, onSuccess }) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
       background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '6vh',
     }} onClick={e => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div style={{
         width: 420, background: '#fff', borderRadius: 22,
