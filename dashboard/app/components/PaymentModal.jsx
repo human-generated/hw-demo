@@ -1,18 +1,10 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 const HEART_RATE = 500;
 const HEART_WALLET = '0x3E72695D2dEa794F5Fe1224855951170a2870f27';
 
-// Stripe wordmark — inlined so it never fails to load
-function StripeLogo() {
-  return (
-    <svg height="20" viewBox="0 0 60 25" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Stripe">
-      <path fillRule="evenodd" clipRule="evenodd" d="M0 13.082C0 7.307 2.794 4 7.82 4c2.466 0 4.247.847 5.63 2.597V4.38h5.877v17.207h-5.877v-2.218C12.067 21.12 10.286 22 7.82 22 2.827 22 0 18.693 0 13.082zm13.45 0c0-2.85-1.35-4.467-3.783-4.467-2.4 0-3.783 1.617-3.783 4.467s1.383 4.434 3.783 4.434c2.433 0 3.783-1.584 3.783-4.434zM22.28 4.38h5.877v2.25c1.25-1.75 3.1-2.63 5.4-2.63 3.816 0 6.443 2.75 6.443 6.9V21.59h-5.877v-9.69c0-1.883-1.017-3.016-2.7-3.016-1.85 0-3.266 1.316-3.266 3.5v9.207H22.28V4.38zm25.77 0v-4h5.877v4H53.5v4.616h-5.45v6.034c0 1.217.583 1.816 1.8 1.816h3.65v4.75h-4.717c-3.8 0-5.61-1.966-5.61-5.566V9.0h-2.6V4.38h2.477z" fill="#635BFF"/>
-    </svg>
-  );
-}
 
 // Credit card icon
 function CardIcon() {
@@ -222,7 +214,7 @@ export function PaymentModal({ email, onClose, onSuccess }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.4 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5zm7 9H5a1 1 0 00-1 1v9a1 1 0 001 1h14a1 1 0 001-1v-9a1 1 0 00-1-1z" fill="#6b7280"/></svg>
               <span style={{ fontSize: '0.68rem', color: '#6b7280' }}>Secured by</span>
-              <StripeLogo />
+              <img src="/stripe.png" alt="Stripe" style={{ height: 16, objectFit: 'contain' }} />
             </div>
           </>
         )}
