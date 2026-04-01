@@ -1,5 +1,5 @@
 import { getServerSession } from 'next-auth';
-import { authOptions, ADMIN_EMAIL } from '@/app/lib/authOptions';
+import { authOptions, ADMIN_EMAIL } from '../../../../lib/authOptions';
 
 const MASTER = 'http://159.65.205.244:3000';
 const INTERNAL = 'hw-demo-admin';
