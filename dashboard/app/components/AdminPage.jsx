@@ -54,11 +54,12 @@ function EditableCell({ value, onSave, type = 'text', prefix = '' }) {
   );
 }
 
-function UserRow({ user, isSelf, saving, onUpdate }) {
+function UserRow({ user, isSelf, saving, onUpdate, onDelete }) {
   return (
     <tr style={{
       borderBottom: '1px solid rgba(0,0,0,0.04)',
-      opacity: saving ? 0.55 : 1, transition: 'opacity 0.2s',
+      opacity: saving ? 0.55 : user.blocked ? 0.45 : 1, transition: 'opacity 0.2s',
+      background: user.blocked ? 'rgba(220,38,38,0.03)' : 'transparent',
     }}>
       <td style={{ padding: '0.85rem 1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -97,6 +98,12 @@ function UserRow({ user, isSelf, saving, onUpdate }) {
         )}
       </td>
       <td style={{ padding: '0.85rem 1rem' }}>
+        {user.blocked
+          ? <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '3px 8px', borderRadius: 6, background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>Blocked</span>
+          : <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.28)' }}>Active</span>
+        }
+      </td>
+      <td style={{ padding: '0.85rem 1rem' }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {!isSelf && (
             <button
@@ -125,6 +132,34 @@ function UserRow({ user, isSelf, saving, onUpdate }) {
               }}
             >
               Password
+            </button>
+          )}
+          {!isSelf && (
+            <button
+              onClick={() => onUpdate(user.email, { blocked: !user.blocked })}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: user.blocked ? 'rgba(52,199,89,0.08)' : 'rgba(234,179,8,0.08)',
+                color: user.blocked ? '#16a34a' : '#92400e',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              {user.blocked ? 'Unblock' : 'Block'}
+            </button>
+          )}
+          {!isSelf && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete ${user.email}? This cannot be undone.`)) onDelete(user.email);
+              }}
+              style={{
+                padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+                border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.06)', color: '#dc2626',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              Delete
             </button>
           )}
         </div>
@@ -164,6 +199,16 @@ export function AdminPage({ onClose, currentUser }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
       });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Failed'); }
+      await loadUsers();
+    } catch (e) { setError(e.message); }
+    setSaving('');
+  }
+
+  async function deleteUser(email) {
+    setSaving(email);
+    try {
+      const r = await fetch(`/api/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
       if (!r.ok) { const d = await r.json(); throw new Error(d.error || 'Failed'); }
       await loadUsers();
     } catch (e) { setError(e.message); }
@@ -263,7 +308,7 @@ export function AdminPage({ onClose, currentUser }) {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.06)', background: 'rgba(0,0,0,0.015)' }}>
-                  {['User', 'Auth', 'Credits', 'Spent', 'Last seen', 'Role', 'Actions'].map(h => (
+                  {['User', 'Auth', 'Credits', 'Spent', 'Last seen', 'Role', 'Status', 'Actions'].map(h => (
                     <th key={h} style={{
                       padding: '0.8rem 1rem', textAlign: 'left',
                       fontSize: '0.67rem', fontWeight: 700, letterSpacing: '0.07em',
@@ -280,10 +325,11 @@ export function AdminPage({ onClose, currentUser }) {
                     isSelf={u.email === currentUser?.email}
                     saving={saving === u.email}
                     onUpdate={updateUser}
+                    onDelete={deleteUser}
                   />
                 ))}
                 {users.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.85rem' }}>No users yet</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.85rem' }}>No users yet</td></tr>
                 )}
               </tbody>
             </table>

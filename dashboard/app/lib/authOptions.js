@@ -23,8 +23,9 @@ export const authOptions = {
 
         // Hardcoded accounts (always work regardless of master)
         const HARDCODED = {
-          'demo@demo.com':  { password: 'aidemo',      name: 'Demo User', isAdmin: false },
-          'admin@demo.com': { password: 'aidemoadmin', name: 'Admin',     isAdmin: true  },
+          'demo@demo.com': { password: 'aidemo',      name: 'Demo User', isAdmin: false },
+          'demo@demo.ai':  { password: 'aidemo',      name: 'Demo User', isAdmin: false },
+          'admin@demo.com':{ password: 'aidemoadmin', name: 'Admin',     isAdmin: true  },
         };
         if (HARDCODED[email] && HARDCODED[email].password === password) {
           const h = HARDCODED[email];

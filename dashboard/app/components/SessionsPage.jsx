@@ -1,7 +1,10 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { signOut } from 'next-auth/react';
+import { LiquidMetal } from '@paper-design/shaders-react';
 import { CreditBadge } from './CreditBadge';
+
+const H_MASK_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 27'%3E%3Cpath d='M4.626%2C0 L4.626%2C10.444 C6.294%2C8.271 8.342%2C7.623 10.466%2C7.623 C15.774%2C7.623 18.125%2C11.244 18.125%2C16.771 L18.121%2C24.668 C16.577%2C24.833 15.036%2C25.005 13.496%2C25.184 L13.499%2C16.809 C13.499%2C13.378 11.717%2C11.930 9.252%2C11.930 C6.522%2C11.930 4.626%2C14.255 4.626%2C17.076 L4.622%2C26.305 C3.744%2C26.424 2.866%2C26.546 1.990%2C26.670 L0%2C26.681 L0%2C0 Z' fill='black'/%3E%3C/svg%3E")`;
 
 // Small live avatar tile shown in header when call is active
 function AvatarLiveTile({ workerSession }) {
@@ -136,26 +139,39 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         </svg>
       </div>
 
-      {/* Header */}
+      {/* Floating navbar */}
       <div style={{
-        position: 'relative', zIndex: 1,
+        position: 'fixed', top: 11, left: '50%',
+        transform: 'translateX(-50%)',
+        width: 'calc(100% - 24px)', maxWidth: 1200, height: 56,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '1.1rem 2rem',
-        background: 'rgba(255,255,255,0.7)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
+        paddingInline: 24, borderRadius: 16,
+        background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.75)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+        zIndex: 100,
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 32, height: 32, background: '#1a1a1a', borderRadius: 9,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 30, flexShrink: 0,
+            WebkitMaskImage: H_MASK_SVG, maskImage: H_MASK_SVG,
+            WebkitMaskSize: 'contain', maskSize: 'contain',
+            WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+            WebkitMaskPosition: 'center', maskPosition: 'center',
+            overflow: 'hidden',
           }}>
-            <svg viewBox="0 0 19 27" width="11" height="16">
-              <path d="M4.626,0 L4.626,10.444 C6.294,8.271 8.342,7.623 10.466,7.623 C15.774,7.623 18.125,11.244 18.125,16.771 L18.121,24.668 C16.577,24.833 15.036,25.005 13.496,25.184 L13.499,16.809 C13.499,13.378 11.717,11.930 9.252,11.930 C6.522,11.930 4.626,14.255 4.626,17.076 L4.622,26.305 L0,26.681 L0,0 Z" fill="white" />
-            </svg>
+            <LiquidMetal speed={1} softness={0.1} repetition={2}
+              shiftRed={0.3} shiftBlue={0.3} distortion={0.07}
+              contour={0.4} scale={2.88} rotation={0}
+              shape="diamond" angle={70}
+              colorBack="#00000000" colorTint="#FFFFFF"
+              style={{ backgroundColor: '#1a1a1a', width: 22, height: 30 }}
+            />
           </div>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a1a', letterSpacing: '-0.02em' }}>Humans</span>
+          <span style={{ fontSize: 15, fontWeight: 400, color: 'rgba(0,0,0,0.65)', letterSpacing: '-0.3px' }}>humans</span>
+          <span style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.08)', display: 'inline-block' }} />
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)' }}>Enterprise</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -206,10 +222,10 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — top padding to clear fixed navbar */}
       <div style={{
         flex: 1, overflow: 'auto', position: 'relative', zIndex: 1,
-        padding: '2rem',
+        padding: '88px 2rem 2rem',
         display: 'flex', flexDirection: 'column',
       }}>
         {/* Welcome */}

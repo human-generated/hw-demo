@@ -13,6 +13,7 @@ function StripeLogo() {
 export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', userImage = null, email = '', onCreditUpdate }) {
   const [open, setOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -43,8 +44,8 @@ export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', userImag
             overflow: 'hidden', padding: 0,
           }}
         >
-          {userImage
-            ? <img src={userImage} alt="" width={30} height={30} style={{ display: 'block', objectFit: 'cover', borderRadius: '50%' }} referrerPolicy="no-referrer" />
+          {userImage && !imgFailed
+            ? <img src={userImage} alt="" width={30} height={30} style={{ display: 'block', objectFit: 'cover', borderRadius: '50%' }} referrerPolicy="no-referrer" onError={() => setImgFailed(true)} />
             : userInitial}
         </div>
 

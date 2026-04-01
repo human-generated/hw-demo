@@ -22,3 +22,13 @@ export async function PATCH(req, { params }) {
   });
   return Response.json(await r.json(), { status: r.status });
 }
+
+export async function DELETE(req, { params }) {
+  if (!await requireAdmin()) return Response.json({ error: 'Unauthorized' }, { status: 403 });
+  const { email } = await params;
+  const r = await fetch(`${MASTER}/api/admin/users/${encodeURIComponent(email)}`, {
+    method: 'DELETE',
+    headers: { 'X-Internal': INTERNAL },
+  });
+  return Response.json(await r.json(), { status: r.status });
+}
