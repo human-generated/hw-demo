@@ -10,7 +10,7 @@ function StripeLogo() {
   );
 }
 
-export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', email = '', onCreditUpdate }) {
+export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', userImage = null, email = '', onCreditUpdate }) {
   const [open, setOpen] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const ref = useRef(null);
@@ -40,9 +40,12 @@ export function CreditBadge({ credit = 5, spent = 0, userInitial = 'U', email = 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', userSelect: 'none', flexShrink: 0,
             transition: 'background 0.3s, box-shadow 0.3s',
+            overflow: 'hidden', padding: 0,
           }}
         >
-          {userInitial}
+          {userImage
+            ? <img src={userImage} alt="" width={30} height={30} style={{ display: 'block', objectFit: 'cover', borderRadius: '50%' }} referrerPolicy="no-referrer" />
+            : userInitial}
         </div>
 
         {open && (

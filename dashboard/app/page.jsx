@@ -12,6 +12,7 @@ import { WorkerPage, PlatformPreviewCard } from './components/WorkerPage';
 import { OnboardingFlow } from './components/OnboardingFlow';
 import { LandingPage } from './components/LandingPage';
 import { SessionsPage } from './components/SessionsPage';
+import { AdminPage } from './components/AdminPage';
 import { DockIcons } from './components/DockIcons';
 import { MeshGradient } from '@paper-design/shaders-react';
 
@@ -1857,16 +1858,22 @@ function AppInner() {
               onVideoEnabledChange={setHubVideoEnabled}
             />
           )}
+          {aiView === 'admin' && (
+            <AdminPage
+              onClose={() => setAiView('sessions')}
+              currentUser={authSession?.user}
+            />
+          )}
           {aiView === 'sessions' && (
             <SessionsPage
               user={authSession?.user}
               workerSession={workerSession}
               callEnabled={hubCallEnabled}
               onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
+              onGoAdmin={() => setAiView('admin')}
               onNewSession={async () => {
-                // Create a fresh session
                 try {
-                  const r = await fetch('/api/demo/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: authSession?.user?.email }) });
+                  const r = await fetch('/api/demo/sessions', { method: 'POST' });
                   const d = await r.json();
                   if (d.id) { setHubSessionId(d.id); setAiView('home'); }
                 } catch { setAiView('home'); }
@@ -1911,6 +1918,7 @@ function AppInner() {
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}
+              userImage={authSession?.user?.image || null}
               onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
             />
           )}
@@ -1939,6 +1947,7 @@ function AppInner() {
               addCost={addCost}
               creditBlocked={creditBlocked}
               email={authSession?.user?.email || ''}
+              userImage={authSession?.user?.image || null}
               onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
             />
           )}

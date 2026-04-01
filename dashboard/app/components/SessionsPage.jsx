@@ -81,7 +81,7 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate, onGoAdmin }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
@@ -110,6 +110,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
   }, [user?.email]);
 
   const userInitial = user?.name ? user.name[0].toUpperCase() : user?.email ? user.email[0].toUpperCase() : 'U';
+  const isAdmin = user?.isAdmin || user?.email === 'dragos.costea@humans.ai';
 
   return (
     <div style={{
@@ -158,6 +159,19 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {isAdmin && onGoAdmin && (
+            <button
+              onClick={onGoAdmin}
+              style={{
+                padding: '0.4rem 0.85rem', borderRadius: 7,
+                background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)',
+                fontSize: '0.75rem', fontWeight: 700, color: '#92400e',
+                cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              Admin
+            </button>
+          )}
           <button
             onClick={onNewSession}
             style={{
@@ -174,7 +188,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           {callEnabled && workerSession && (
             <AvatarLiveTile workerSession={workerSession} />
           )}
-          <CreditBadge credit={credit} spent={spent} userInitial={userInitial} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
+          <CreditBadge credit={credit} spent={spent} userInitial={userInitial} userImage={user?.image || null} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
             style={{
