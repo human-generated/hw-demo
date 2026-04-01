@@ -884,7 +884,10 @@ function AppInner() {
   // When auth status resolves, skip landing if already logged in
   useEffect(() => {
     if (authStatus === 'loading') return;
-    if (aiView === 'landing' && isLoggedIn) setAiView('sessions');
+    if (aiView === 'landing' && isLoggedIn) {
+      const viewParam = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view');
+      setAiView(viewParam === 'admin' ? 'admin' : 'sessions');
+    }
     if (aiView === 'sessions' && !isLoggedIn) setAiView('landing');
   }, [authStatus, isLoggedIn]);
 

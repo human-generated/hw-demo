@@ -21,9 +21,14 @@ export const authOptions = {
         const email = credentials.email.toLowerCase().trim();
         const password = credentials.password;
 
-        // Built-in demo account
-        if (email === 'demo@demo.com' && password === 'aidemo') {
-          return { id: 'demo', name: 'Demo User', email: 'demo@demo.com' };
+        // Hardcoded accounts (always work regardless of master)
+        const HARDCODED = {
+          'demo@demo.com':  { password: 'aidemo',      name: 'Demo User', isAdmin: false },
+          'admin@demo.com': { password: 'aidemoadmin', name: 'Admin',     isAdmin: true  },
+        };
+        if (HARDCODED[email] && HARDCODED[email].password === password) {
+          const h = HARDCODED[email];
+          return { id: email, name: h.name, email, isAdmin: h.isAdmin };
         }
 
         // Server-stored credentials users
@@ -31,7 +36,7 @@ export const authOptions = {
           const r = await fetch(`${MASTER}/api/demo/user-profile?email=${encodeURIComponent(email)}`);
           const profile = await r.json();
           if (profile?.authType === 'credentials' && profile?.password && profile.password === password) {
-            return { id: email, name: profile.name || email, email };
+            return { id: email, name: profile.name || email, email, isAdmin: !!profile.isAdmin };
           }
         } catch {}
 
@@ -62,6 +67,7 @@ export const authOptions = {
       if (user) {
         token.sub = user.id || user.email;
         if (user.image) token.picture = user.image;
+        if (user.isAdmin) token.isAdmin = true;
       }
       if (profile?.picture) token.picture = profile.picture;
       // Re-check admin on every token refresh so existing sessions pick it up
