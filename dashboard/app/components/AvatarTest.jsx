@@ -1,19 +1,27 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { createClient } from '@anam-ai/js-sdk';
 
-// Persona constants (fetched from GET /v1/personas/:id)
+// Persona constants
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
 const ANAM_PERSONA_NAME = 'Liv';
-const ANAM_AVATAR_ID = '71acc5f4-647b-459d-bd3b-aca7da9d5591';
-const ANAM_LLM_ID    = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
+const ANAM_LLM_ID = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
 
-// Real Anam catalog voice IDs (fetched from GET /v1/voices).
-// eleven_turbo_v2_5 supports English, Hindi, Romanian (not Marathi natively).
-// Cartesia sonic-3 is English-only.
-const VOICE_JILLIAN = '5ed805fd-e56e-46da-b1d9-0b3c4af9e146'; // Cartesia sonic-3, EN only (persona default)
-const VOICE_HARINI  = '9fa4b058-39b3-4980-89d8-7cbbec8098b0'; // ElevenLabs turbo v2.5, IN female – Hindi
-const VOICE_LAUREN  = 'd79f2051-3a89-4fcc-8c71-cf5d53f9d9e0'; // ElevenLabs turbo v2.5, US female – Romanian
+// Custom one-shot avatar IDs
+const AVATAR_FEMALE = '160129b8-4668-42bf-9d77-c479ae16c403'; // Alexandra
+const AVATAR_MALE   = '90505cad-620d-4a33-8976-36cd59a21bf4'; // Alex
+
+// Voices
+const VOICE_JILLIAN = '5ed805fd-e56e-46da-b1d9-0b3c4af9e146';
+const VOICE_HARINI  = '9fa4b058-39b3-4980-89d8-7cbbec8098b0';
+const VOICE_LAUREN  = 'd79f2051-3a89-4fcc-8c71-cf5d53f9d9e0';
+
+const AVATARS = [
+  { id: 'female', photo: '/avatar-photo.png',       avatarId: AVATAR_FEMALE, label: 'Alexandra' },
+  { id: 'boy',    photo: '/avatar-boy.png',          avatarId: AVATAR_MALE,   label: 'Alex' },
+  { id: 'girl2',  photo: '/avatar-girl-middle.png',  avatarId: AVATAR_FEMALE, label: 'Aria' },
+  { id: 'girl3',  photo: '/avatar-girl-right.png',   avatarId: AVATAR_FEMALE, label: 'Maya' },
+];
 
 const LANGUAGES = [
   {
@@ -33,7 +41,7 @@ const LANGUAGES = [
   {
     code: 'mr',
     label: 'Marathi',
-    voiceId: VOICE_HARINI, // closest available — eleven_turbo_v2_5 with Marathi prompt
+    voiceId: VOICE_HARINI,
     voice: 'Harini (ElevenLabs, approx. Marathi)',
     prompt: 'तुम्ही Alexandra आहात, Humans.AI Enterprise साठी एक मैत्रीपूर्ण AI सहाय्यक. वापरकर्त्याला मराठीत उबदारपणे अभिवादन करा आणि नैसर्गिक संभाषण करा. केवळ मराठीत बोला.',
   },
@@ -46,38 +54,78 @@ const LANGUAGES = [
   },
 ];
 
+// Romanian ICT curriculum knowledge base (Programa școlară TIC, Clasa a IX-a, 2025)
+const KB_PROGRAMA = `KNOWLEDGE BASE – Programa școlară TIC, Clasa a IX-a (2025)
+
+Disciplina: Tehnologia informației și a comunicațiilor (TIC), trunchi comun, 1 oră/săptămână, clasele IX–XII.
+
+COMPETENȚE GENERALE:
+CG1 – Recunoaște conceptele, instrumentele și relațiile fundamentale din domeniul TIC pentru a construi cunoștințe utilizabile.
+CG2 – Explică principiile și rolul instrumentelor TIC pentru rezolvarea sarcinilor într-o societate digitală.
+CG3 – Utilizează instrumentele și metodele TIC pentru rezolvarea de sarcini specifice, respectând pașii operaționali.
+CG4 – Analizează instrumentele și strategiile TIC pentru a face alegeri adecvate într-o societate digitală.
+CG5 – Evaluează eficiența și impactul instrumentelor TIC pe baza unor criterii tehnice, etice și legale.
+CG6 – Creează produse și soluții digitale personalizate, adecvate scopului propus.
+
+DOMENII DE CONȚINUT (Clasa a IX-a):
+1. Comunicare și colaborare digitală – platforme de comunicare, colaborare online, glosar digital, forme de comunicare digitală.
+2. Inteligență artificială și societate digitală – termeni cheie (IA, algoritm, învățare automată, rețea neuronală, realitate virtuală), instrumente IA, utilizare responsabilă.
+3. Arhitectura sistemelor de calcul – componente hardware, funcționare, internet of things, roboți, obiecte inteligente.
+4. Aplicații dedicate – procesare text, calcul tabelar, prezentări, aplicații cu interfețe vizuale.
+5. Programare vizuală și robotică – creare programe cu elemente vizuale interactive, gândire logică, algoritmică.
+6. Competențe digitale transversale – organizare, comunicare, colaborare, gândire critică, securitate cibernetică.
+
+METODOLOGIE: Activități în laboratorul de informatică, proiecte individuale și de grup, abordare practică, interdisciplinară.`;
+
+const KNOWLEDGE_OPTIONS = [
+  { id: 'none', label: 'None' },
+  { id: 'programa', label: 'Programa TIC IX-a (RO)' },
+];
+
 const VIDEO_ID = 'avatar-test-video';
 
 export function AvatarTest() {
   const [langCode, setLangCode] = useState('en');
   const [prompt, setPrompt] = useState(LANGUAGES[0].prompt);
   const [promptEdited, setPromptEdited] = useState(false);
-  const [status, setStatus] = useState('idle'); // idle | connecting | connected | ending
+  const [status, setStatus] = useState('idle');
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
+  const [knowledgeBase, setKnowledgeBase] = useState('none');
   const clientRef = useRef(null);
 
   const langConfig = LANGUAGES.find(l => l.code === langCode) || LANGUAGES[0];
+  const avatarConfig = AVATARS.find(a => a.id === selectedAvatar) || AVATARS[0];
 
-  // Sync prompt to selected language (unless user edited it)
-  useEffect(() => {
-    if (!promptEdited) setPrompt(langConfig.prompt);
-  }, [langCode]);
+  function handleLangChange(code) {
+    setLangCode(code);
+    if (!promptEdited) {
+      const lang = LANGUAGES.find(l => l.code === code) || LANGUAGES[0];
+      setPrompt(lang.prompt);
+    }
+  }
+
+  function buildPrompt() {
+    let p = prompt;
+    if (knowledgeBase === 'programa') {
+      p = `${p}\n\n${KB_PROGRAMA}`;
+    }
+    return p;
+  }
 
   async function startCall() {
     setError('');
     setStatus('connecting');
     try {
-      // Get session token server-side — bypasses SDK's isCustomPersonaConfig() filtering
-      // which silently drops voiceId/languageCode/systemPrompt when llmId is absent.
       const personaConfig = {
         personaId: ANAM_PERSONA_ID,
         name: ANAM_PERSONA_NAME,
-        avatarId: ANAM_AVATAR_ID,
+        avatarId: avatarConfig.avatarId,
         llmId: ANAM_LLM_ID,
         voiceId: langConfig.voiceId,
         languageCode: langConfig.code,
-        systemPrompt: prompt,
+        systemPrompt: buildPrompt(),
       };
       const tokenRes = await fetch('/api/anam/session', {
         method: 'POST',
@@ -87,23 +135,12 @@ export function AvatarTest() {
       const { sessionToken, error: tokenErr } = await tokenRes.json();
       if (!sessionToken) throw new Error(tokenErr ? JSON.stringify(tokenErr) : 'Failed to get session token');
 
-      // createClient(token) — no personaConfig passed so the SDK won't override
-      // the server-configured session with a conflicting client-side config.
       const client = createClient(sessionToken);
       clientRef.current = client;
 
-      client.addListener('CONNECTION_ESTABLISHED', () => {
-        console.log('[AvatarTest] connection established');
-      });
-      client.addListener('VIDEO_PLAY_STARTED', () => {
-        console.log('[AvatarTest] video playing');
-        setStatus('connected');
-      });
-      client.addListener('CONNECTION_CLOSED', () => {
-        console.log('[AvatarTest] connection closed');
-        setStatus('idle');
-        clientRef.current = null;
-      });
+      client.addListener('CONNECTION_ESTABLISHED', () => console.log('[AvatarTest] connection established'));
+      client.addListener('VIDEO_PLAY_STARTED', () => { console.log('[AvatarTest] video playing'); setStatus('connected'); });
+      client.addListener('CONNECTION_CLOSED', () => { console.log('[AvatarTest] connection closed'); setStatus('idle'); clientRef.current = null; });
 
       await client.streamToVideoElement(VIDEO_ID);
     } catch (e) {
@@ -138,10 +175,12 @@ export function AvatarTest() {
       fontFamily: "'DM Sans', system-ui, sans-serif",
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       color: '#fff',
-      gap: 24,
+      gap: 20,
+      overflowY: 'auto',
+      padding: '20px 0',
     }}>
       {/* Header */}
-      <div style={{ position: 'absolute', top: 20, left: 24, display: 'flex', alignItems: 'center', gap: 10, opacity: 0.4 }}>
+      <div style={{ position: 'fixed', top: 20, left: 24, display: 'flex', alignItems: 'center', gap: 10, opacity: 0.4 }}>
         <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: "'IBM Plex Mono', monospace" }}>
           Avatar Test
         </span>
@@ -154,9 +193,8 @@ export function AvatarTest() {
         border: '1px solid rgba(255,255,255,0.08)',
         position: 'relative', flexShrink: 0,
       }}>
-        {/* Static photo — always behind the video */}
         <img
-          src="/avatar-photo.png"
+          src={avatarConfig.photo}
           alt=""
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
         />
@@ -171,7 +209,7 @@ export function AvatarTest() {
             position: 'absolute', inset: 0,
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            background: status === 'connecting' ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.15)',
+            background: status === 'connecting' ? 'rgba(0,0,0,0.45)' : 'transparent',
             gap: 12,
           }}>
             {status === 'connecting' && (
@@ -188,7 +226,6 @@ export function AvatarTest() {
             <span style={{ fontSize: 11, fontWeight: 600 }}>LIVE</span>
           </div>
         )}
-        {/* Voice badge */}
         {status === 'connected' && (
           <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: '4px 10px' }}>
             <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace" }}>{langConfig.voice}</span>
@@ -204,6 +241,40 @@ export function AvatarTest() {
         display: 'flex', flexDirection: 'column', gap: 16,
       }}>
 
+        {/* Avatar selector */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 8 }}>
+            Avatar
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {AVATARS.map(av => (
+              <button
+                key={av.id}
+                onClick={() => !isActive && setSelectedAvatar(av.id)}
+                disabled={isActive}
+                style={{
+                  flex: 1, padding: 0, border: 'none', background: 'none', cursor: isActive ? 'not-allowed' : 'pointer',
+                  opacity: isActive ? 0.5 : 1,
+                }}
+              >
+                <div style={{
+                  borderRadius: 10, overflow: 'hidden',
+                  border: `2px solid ${selectedAvatar === av.id ? '#34c759' : 'rgba(255,255,255,0.1)'}`,
+                  aspectRatio: '3/4', position: 'relative',
+                }}>
+                  <img src={av.photo} alt={av.label} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+                  <div style={{
+                    position: 'absolute', bottom: 0, left: 0, right: 0,
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                    padding: '4px 4px 3px',
+                    fontSize: 9, textAlign: 'center', color: '#fff', fontWeight: 600,
+                  }}>{av.label}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Language */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 6 }}>
@@ -211,7 +282,7 @@ export function AvatarTest() {
           </label>
           <select
             value={langCode}
-            onChange={e => { setLangCode(e.target.value); setPromptEdited(false); }}
+            onChange={e => { handleLangChange(e.target.value); setPromptEdited(false); }}
             disabled={isActive}
             style={{
               width: '100%', padding: '9px 12px', borderRadius: 9,
@@ -229,6 +300,38 @@ export function AvatarTest() {
           {!isActive && (
             <div style={{ marginTop: 5, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: "'IBM Plex Mono', monospace" }}>
               voice: {langConfig.voice}
+            </div>
+          )}
+        </div>
+
+        {/* Knowledge base */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 6 }}>
+            Knowledge Base
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {KNOWLEDGE_OPTIONS.map(kb => (
+              <button
+                key={kb.id}
+                onClick={() => !isActive && setKnowledgeBase(kb.id)}
+                disabled={isActive}
+                style={{
+                  flex: 1, padding: '8px 10px', borderRadius: 9, border: 'none',
+                  background: knowledgeBase === kb.id ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${knowledgeBase === kb.id ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  color: knowledgeBase === kb.id ? '#34c759' : 'rgba(255,255,255,0.5)',
+                  fontSize: 12, fontWeight: 600, cursor: isActive ? 'not-allowed' : 'pointer',
+                  fontFamily: "'DM Sans', sans-serif",
+                  opacity: isActive ? 0.5 : 1,
+                }}
+              >
+                {kb.label}
+              </button>
+            ))}
+          </div>
+          {knowledgeBase === 'programa' && !isActive && (
+            <div style={{ marginTop: 5, fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: "'IBM Plex Mono', monospace" }}>
+              Programa școlară TIC, Clasa a IX-a, 2025 — injected into prompt
             </div>
           )}
         </div>
