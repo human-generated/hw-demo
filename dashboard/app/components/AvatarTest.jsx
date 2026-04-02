@@ -1,15 +1,12 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
+import { createClient } from '@anam-ai/js-sdk';
 
-const ANAM_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9';
+// Persona constants (fetched from GET /v1/personas/:id)
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
 const ANAM_PERSONA_NAME = 'Liv';
 const ANAM_AVATAR_ID = '71acc5f4-647b-459d-bd3b-aca7da9d5591';
-// llmId is required: the SDK's isCustomPersonaConfig() check only passes if
-// llmId (or brainType) is present — without it the entire personaConfig override
-// (voiceId, languageCode, systemPrompt) is silently dropped from the session token.
-const ANAM_LLM_ID = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
+const ANAM_LLM_ID    = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
 
 // Real Anam catalog voice IDs (fetched from GET /v1/voices).
 // eleven_turbo_v2_5 supports English, Hindi, Romanian (not Marathi natively).
@@ -71,17 +68,28 @@ export function AvatarTest() {
     setError('');
     setStatus('connecting');
     try {
+      // Get session token server-side — bypasses SDK's isCustomPersonaConfig() filtering
+      // which silently drops voiceId/languageCode/systemPrompt when llmId is absent.
       const personaConfig = {
         personaId: ANAM_PERSONA_ID,
         name: ANAM_PERSONA_NAME,
         avatarId: ANAM_AVATAR_ID,
-        llmId: ANAM_LLM_ID,   // required for isCustomPersonaConfig() to pass
+        llmId: ANAM_LLM_ID,
         voiceId: langConfig.voiceId,
         languageCode: langConfig.code,
         systemPrompt: prompt,
       };
+      const tokenRes = await fetch('/api/anam/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personaConfig }),
+      });
+      const { sessionToken, error: tokenErr } = await tokenRes.json();
+      if (!sessionToken) throw new Error(tokenErr ? JSON.stringify(tokenErr) : 'Failed to get session token');
 
-      const client = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
+      // createClient(token) — no personaConfig passed so the SDK won't override
+      // the server-configured session with a conflicting client-side config.
+      const client = createClient(sessionToken);
       clientRef.current = client;
 
       client.addListener('CONNECTION_ESTABLISHED', () => {
