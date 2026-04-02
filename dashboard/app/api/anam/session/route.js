@@ -1,14 +1,15 @@
 // Server-side session token creation — keeps the API key off the client
 // and bypasses the SDK's isCustomPersonaConfig() filtering.
-const ANAM_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9';
+const DEFAULT_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9';
 
 export async function POST(req) {
-  const { personaConfig } = await req.json();
+  const { personaConfig, apiKey } = await req.json();
+  const key = (apiKey && apiKey.trim()) ? apiKey.trim() : DEFAULT_API_KEY;
   const r = await fetch('https://api.anam.ai/v1/auth/session-token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${ANAM_API_KEY}`,
+      'Authorization': `Bearer ${key}`,
     },
     body: JSON.stringify({ personaConfig }),
   });
