@@ -10,7 +10,7 @@ const DEFAULT_CONFIG = {
     en: '5ed805fd-e56e-46da-b1d9-0b3c4af9e146',
     hi: '9fa4b058-39b3-4980-89d8-7cbbec8098b0',
     mr: '9fa4b058-39b3-4980-89d8-7cbbec8098b0',
-    ro: 'gbLy9ep70G3JW53cTzFC',
+    ro: '30d4a473-494b-4f18-87ed-79eb3f767630',
   },
   avatarIds: {
     female: '160129b8-4668-42bf-9d77-c479ae16c403',
