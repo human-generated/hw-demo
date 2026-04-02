@@ -20,7 +20,7 @@ const LLMS = [
 const DEFAULT_CONFIG = {
   apiKey: '',
   personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
-  llmId: '9d8900ee-257d-4401-8817-ba9c835e9d36', // Gemini 2.5 Flash
+  llmId: '27cbd128-f1e6-4b67-8ab3-9123659be08c', // Gemini 3 Flash Preview
   avatarId: '160129b8-4668-42bf-9d77-c479ae16c403',
   voices: {
     en: '5ed805fd-e56e-46da-b1d9-0b3c4af9e146',
