@@ -16,8 +16,7 @@ const DEFAULT_CONFIG = {
   },
 };
 
-// ─── Key 2 personas (read-only, no overrides) ────────────────────────────────
-const KEY2 = 'NjllMzAwZDgtMzBkMi00Y2ViLWIxMDAtMzIxYWVkZTU4MDBjOnQ1TlVrejFFQmVKelF3VGplRHBOeS8xWEJHUHo3bHhDaE0vMkZ1Rnk4VkE5';
+// ─── Key 2 personas (persona IDs fixed, voice/language configurable) ─────────
 const KEY2_PERSONAS = [
   {
     personaId: '583c3b19-7865-4ca9-b66b-f9b218494001',
@@ -242,12 +241,20 @@ export function AvatarTest() {
     return res.json();
   }
 
-  // Cards 2-4 (key2): persona defaults only, no overrides
+  // Cards 2-4 (key2): fixed personaId, shared voice/language/prompt
   function startKey2Card(personaId) {
     return async () => {
       const res = await fetch('/api/anam/session', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: KEY2, personaOnly: true, personaConfig: { personaId } }),
+        body: JSON.stringify({
+          useKey2: true,
+          personaConfig: {
+            personaId,
+            voiceId: config.voices[langCode],
+            languageCode: langCode,
+            systemPrompt: buildPrompt(),
+          },
+        }),
       });
       return res.json();
     };
@@ -269,7 +276,7 @@ export function AvatarTest() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {/* Language */}
             <div style={{ flex: '1 1 140px' }}>
-              <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>Language (Card 1)</label>
+              <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>Language (all cards)</label>
               <select value={langCode} onChange={e => handleLangChange(e.target.value)} style={inputStyle}>
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
@@ -278,7 +285,7 @@ export function AvatarTest() {
 
             {/* KB */}
             <div style={{ flex: '1 1 200px' }}>
-              <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>Knowledge Base (Card 1)</label>
+              <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>Knowledge Base (all cards)</label>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                 <button onClick={loadBuiltinKb} disabled={kbLoading} style={{ padding: '6px 10px', borderRadius: 8, background: (kbEnabled && kbName === 'programa-curs.pdf') ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${(kbEnabled && kbName === 'programa-curs.pdf') ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`, color: (kbEnabled && kbName === 'programa-curs.pdf') ? '#34c759' : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Programa TIC</button>
                 <button onClick={() => fileInputRef.current?.click()} disabled={kbLoading} style={{ padding: '6px 10px', borderRadius: 8, background: (kbEnabled && kbName !== 'programa-curs.pdf') ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${(kbEnabled && kbName !== 'programa-curs.pdf') ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`, color: (kbEnabled && kbName !== 'programa-curs.pdf') ? '#34c759' : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>{kbLoading ? '⏳' : '+ PDF'}</button>
@@ -290,7 +297,7 @@ export function AvatarTest() {
 
           {/* Prompt */}
           <div>
-            <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>System Prompt (Card 1)</label>
+            <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>System Prompt (all cards)</label>
             <textarea value={prompt} onChange={e => { setPrompt(e.target.value); setPromptEdited(true); }} rows={3} style={{ width: '100%', padding: '8px 12px', borderRadius: 9, background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 12, outline: 'none', resize: 'vertical', fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5, boxSizing: 'border-box' }} />
             {promptEdited && <button onClick={() => { setPrompt(langConfig.prompt); setPromptEdited(false); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 10, cursor: 'pointer', padding: 0 }}>↺ Reset</button>}
           </div>
