@@ -6,6 +6,10 @@ const ANAM_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMG
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
 const ANAM_PERSONA_NAME = 'Liv';
 const ANAM_AVATAR_ID = '71acc5f4-647b-459d-bd3b-aca7da9d5591';
+// llmId is required: the SDK's isCustomPersonaConfig() check only passes if
+// llmId (or brainType) is present — without it the entire personaConfig override
+// (voiceId, languageCode, systemPrompt) is silently dropped from the session token.
+const ANAM_LLM_ID = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
 
 // Real Anam catalog voice IDs (fetched from GET /v1/voices).
 // eleven_turbo_v2_5 supports English, Hindi, Romanian (not Marathi natively).
@@ -67,12 +71,11 @@ export function AvatarTest() {
     setError('');
     setStatus('connecting');
     try {
-      // All four fields are required by the Anam API for personaConfig overrides.
-      // name + avatarId come from the stored persona; voiceId + languageCode are overridden per language.
       const personaConfig = {
         personaId: ANAM_PERSONA_ID,
         name: ANAM_PERSONA_NAME,
         avatarId: ANAM_AVATAR_ID,
+        llmId: ANAM_LLM_ID,   // required for isCustomPersonaConfig() to pass
         voiceId: langConfig.voiceId,
         languageCode: langConfig.code,
         systemPrompt: prompt,
