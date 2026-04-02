@@ -5,45 +5,73 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 const ANAM_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9';
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
 
+// voiceId must match a voice in the Anam catalog that supports the target language.
+// languageCode controls speech recognition (input). voiceId controls TTS (output).
+// - English: persona default voice (Jillian, Cartesia sonic-3)
+// - Hindi:   Tripti – native Hindi female (ElevenLabs eleven_turbo_v2_5)
+// - Marathi: Rachel – ElevenLabs eleven_multilingual_v2 (supports Marathi)
+// - Romanian: Sarah – ElevenLabs eleven_multilingual_v2 (supports Romanian)
 const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'mr', label: 'Marathi' },
-  { code: 'hi', label: 'Hindi' },
-  { code: 'ro', label: 'Romanian' },
+  {
+    code: 'en',
+    label: 'English',
+    voiceId: null, // use persona default
+    voice: 'Jillian (default)',
+    prompt: 'You are Alexandra, a friendly AI assistant for Humans.AI Enterprise. Greet the user warmly in English and have a natural, helpful conversation. Keep responses concise.',
+  },
+  {
+    code: 'hi',
+    label: 'Hindi',
+    voiceId: '1a44b29a-3287-43ea-bae5-d8a1844f8e9b', // Tripti – native Hindi female
+    voice: 'Tripti (native Hindi)',
+    prompt: 'आप Alexandra हैं, Humans.AI Enterprise के लिए एक मित्रवत AI सहायक। उपयोगकर्ता को हिंदी में गर्मजोशी से अभिवादन करें और स्वाभाविक बातचीत करें। केवल हिंदी में बोलें।',
+  },
+  {
+    code: 'mr',
+    label: 'Marathi',
+    voiceId: '35c3136b-c60e-4858-a8b6-dafdf7bc9c40', // Rachel – ElevenLabs multilingual v2
+    voice: 'Rachel (multilingual)',
+    prompt: 'तुम्ही Alexandra आहात, Humans.AI Enterprise साठी एक मैत्रीपूर्ण AI सहाय्यक. वापरकर्त्याला मराठीत उबदारपणे अभिवादन करा आणि नैसर्गिक संभाषण करा. केवळ मराठीत बोला.',
+  },
+  {
+    code: 'ro',
+    label: 'Romanian',
+    voiceId: 'b7bf471f-5435-49f8-a979-4483e4ccc10f', // Sarah – ElevenLabs multilingual v2
+    voice: 'Sarah (multilingual)',
+    prompt: 'Ești Alexandra, un asistent AI prietenos pentru Humans.AI Enterprise. Salută utilizatorul cu căldură în română și poartă o conversație naturală. Vorbește exclusiv în română.',
+  },
 ];
-
-const LANG_PROMPTS = {
-  en: 'You are Alexandra, a friendly AI assistant for Humans.AI Enterprise. Greet the user warmly in English and have a natural, helpful conversation. Keep responses concise.',
-  mr: 'तुम्ही Alexandra आहात, Humans.AI Enterprise साठी एक मैत्रीपूर्ण AI सहाय्यक. वापरकर्त्याला मराठीत उबदारपणे अभिवादन करा आणि नैसर्गिक संभाषण करा. केवळ मराठीत बोला.',
-  hi: 'आप Alexandra हैं, Humans.AI Enterprise के लिए एक मित्रवत AI सहायक. उपयोगकर्ता को हिंदी में गर्मजोशी से अभिवादन करें और स्वाभाविक बातचीत करें. केवल हिंदी में बोलें.',
-  ro: 'Ești Alexandra, un asistent AI prietenos pentru Humans.AI Enterprise. Salută utilizatorul cu căldură în română și poartă o conversație naturală. Vorbește exclusiv în română.',
-};
 
 const VIDEO_ID = 'avatar-test-video';
 
 export function AvatarTest() {
-  const [lang, setLang] = useState('en');
-  const [prompt, setPrompt] = useState(LANG_PROMPTS['en']);
+  const [langCode, setLangCode] = useState('en');
+  const [prompt, setPrompt] = useState(LANGUAGES[0].prompt);
+  const [promptEdited, setPromptEdited] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | connecting | connected | ending
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState('');
   const clientRef = useRef(null);
 
-  // Update prompt when language changes (only if prompt still matches a default)
+  const langConfig = LANGUAGES.find(l => l.code === langCode) || LANGUAGES[0];
+
+  // Sync prompt to selected language (unless user edited it)
   useEffect(() => {
-    const isDefault = Object.values(LANG_PROMPTS).includes(prompt);
-    if (isDefault) setPrompt(LANG_PROMPTS[lang]);
-  }, [lang]);
+    if (!promptEdited) setPrompt(langConfig.prompt);
+  }, [langCode]);
 
   async function startCall() {
     setError('');
     setStatus('connecting');
     try {
-      const client = unsafe_createClientWithApiKey(ANAM_API_KEY, {
+      const personaConfig = {
         personaId: ANAM_PERSONA_ID,
-        languageCode: lang,
+        languageCode: langConfig.code,
         systemPrompt: prompt,
-      });
+        ...(langConfig.voiceId ? { voiceId: langConfig.voiceId } : {}),
+      };
+
+      const client = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
       clientRef.current = client;
 
       client.addListener('CONNECTION_ESTABLISHED', () => {
@@ -95,9 +123,9 @@ export function AvatarTest() {
       gap: 24,
     }}>
       {/* Header */}
-      <div style={{ position: 'absolute', top: 20, left: 24, display: 'flex', alignItems: 'center', gap: 10, opacity: 0.5 }}>
+      <div style={{ position: 'absolute', top: 20, left: 24, display: 'flex', alignItems: 'center', gap: 10, opacity: 0.4 }}>
         <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: "'IBM Plex Mono', monospace" }}>
-          Avatar Test · hidden
+          Avatar Test
         </span>
       </div>
 
@@ -114,7 +142,6 @@ export function AvatarTest() {
           playsInline
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
-        {/* Status overlay */}
         {status !== 'connected' && (
           <div style={{
             position: 'absolute', inset: 0,
@@ -128,16 +155,21 @@ export function AvatarTest() {
                 <span style={{ fontSize: 13, opacity: 0.6 }}>Connecting…</span>
               </>
             )}
-            {status === 'idle' && (
+            {(status === 'idle' || status === 'ending') && (
               <span style={{ fontSize: 13, opacity: 0.3 }}>Avatar preview</span>
             )}
           </div>
         )}
-        {/* Live indicator */}
         {status === 'connected' && (
           <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: '4px 10px' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34c759' }} />
             <span style={{ fontSize: 11, fontWeight: 600 }}>LIVE</span>
+          </div>
+        )}
+        {/* Voice badge */}
+        {status === 'connected' && (
+          <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: '4px 10px' }}>
+            <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace" }}>{langConfig.voice}</span>
           </div>
         )}
       </div>
@@ -156,8 +188,8 @@ export function AvatarTest() {
             Language
           </label>
           <select
-            value={lang}
-            onChange={e => setLang(e.target.value)}
+            value={langCode}
+            onChange={e => { setLangCode(e.target.value); setPromptEdited(false); }}
             disabled={isActive}
             style={{
               width: '100%', padding: '9px 12px', borderRadius: 9,
@@ -172,6 +204,11 @@ export function AvatarTest() {
               <option key={l.code} value={l.code}>{l.label}</option>
             ))}
           </select>
+          {!isActive && (
+            <div style={{ marginTop: 5, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: "'IBM Plex Mono', monospace" }}>
+              voice: {langConfig.voice}
+            </div>
+          )}
         </div>
 
         {/* Prompt */}
@@ -181,7 +218,7 @@ export function AvatarTest() {
           </label>
           <textarea
             value={prompt}
-            onChange={e => setPrompt(e.target.value)}
+            onChange={e => { setPrompt(e.target.value); setPromptEdited(true); }}
             disabled={isActive}
             rows={4}
             style={{
@@ -190,13 +227,19 @@ export function AvatarTest() {
               color: '#fff', fontSize: 13, outline: 'none', resize: 'vertical',
               fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5,
               boxSizing: 'border-box',
-              cursor: isActive ? 'not-allowed' : 'text',
               opacity: isActive ? 0.5 : 1,
             }}
           />
+          {promptEdited && !isActive && (
+            <button
+              onClick={() => { setPrompt(langConfig.prompt); setPromptEdited(false); }}
+              style={{ marginTop: 4, background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: 11, cursor: 'pointer', padding: 0 }}
+            >
+              ↺ Reset to default
+            </button>
+          )}
         </div>
 
-        {/* Error */}
         {error && (
           <div style={{ fontSize: 12, color: '#ff6b6b', background: 'rgba(255,59,48,0.1)', borderRadius: 7, padding: '8px 12px' }}>
             {error}
