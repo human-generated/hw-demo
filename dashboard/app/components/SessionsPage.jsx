@@ -6,6 +6,26 @@ import { CreditBadge } from './CreditBadge';
 
 const H_MASK_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 27'%3E%3Cpath d='M4.626%2C0 L4.626%2C10.444 C6.294%2C8.271 8.342%2C7.623 10.466%2C7.623 C15.774%2C7.623 18.125%2C11.244 18.125%2C16.771 L18.121%2C24.668 C16.577%2C24.833 15.036%2C25.005 13.496%2C25.184 L13.499%2C16.809 C13.499%2C13.378 11.717%2C11.930 9.252%2C11.930 C6.522%2C11.930 4.626%2C14.255 4.626%2C17.076 L4.622%2C26.305 C3.744%2C26.424 2.866%2C26.546 1.990%2C26.670 L0%2C26.681 L0%2C0 Z' fill='black'/%3E%3C/svg%3E")`;
 
+function UserAvatar({ user, size = 28 }) {
+  const [failed, setFailed] = useState(false);
+  const initial = user?.name ? user.name[0].toUpperCase() : user?.email ? user.email[0].toUpperCase() : 'U';
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: '#1a1a1a', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', fontSize: size * 0.38, fontWeight: 700,
+      boxShadow: '0 0 0 2px rgba(255,255,255,0.9)',
+    }}>
+      {user?.image && !failed
+        ? <img src={user.image} alt="" referrerPolicy="no-referrer"
+            style={{ display: 'block', objectFit: 'cover', width: '100%', height: '100%' }}
+            onError={() => setFailed(true)} />
+        : initial}
+    </div>
+  );
+}
+
 // Small live avatar tile shown in header when call is active
 function AvatarLiveTile({ workerSession }) {
   const videoRef = useRef(null);
@@ -151,7 +171,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
         zIndex: 100,
       }}>
-        {/* Logo */}
+        {/* Logo + User identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 22, height: 30, flexShrink: 0,
@@ -172,6 +192,13 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           <span style={{ fontSize: 15, fontWeight: 400, color: 'rgba(0,0,0,0.65)', letterSpacing: '-0.3px' }}>humans</span>
           <span style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.08)', display: 'inline-block' }} />
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(0,0,0,0.3)' }}>Enterprise</span>
+          <span style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.08)', display: 'inline-block' }} />
+          <UserAvatar user={user} size={28} />
+          {user?.name && (
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,0.65)', letterSpacing: '-0.1px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.name.split(' ')[0]}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

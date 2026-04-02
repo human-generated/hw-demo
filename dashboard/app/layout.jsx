@@ -1,7 +1,7 @@
 import './globals.css';
 import './ai-workers.css';
 
-export const metadata = { title: 'H Worker Dashboard' };
+export const metadata = { title: 'Humans Enterprise' };
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
