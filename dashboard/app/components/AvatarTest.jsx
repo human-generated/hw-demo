@@ -4,40 +4,43 @@ import { unsafe_createClientWithApiKey } from '@anam-ai/js-sdk';
 
 const ANAM_API_KEY = 'NzcyNTEwZjQtY2YyZi00NWYzLWFiZjEtMDk1ZDEzNjkyOGJhOklwYTJFMGYxSHNjL2k2dW9SUi9JZlpDOW81TnBSVm9mZ3JiR2FVREpCRVU9';
 const ANAM_PERSONA_ID = '6ccddf38-aed1-4bbb-9809-fc92986eb436';
+const ANAM_PERSONA_NAME = 'Liv';
+const ANAM_AVATAR_ID = '71acc5f4-647b-459d-bd3b-aca7da9d5591';
 
-// voiceId must match a voice in the Anam catalog that supports the target language.
-// languageCode controls speech recognition (input). voiceId controls TTS (output).
-// - English: persona default voice (Jillian, Cartesia sonic-3)
-// - Hindi:   Tripti – native Hindi female (ElevenLabs eleven_turbo_v2_5)
-// - Marathi: Rachel – ElevenLabs eleven_multilingual_v2 (supports Marathi)
-// - Romanian: Sarah – ElevenLabs eleven_multilingual_v2 (supports Romanian)
+// Real Anam catalog voice IDs (fetched from GET /v1/voices).
+// eleven_turbo_v2_5 supports English, Hindi, Romanian (not Marathi natively).
+// Cartesia sonic-3 is English-only.
+const VOICE_JILLIAN = '5ed805fd-e56e-46da-b1d9-0b3c4af9e146'; // Cartesia sonic-3, EN only (persona default)
+const VOICE_HARINI  = '9fa4b058-39b3-4980-89d8-7cbbec8098b0'; // ElevenLabs turbo v2.5, IN female – Hindi
+const VOICE_LAUREN  = 'd79f2051-3a89-4fcc-8c71-cf5d53f9d9e0'; // ElevenLabs turbo v2.5, US female – Romanian
+
 const LANGUAGES = [
   {
     code: 'en',
     label: 'English',
-    voiceId: null, // use persona default
-    voice: 'Jillian (default)',
+    voiceId: VOICE_JILLIAN,
+    voice: 'Jillian (Cartesia)',
     prompt: 'You are Alexandra, a friendly AI assistant for Humans.AI Enterprise. Greet the user warmly in English and have a natural, helpful conversation. Keep responses concise.',
   },
   {
     code: 'hi',
     label: 'Hindi',
-    voiceId: '1a44b29a-3287-43ea-bae5-d8a1844f8e9b', // Tripti – native Hindi female
-    voice: 'Tripti (native Hindi)',
+    voiceId: VOICE_HARINI,
+    voice: 'Harini (ElevenLabs, native Hindi)',
     prompt: 'आप Alexandra हैं, Humans.AI Enterprise के लिए एक मित्रवत AI सहायक। उपयोगकर्ता को हिंदी में गर्मजोशी से अभिवादन करें और स्वाभाविक बातचीत करें। केवल हिंदी में बोलें।',
   },
   {
     code: 'mr',
     label: 'Marathi',
-    voiceId: '35c3136b-c60e-4858-a8b6-dafdf7bc9c40', // Rachel – ElevenLabs multilingual v2
-    voice: 'Rachel (multilingual)',
+    voiceId: VOICE_HARINI, // closest available — eleven_turbo_v2_5 with Marathi prompt
+    voice: 'Harini (ElevenLabs, approx. Marathi)',
     prompt: 'तुम्ही Alexandra आहात, Humans.AI Enterprise साठी एक मैत्रीपूर्ण AI सहाय्यक. वापरकर्त्याला मराठीत उबदारपणे अभिवादन करा आणि नैसर्गिक संभाषण करा. केवळ मराठीत बोला.',
   },
   {
     code: 'ro',
     label: 'Romanian',
-    voiceId: 'b7bf471f-5435-49f8-a979-4483e4ccc10f', // Sarah – ElevenLabs multilingual v2
-    voice: 'Sarah (multilingual)',
+    voiceId: VOICE_LAUREN,
+    voice: 'Lauren (ElevenLabs, Romanian)',
     prompt: 'Ești Alexandra, un asistent AI prietenos pentru Humans.AI Enterprise. Salută utilizatorul cu căldură în română și poartă o conversație naturală. Vorbește exclusiv în română.',
   },
 ];
@@ -64,11 +67,15 @@ export function AvatarTest() {
     setError('');
     setStatus('connecting');
     try {
+      // All four fields are required by the Anam API for personaConfig overrides.
+      // name + avatarId come from the stored persona; voiceId + languageCode are overridden per language.
       const personaConfig = {
         personaId: ANAM_PERSONA_ID,
+        name: ANAM_PERSONA_NAME,
+        avatarId: ANAM_AVATAR_ID,
+        voiceId: langConfig.voiceId,
         languageCode: langConfig.code,
         systemPrompt: prompt,
-        ...(langConfig.voiceId ? { voiceId: langConfig.voiceId } : {}),
       };
 
       const client = unsafe_createClientWithApiKey(ANAM_API_KEY, personaConfig);
