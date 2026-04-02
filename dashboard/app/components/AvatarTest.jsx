@@ -154,27 +154,31 @@ export function AvatarTest() {
         border: '1px solid rgba(255,255,255,0.08)',
         position: 'relative', flexShrink: 0,
       }}>
+        {/* Static photo — always behind the video */}
+        <img
+          src="/avatar-photo.png"
+          alt=""
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }}
+        />
         <video
           id={VIDEO_ID}
           autoPlay
           playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: status === 'connected' ? 'block' : 'none' }}
         />
         {status !== 'connected' && (
           <div style={{
             position: 'absolute', inset: 0,
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.55)', gap: 12,
+            background: status === 'connecting' ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.15)',
+            gap: 12,
           }}>
             {status === 'connecting' && (
               <>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', borderTop: '2px solid #fff', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 13, opacity: 0.6 }}>Connecting…</span>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.2)', borderTop: '2px solid #fff', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 13, color: '#fff', opacity: 0.7 }}>Connecting…</span>
               </>
-            )}
-            {(status === 'idle' || status === 'ending') && (
-              <span style={{ fontSize: 13, opacity: 0.3 }}>Avatar preview</span>
             )}
           </div>
         )}
