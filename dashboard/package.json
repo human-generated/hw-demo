@@ -16,10 +16,10 @@
     "motion": "^12.35.0",
     "next": "14.2.5",
     "next-auth": "^4.24.13",
-    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
     "three": "^0.183.2",
+    "unpdf": "^1.4.0",
     "web-haptics": "^0.0.6"
   }
 }

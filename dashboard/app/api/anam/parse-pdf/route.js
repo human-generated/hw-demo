@@ -1,4 +1,4 @@
-import pdfParse from 'pdf-parse';
+import { extractText } from 'unpdf';
 
 export const runtime = 'nodejs';
 
@@ -8,9 +8,10 @@ export async function POST(req) {
     const file = formData.get('pdf');
     if (!file) return Response.json({ error: 'No PDF provided' }, { status: 400 });
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const result = await pdfParse(buffer);
-    return Response.json({ text: result.text, pages: result.numpages });
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const { text, totalPages } = await extractText(buffer, { mergePages: true });
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    return Response.json({ text: cleaned, pages: totalPages });
   } catch (e) {
     console.error('[parse-pdf]', e);
     return Response.json({ error: e.message || 'Failed to parse PDF' }, { status: 500 });
