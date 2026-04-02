@@ -2,11 +2,25 @@
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@anam-ai/js-sdk';
 
+// ─── Global LLMs (same for both accounts) ────────────────────────────────────
+const LLMS = [
+  { id: '9d8900ee-257d-4401-8817-ba9c835e9d36', label: 'Gemini 2.5 Flash' },
+  { id: '27cbd128-f1e6-4b67-8ab3-9123659be08c', label: 'Gemini 3 Flash Preview' },
+  { id: 'b4f89001-9638-4879-a9c3-02cc9f9f2004', label: 'GPT 4.1' },
+  { id: '0934d97d-0c3a-4f33-91b0-5e136a0ef466', label: 'GPT 4.1 Mini' },
+  { id: 'ANAM_GPT_4O_MINI_V1',                  label: 'GPT 4o Mini' },
+  { id: '89649f1a-feb2-4fea-be43-56baec997a93', label: 'GPT 5 Chat (beta)' },
+  { id: 'ANAM_LLAMA_v3_3_70B_V1',               label: 'Llama 3.3 70B' },
+  { id: 'a7cf662c-2ace-4de1-a21e-ef0fbf144bb7', label: 'GPT OSS 120B' },
+  { id: '88190a76-3e87-4935-ab39-f4f73038815a', label: 'Kimi K2' },
+  { id: 'CUSTOMER_CLIENT_V1',                   label: 'Disable LLM' },
+];
+
 // ─── Key 1 defaults (configurable) ───────────────────────────────────────────
 const DEFAULT_CONFIG = {
   apiKey: '',
   personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
-  llmId: '27cbd128-f1e6-4b67-8ab3-9123659be08c',
+  llmId: '9d8900ee-257d-4401-8817-ba9c835e9d36', // Gemini 2.5 Flash
   avatarId: '160129b8-4668-42bf-9d77-c479ae16c403',
   voices: {
     en: '5ed805fd-e56e-46da-b1d9-0b3c4af9e146',
@@ -241,7 +255,7 @@ export function AvatarTest() {
     return res.json();
   }
 
-  // Cards 2-4 (key2): fixed personaId, shared voice/language/prompt
+  // Cards 2-4 (key2): fixed personaId, shared voice/language/prompt/llm
   function startKey2Card(personaId) {
     return async () => {
       const res = await fetch('/api/anam/session', {
@@ -250,6 +264,7 @@ export function AvatarTest() {
           useKey2: true,
           personaConfig: {
             personaId,
+            llmId: config.llmId,
             voiceId: config.voices[langCode],
             languageCode: langCode,
             systemPrompt: buildPrompt(),
@@ -281,6 +296,14 @@ export function AvatarTest() {
                 {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
               </select>
               <div style={{ marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: "'IBM Plex Mono', monospace" }}>{langConfig.voiceLabel}</div>
+            </div>
+
+            {/* LLM */}
+            <div style={{ flex: '1 1 160px' }}>
+              <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', display: 'block', marginBottom: 5 }}>LLM (all cards)</label>
+              <select value={config.llmId} onChange={e => updateConfig({ llmId: e.target.value })} style={inputStyle}>
+                {LLMS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+              </select>
             </div>
 
             {/* KB */}
