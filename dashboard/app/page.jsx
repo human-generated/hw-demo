@@ -13,6 +13,7 @@ import { OnboardingFlow } from './components/OnboardingFlow';
 import { LandingPage } from './components/LandingPage';
 import { SessionsPage } from './components/SessionsPage';
 import { AdminPage } from './components/AdminPage';
+import { AvatarTest } from './components/AvatarTest';
 import { DockIcons } from './components/DockIcons';
 import { MeshGradient } from '@paper-design/shaders-react';
 
@@ -4372,10 +4373,16 @@ function SettingsPanel() {
   );
 }
 
+function AppRouter() {
+  const searchParams = useSearchParams();
+  if (searchParams.get('view') === 'avatarTest') return <AvatarTest />;
+  return <AppInner />;
+}
+
 export default function App() {
   return (
     <SessionProvider>
-      <Suspense><AppInner /></Suspense>
+      <Suspense><AppRouter /></Suspense>
     </SessionProvider>
   );
 }
