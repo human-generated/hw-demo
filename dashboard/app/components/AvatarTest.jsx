@@ -8,8 +8,8 @@ const ANAM_PERSONA_NAME = 'Liv';
 const ANAM_LLM_ID = '27cbd128-f1e6-4b67-8ab3-9123659be08c';
 
 // Custom one-shot avatar IDs
-const AVATAR_FEMALE = '160129b8-4668-42bf-9d77-c479ae16c403'; // Alexandra
-const AVATAR_MALE   = '90505cad-620d-4a33-8976-36cd59a21bf4'; // Alex
+const AVATAR_FEMALE = '160129b8-4668-42bf-9d77-c479ae16c403';
+const AVATAR_MALE   = '90505cad-620d-4a33-8976-36cd59a21bf4';
 
 // Voices
 const VOICE_JILLIAN = '5ed805fd-e56e-46da-b1d9-0b3c4af9e146';
@@ -54,34 +54,6 @@ const LANGUAGES = [
   },
 ];
 
-// Romanian ICT curriculum knowledge base (Programa școlară TIC, Clasa a IX-a, 2025)
-const KB_PROGRAMA = `KNOWLEDGE BASE – Programa școlară TIC, Clasa a IX-a (2025)
-
-Disciplina: Tehnologia informației și a comunicațiilor (TIC), trunchi comun, 1 oră/săptămână, clasele IX–XII.
-
-COMPETENȚE GENERALE:
-CG1 – Recunoaște conceptele, instrumentele și relațiile fundamentale din domeniul TIC pentru a construi cunoștințe utilizabile.
-CG2 – Explică principiile și rolul instrumentelor TIC pentru rezolvarea sarcinilor într-o societate digitală.
-CG3 – Utilizează instrumentele și metodele TIC pentru rezolvarea de sarcini specifice, respectând pașii operaționali.
-CG4 – Analizează instrumentele și strategiile TIC pentru a face alegeri adecvate într-o societate digitală.
-CG5 – Evaluează eficiența și impactul instrumentelor TIC pe baza unor criterii tehnice, etice și legale.
-CG6 – Creează produse și soluții digitale personalizate, adecvate scopului propus.
-
-DOMENII DE CONȚINUT (Clasa a IX-a):
-1. Comunicare și colaborare digitală – platforme de comunicare, colaborare online, glosar digital, forme de comunicare digitală.
-2. Inteligență artificială și societate digitală – termeni cheie (IA, algoritm, învățare automată, rețea neuronală, realitate virtuală), instrumente IA, utilizare responsabilă.
-3. Arhitectura sistemelor de calcul – componente hardware, funcționare, internet of things, roboți, obiecte inteligente.
-4. Aplicații dedicate – procesare text, calcul tabelar, prezentări, aplicații cu interfețe vizuale.
-5. Programare vizuală și robotică – creare programe cu elemente vizuale interactive, gândire logică, algoritmică.
-6. Competențe digitale transversale – organizare, comunicare, colaborare, gândire critică, securitate cibernetică.
-
-METODOLOGIE: Activități în laboratorul de informatică, proiecte individuale și de grup, abordare practică, interdisciplinară.`;
-
-const KNOWLEDGE_OPTIONS = [
-  { id: 'none', label: 'None' },
-  { id: 'programa', label: 'Programa TIC IX-a (RO)' },
-];
-
 const VIDEO_ID = 'avatar-test-video';
 
 export function AvatarTest() {
@@ -92,7 +64,12 @@ export function AvatarTest() {
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
-  const [knowledgeBase, setKnowledgeBase] = useState('none');
+  // Knowledge base state
+  const [kbText, setKbText] = useState('');       // extracted text from PDF
+  const [kbName, setKbName] = useState('');       // file name or label
+  const [kbEnabled, setKbEnabled] = useState(false);
+  const [kbLoading, setKbLoading] = useState(false);
+  const fileInputRef = useRef(null);
   const clientRef = useRef(null);
 
   const langConfig = LANGUAGES.find(l => l.code === langCode) || LANGUAGES[0];
@@ -106,12 +83,58 @@ export function AvatarTest() {
     }
   }
 
-  function buildPrompt() {
-    let p = prompt;
-    if (knowledgeBase === 'programa') {
-      p = `${p}\n\n${KB_PROGRAMA}`;
+  async function handlePdfUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setKbLoading(true);
+    setKbText('');
+    setKbEnabled(false);
+    try {
+      const fd = new FormData();
+      fd.append('pdf', file);
+      const res = await fetch('/api/anam/parse-pdf', { method: 'POST', body: fd });
+      const { text, error: err } = await res.json();
+      if (err || !text) throw new Error(err || 'Failed to parse PDF');
+      setKbText(text.trim());
+      setKbName(file.name);
+      setKbEnabled(true);
+    } catch (ex) {
+      setError('PDF parse failed: ' + ex.message);
+    } finally {
+      setKbLoading(false);
+      e.target.value = '';
     }
-    return p;
+  }
+
+  async function loadBuiltinKb() {
+    if (kbName === 'programa-curs.pdf' && kbText) {
+      setKbEnabled(true);
+      return;
+    }
+    setKbLoading(true);
+    try {
+      const res = await fetch('/programa-curs.pdf');
+      const blob = await res.blob();
+      const fd = new FormData();
+      fd.append('pdf', blob, 'programa-curs.pdf');
+      const parseRes = await fetch('/api/anam/parse-pdf', { method: 'POST', body: fd });
+      const { text, error: err } = await parseRes.json();
+      if (err || !text) throw new Error(err || 'Failed to parse PDF');
+      setKbText(text.trim());
+      setKbName('programa-curs.pdf');
+      setKbEnabled(true);
+    } catch (ex) {
+      setError('KB load failed: ' + ex.message);
+    } finally {
+      setKbLoading(false);
+    }
+  }
+
+  function buildPrompt() {
+    if (kbEnabled && kbText) {
+      return `${prompt}\n\n--- KNOWLEDGE BASE (${kbName}) ---\n${kbText}\n--- END KNOWLEDGE BASE ---`;
+    }
+    return prompt;
   }
 
   async function startCall() {
@@ -231,6 +254,11 @@ export function AvatarTest() {
             <span style={{ fontSize: 10, opacity: 0.7, fontFamily: "'IBM Plex Mono', monospace" }}>{langConfig.voice}</span>
           </div>
         )}
+        {kbEnabled && kbText && (
+          <div style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(52,199,89,0.85)', borderRadius: 20, padding: '3px 9px' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#000' }}>KB</span>
+          </div>
+        )}
       </div>
 
       {/* Controls panel */}
@@ -252,10 +280,7 @@ export function AvatarTest() {
                 key={av.id}
                 onClick={() => !isActive && setSelectedAvatar(av.id)}
                 disabled={isActive}
-                style={{
-                  flex: 1, padding: 0, border: 'none', background: 'none', cursor: isActive ? 'not-allowed' : 'pointer',
-                  opacity: isActive ? 0.5 : 1,
-                }}
+                style={{ flex: 1, padding: 0, border: 'none', background: 'none', cursor: isActive ? 'not-allowed' : 'pointer', opacity: isActive ? 0.5 : 1 }}
               >
                 <div style={{
                   borderRadius: 10, overflow: 'hidden',
@@ -306,32 +331,68 @@ export function AvatarTest() {
 
         {/* Knowledge base */}
         <div>
-          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 6 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: 8 }}>
             Knowledge Base
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {KNOWLEDGE_OPTIONS.map(kb => (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Built-in PDF */}
+            <button
+              onClick={loadBuiltinKb}
+              disabled={isActive || kbLoading}
+              style={{
+                padding: '7px 12px', borderRadius: 9, border: 'none',
+                background: (kbEnabled && kbName === 'programa-curs.pdf') ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.07)',
+                border: `1px solid ${(kbEnabled && kbName === 'programa-curs.pdf') ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                color: (kbEnabled && kbName === 'programa-curs.pdf') ? '#34c759' : 'rgba(255,255,255,0.6)',
+                fontSize: 12, fontWeight: 600, cursor: isActive || kbLoading ? 'not-allowed' : 'pointer',
+                fontFamily: "'DM Sans', sans-serif",
+                opacity: isActive ? 0.5 : 1,
+              }}
+            >
+              {kbLoading && kbName === '' ? '⏳' : ''} Programa TIC
+            </button>
+
+            {/* Upload PDF */}
+            <button
+              onClick={() => !isActive && fileInputRef.current?.click()}
+              disabled={isActive || kbLoading}
+              style={{
+                padding: '7px 12px', borderRadius: 9,
+                background: (kbEnabled && kbName !== 'programa-curs.pdf') ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.07)',
+                border: `1px solid ${(kbEnabled && kbName !== 'programa-curs.pdf') ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                color: (kbEnabled && kbName !== 'programa-curs.pdf') ? '#34c759' : 'rgba(255,255,255,0.6)',
+                fontSize: 12, fontWeight: 600, cursor: isActive || kbLoading ? 'not-allowed' : 'pointer',
+                fontFamily: "'DM Sans', sans-serif",
+                opacity: isActive ? 0.5 : 1,
+              }}
+            >
+              {kbLoading && kbName !== '' ? '⏳ Parsing…' : '+ Upload PDF'}
+            </button>
+            <input ref={fileInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+
+            {/* Download built-in */}
+            <a href="/programa-curs.pdf" download style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', textDecoration: 'none', fontFamily: "'IBM Plex Mono', monospace" }}>
+              ↓ download
+            </a>
+          </div>
+
+          {kbText && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 11, color: kbEnabled ? '#34c759' : 'rgba(255,255,255,0.3)', fontFamily: "'IBM Plex Mono', monospace", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {kbEnabled ? '✓' : '○'} {kbName} ({Math.round(kbText.length / 1000)}k chars)
+              </div>
               <button
-                key={kb.id}
-                onClick={() => !isActive && setKnowledgeBase(kb.id)}
+                onClick={() => setKbEnabled(e => !e)}
                 disabled={isActive}
                 style={{
-                  flex: 1, padding: '8px 10px', borderRadius: 9, border: 'none',
-                  background: knowledgeBase === kb.id ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
-                  border: `1px solid ${knowledgeBase === kb.id ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                  color: knowledgeBase === kb.id ? '#34c759' : 'rgba(255,255,255,0.5)',
-                  fontSize: 12, fontWeight: 600, cursor: isActive ? 'not-allowed' : 'pointer',
-                  fontFamily: "'DM Sans', sans-serif",
-                  opacity: isActive ? 0.5 : 1,
+                  background: 'none', border: `1px solid ${kbEnabled ? 'rgba(52,199,89,0.4)' : 'rgba(255,255,255,0.15)'}`,
+                  borderRadius: 6, padding: '2px 8px', fontSize: 10, fontWeight: 700,
+                  color: kbEnabled ? '#34c759' : 'rgba(255,255,255,0.3)',
+                  cursor: isActive ? 'not-allowed' : 'pointer',
                 }}
               >
-                {kb.label}
+                {kbEnabled ? 'ON' : 'OFF'}
               </button>
-            ))}
-          </div>
-          {knowledgeBase === 'programa' && !isActive && (
-            <div style={{ marginTop: 5, fontSize: 10, color: 'rgba(255,255,255,0.25)', fontFamily: "'IBM Plex Mono', monospace" }}>
-              Programa școlară TIC, Clasa a IX-a, 2025 — injected into prompt
             </div>
           )}
         </div>
