@@ -34,21 +34,21 @@ const DEFAULT_CONFIG = {
 const KEY2_PERSONAS = [
   {
     personaId: '583c3b19-7865-4ca9-b66b-f9b218494001',
+    avatarId:  'f0aecc88-1440-4868-8ba3-30d4fbbcbbe4',
     name: 'Emma',
     photo: 'https://newgxnc1uqs0jnqm.public.blob.vercel-storage.com/avatar-previews/UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-/one-shot_UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-_one-shot-1tuyf3x1775064817381-cropped-y9aYmOksj3seNEXzU96kn7ZmXcACmq.png',
-    voice: 'Lucy (ElevenLabs, EN)',
   },
   {
     personaId: 'fe9c91ae-4230-404e-8620-e434e2db9b89',
+    avatarId:  '0f0a643a-c7de-4e73-9f0a-0db5d4878e62',
     name: 'Emma',
     photo: 'https://newgxnc1uqs0jnqm.public.blob.vercel-storage.com/avatar-previews/UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-/one-shot_UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-_one-shot-kiq8kx1775065627291-cropped-q29ObsKgwYJsnNFS7vCk6hlj0Z6WfG.png',
-    voice: 'Athira (ElevenLabs)',
   },
   {
     personaId: '25e5e3be-a698-4192-8d4a-d4a6d2712c2f',
+    avatarId:  '536a1930-6ab1-496a-a1ba-9af001e9b167',
     name: 'Liam',
     photo: 'https://newgxnc1uqs0jnqm.public.blob.vercel-storage.com/avatar-previews/UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-/one-shot_UD2HtAP7KyWGX_dUhm57zDCU-OUscwk-_one-shot-172rp2k1775108157828-refined-2ravOQIHNlvX4ggpZJeqD11qGI3uVY.png',
-    voice: 'Joseph (ElevenLabs)',
   },
 ];
 
@@ -255,8 +255,8 @@ export function AvatarTest() {
     return res.json();
   }
 
-  // Cards 2-4 (key2): fixed personaId, shared voice/language/prompt/llm
-  function startKey2Card(personaId) {
+  // Cards 2-4 (key2): fixed personaId+avatarId, shared llm/voice/language/prompt
+  function startKey2Card(personaId, avatarId) {
     return async () => {
       const res = await fetch('/api/anam/session', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -264,6 +264,7 @@ export function AvatarTest() {
           useKey2: true,
           personaConfig: {
             personaId,
+            avatarId,
             llmId: config.llmId,
             voiceId: config.voices[langCode],
             languageCode: langCode,
@@ -343,8 +344,8 @@ export function AvatarTest() {
               cardId={String(i + 1)}
               name={p.name}
               photo={p.photo}
-              voiceLabel={p.voice}
-              onStart={startKey2Card(p.personaId)}
+              voiceLabel={langConfig.voiceLabel}
+              onStart={startKey2Card(p.personaId, p.avatarId)}
               isKey2
             />
           ))}
