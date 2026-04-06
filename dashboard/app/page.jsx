@@ -1892,6 +1892,7 @@ function AppInner() {
               workerSession={workerSession}
               callEnabled={hubCallEnabled}
               onCallEnabled={() => setHubCallEnabled(true)}
+              onCallDisabled={() => setHubCallEnabled(false)}
               onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
               onGoAdmin={() => setAiView('admin')}
               onNewSession={async () => {

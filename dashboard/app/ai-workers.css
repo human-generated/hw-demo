@@ -1445,39 +1445,41 @@ body {
 .credit-badge.credit-zero::before { background: #94a3b8; }
 .credit-badge:hover { filter: brightness(0.95); }
 
-.credit-menu {
+.user-info {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 272px;
+  width: 288px;
   background: #fff;
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 14px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
   z-index: 9999;
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
-.credit-menu-hd {
+.user-info-hd {
   padding: 14px 16px 12px;
   border-bottom: 1px solid #f1f5f9;
 }
-.credit-menu-title {
+.user-info-credits {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.user-info-label {
   font-size: 10.5px;
   font-weight: 700;
   color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
 .credit-balance {
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.04em;
-  margin-top: 4px;
   line-height: 1;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
-.credit-menu-body { padding: 12px 16px; }
 .credit-row {
   display: flex;
   align-items: center;
@@ -1489,7 +1491,7 @@ body {
 .credit-row-label { display: flex; align-items: center; gap: 6px; color: #6b7280; }
 .credit-row-val { font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; }
 .credit-sep { height: 1px; background: #f1f5f9; margin: 8px 0; }
-.credit-menu-ft { padding: 4px 16px 14px; }
+.user-info-ft { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 7px; }
 .credit-topup-btn {
   width: 100%;
   padding: 10px;
@@ -1509,6 +1511,20 @@ body {
   transition: background 0.15s;
 }
 .credit-topup-btn:hover { background: #1e293b; opacity: 1; }
+.user-signout-btn {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.user-signout-btn:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
 .credit-pay-opts {
   display: flex;
   gap: 8px;

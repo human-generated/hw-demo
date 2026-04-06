@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { signOut } from 'next-auth/react';
 import { LiquidMetal } from '@paper-design/shaders-react';
 import { CreditBadge } from './CreditBadge';
 
@@ -40,7 +39,7 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCallEnabled, onCreditUpdate, onGoAdmin, onSessionsLoaded }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCallEnabled, onCallDisabled, onCreditUpdate, onGoAdmin, onSessionsLoaded }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
@@ -49,8 +48,13 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
 
   const {
     connected, connecting, agentMarkdown, agentText,
-    videoTrack, micMuted, toggleMute, interrupt, sendText,
+    videoTrack, micMuted, toggleMute, interrupt, sendText, disconnect,
   } = workerSession || {};
+
+  function handleEndCall() {
+    disconnect?.();
+    onCallDisabled?.();
+  }
 
   // Avatar video attachment
   const avatarVideoRef = useRef(null);
@@ -214,20 +218,6 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
             <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> New Session
           </button>
           <CreditBadge credit={credit} spent={spent} userInitial={userInitial} userImage={user?.image || null} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
-          <button
-            onClick={() => signOut({ callbackUrl: '/' })}
-            style={{
-              padding: '0.4rem 0.75rem', borderRadius: 7,
-              background: 'transparent', border: '1px solid rgba(0,0,0,0.1)',
-              fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)',
-              cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.2)'; e.currentTarget.style.color = 'rgba(0,0,0,0.7)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)'; e.currentTarget.style.color = 'rgba(0,0,0,0.45)'; }}
-          >
-            Sign out
-          </button>
         </div>
       </div>
 
@@ -333,6 +323,18 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
                   }}
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
+                </button>
+                <button
+                  onClick={handleEndCall}
+                  title="End call"
+                  style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255,59,48,0.8)', backdropFilter: 'blur(8px)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" fill="currentColor"/><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </button>
               </div>
             )}
