@@ -40,7 +40,7 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate, onGoAdmin, onSessionsLoaded }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCallEnabled, onCreditUpdate, onGoAdmin, onSessionsLoaded }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
@@ -265,7 +265,8 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
               <img
                 src={PHOTO_URL}
                 alt="Alexandra"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                onClick={!connecting && onCallEnabled ? onCallEnabled : undefined}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', cursor: !connecting && onCallEnabled ? 'pointer' : 'default' }}
               />
             )}
             {/* Status badge */}
@@ -283,7 +284,23 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
                 Alexandra
               </span>
             </div>
-            {/* Controls */}
+            {/* Controls — start call or in-call controls */}
+            {!connected && !connecting && onCallEnabled && (
+              <button
+                onClick={onCallEnabled}
+                title="Start call with Alexandra"
+                style={{
+                  position: 'absolute', bottom: 10, right: 10,
+                  width: 34, height: 34, borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(52,199,89,0.9)', backdropFilter: 'blur(8px)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  boxShadow: '0 2px 8px rgba(52,199,89,0.4)',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
+            )}
             {connected && (
               <div style={{
                 position: 'absolute', bottom: 10, right: 10,

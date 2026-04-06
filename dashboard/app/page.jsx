@@ -1891,6 +1891,7 @@ function AppInner() {
               user={authSession?.user}
               workerSession={workerSession}
               callEnabled={hubCallEnabled}
+              onCallEnabled={() => setHubCallEnabled(true)}
               onCreditUpdate={(newBalance) => setSessionCredit(newBalance)}
               onGoAdmin={() => setAiView('admin')}
               onNewSession={async () => {
@@ -1955,6 +1956,9 @@ function AppInner() {
               cameraStream={hubCameraStream}
               sessionId={hubSessionId}
               workerSession={workerSession}
+              callEnabled={hubCallEnabled}
+              onCallEnabled={() => setHubCallEnabled(true)}
+              onCallDisabled={() => setHubCallEnabled(false)}
               onSystemPromptChange={setHubSystemPrompt}
               onOpenWorkerProfile={() => { setSelectedWorker({ name: 'Alexandra\nMiddleweek', role: 'HR at Humans.AI', code: 'HRMANAGER', status: 'Active', tasks: 24, rating: 4.9 }); setAiView('worker-page'); }}
               onGoHome={() => { setHubAnamClient(null); setHubCameraStream(null); setAiView('home'); }}
