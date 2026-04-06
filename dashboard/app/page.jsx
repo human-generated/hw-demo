@@ -1012,17 +1012,35 @@ function AppInner() {
   // ── Shared worker session (persists across landing → sessions → home → workspace) ─────
   const HP_DEFAULT_PROMPT = `You are Alexandra Middleweek, HR specialist and company researcher at Humans.AI. Your goal is to identify the visitor's company and gather initial information to prepare a personalised demo.\n\nAsk for their company name or website. Keep responses very short (1-2 sentences). Be warm, professional, and curious.\n\nCRITICAL: The moment the visitor mentions ANY company name or domain — even once — you MUST confirm it and append <<NAV:CompanySlug>> at the very end of your reply (replace CompanySlug with the real company name, PascalCase, no spaces). Do NOT ask confirmation questions first. Just confirm and append the marker. Example: visitor says "I work at Global Foods" → you reply "Great, pulling up Global Foods now! <<NAV:GlobalFoods>>"`;
   const LANDING_PROMPT = `You are Alexandra Middleweek, HR specialist at Humans.AI. You are welcoming visitors to the enterprise AI platform. Say hello warmly and ask who they are and what company they work for. Keep responses very short (1-2 sentences).`;
-  const SESSIONS_PROMPT = `You are Alexandra Middleweek, HR specialist at Humans.AI. The user has just logged in. Welcome them and let them know you're here to help start a new session or continue an existing one. Be brief and warm.`;
   const [hubCallEnabled, setHubCallEnabled] = useState(false);
   const [hubSystemPrompt, setHubSystemPrompt] = useState(LANDING_PROMPT);
   const [hubVideoEnabled, setHubVideoEnabled] = useState(true);
+  const [sessionsForPrompt, setSessionsForPrompt] = useState([]);
+
+  function buildSessionsPrompt(sessions) {
+    let p = `You are Alexandra Middleweek, HR specialist at Humans.AI. The user has just logged in.`;
+    if (!sessions || sessions.length === 0) {
+      p += ` They have no existing sessions yet. Greet them warmly and suggest starting their first session — just say "new session" or "start".`;
+    } else {
+      p += ` They have ${sessions.length} existing session${sessions.length !== 1 ? 's' : ''}:\n`;
+      sessions.slice(0, 8).forEach((s, i) => {
+        const name = s.company?.name || s.company || `Session ${i + 1}`;
+        const industry = s.company?.industry ? ` (${s.company.industry})` : '';
+        const phase = s.phase && s.phase !== 'start' ? `, ${s.phase} phase` : '';
+        p += `- ${name}${industry}${phase}\n`;
+      });
+      p += `\nGreet them and offer to continue an existing session or start a new one.`;
+    }
+    p += `\n\nCRITICAL navigation rules — append ONE marker at the end of your reply:\n- User wants a NEW session → append <<NAV:new>>\n- User wants to open an existing session → append <<NAV:ExactCompanyName>> (PascalCase, no spaces, match the list above)\n- Example: "Let's continue TechCorp! <<NAV:TechCorp>>"\n\nKeep responses very short (1-2 sentences). Be warm and direct.`;
+    return p;
+  }
 
   // Update avatar's context as the user navigates between views
   useEffect(() => {
     if (aiView === 'landing') setHubSystemPrompt(LANDING_PROMPT);
-    else if (aiView === 'sessions') setHubSystemPrompt(SESSIONS_PROMPT);
+    else if (aiView === 'sessions') setHubSystemPrompt(buildSessionsPrompt(sessionsForPrompt));
     else if (aiView === 'home') setHubSystemPrompt(HP_DEFAULT_PROMPT);
-  }, [aiView]);
+  }, [aiView, sessionsForPrompt]);
 
   const workerSession = useWorkerSession({
     worker: { id: 'orchestrator', name: 'Alexandra Middleweek' },
@@ -1890,6 +1908,7 @@ function AppInner() {
               onDeleteSession={async (id) => {
                 await fetch(`/api/demo/session/${id}`, { method: 'DELETE' }).catch(() => {});
               }}
+              onSessionsLoaded={(list) => setSessionsForPrompt(list)}
             />
           )}
           {aiView === 'home' && (

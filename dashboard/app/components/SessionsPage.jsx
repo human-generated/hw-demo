@@ -6,6 +6,8 @@ import { CreditBadge } from './CreditBadge';
 
 const H_MASK_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 19 27'%3E%3Cpath d='M4.626%2C0 L4.626%2C10.444 C6.294%2C8.271 8.342%2C7.623 10.466%2C7.623 C15.774%2C7.623 18.125%2C11.244 18.125%2C16.771 L18.121%2C24.668 C16.577%2C24.833 15.036%2C25.005 13.496%2C25.184 L13.499%2C16.809 C13.499%2C13.378 11.717%2C11.930 9.252%2C11.930 C6.522%2C11.930 4.626%2C14.255 4.626%2C17.076 L4.622%2C26.305 C3.744%2C26.424 2.866%2C26.546 1.990%2C26.670 L0%2C26.681 L0%2C0 Z' fill='black'/%3E%3C/svg%3E")`;
 
+const PHOTO_URL = 'https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png';
+
 function UserAvatar({ user, size = 28 }) {
   const [failed, setFailed] = useState(false);
   const initial = user?.name ? user.name[0].toUpperCase() : user?.email ? user.email[0].toUpperCase() : 'U';
@@ -26,72 +28,6 @@ function UserAvatar({ user, size = 28 }) {
   );
 }
 
-// Small live avatar tile shown in header when call is active
-function AvatarLiveTile({ workerSession }) {
-  const videoRef = useRef(null);
-  const { videoTrack, connected, micMuted, toggleMute, interrupt } = workerSession || {};
-
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !videoTrack) return;
-    videoTrack.attach(el);
-    return () => { try { videoTrack.detach(el); } catch {} };
-  }, [videoTrack]);
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      background: 'rgba(0,0,0,0.04)', borderRadius: 12,
-      padding: '5px 12px 5px 5px',
-      border: '1px solid rgba(0,0,0,0.07)',
-    }}>
-      <div style={{
-        width: 38, height: 38, borderRadius: 9, overflow: 'hidden',
-        background: '#c8d4d6', flexShrink: 0, position: 'relative',
-      }}>
-        {connected && videoTrack
-          ? <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <img src="https://workers.paper.design/file-assets/01KJJAHFMKK1JK0Y3F10Q3SX8C/01KJJV6SFRDH7VGM2XBE5PM5HP.png"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-        }
-        {connected && (
-          <div style={{
-            position: 'absolute', bottom: 3, right: 3,
-            width: 7, height: 7, borderRadius: '50%',
-            background: '#34c759', border: '1.5px solid #fff',
-          }} />
-        )}
-      </div>
-      <div>
-        <div style={{ fontSize: '0.73rem', fontWeight: 600, color: '#1a1a1a', lineHeight: 1.2 }}>Alexandra</div>
-        <div style={{ fontSize: '0.63rem', color: connected ? '#34c759' : 'rgba(0,0,0,0.35)', lineHeight: 1.2 }}>
-          {connected ? '● Live' : '○ Connecting…'}
-        </div>
-      </div>
-      {connected && (
-        <div style={{ display: 'flex', gap: 4, marginLeft: 2 }}>
-          <button
-            onClick={() => toggleMute?.()}
-            title={micMuted ? 'Unmute' : 'Mute'}
-            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', background: micMuted ? 'rgba(255,59,48,0.08)' : 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: micMuted ? '#ff3b30' : 'rgba(0,0,0,0.5)' }}>
-            {micMuted
-              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
-              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
-            }
-          </button>
-          <button
-            onClick={() => interrupt?.()}
-            title="Interrupt"
-            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(0,0,0,0.5)' }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 const PHASE_LABELS = { start: 'Starting', research: 'Research', building: 'Building', platforms: 'Platforms', workers: 'Workers' };
 const PHASE_COLORS = { start: '#94a3b8', research: '#3b82f6', building: '#f59e0b', platforms: '#10b981', workers: '#8b5cf6' };
 
@@ -104,21 +40,38 @@ function formatAgo(ts) {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate, onGoAdmin }) {
+export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSession, workerSession, callEnabled, onCreditUpdate, onGoAdmin, onSessionsLoaded }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [credit, setCredit] = useState(5.00);
   const [spent, setSpent] = useState(0);
+  const [textInput, setTextInput] = useState('');
 
+  const {
+    connected, connecting, agentMarkdown, agentText,
+    videoTrack, micMuted, toggleMute, interrupt, sendText,
+  } = workerSession || {};
+
+  // Avatar video attachment
+  const avatarVideoRef = useRef(null);
+  useEffect(() => {
+    const el = avatarVideoRef.current;
+    if (!el || !videoTrack) return;
+    videoTrack.attach(el);
+    return () => { try { videoTrack.detach(el); } catch {} };
+  }, [videoTrack]);
+
+  // Sessions load
   useEffect(() => {
     async function load() {
       try {
         const r = await fetch('/api/demo/sessions');
         const data = await r.json();
-        setSessions(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : [];
+        setSessions(list);
+        onSessionsLoaded?.(list);
       } catch {}
 
-      // Load user credits
       if (user?.email) {
         try {
           const r = await fetch(`/api/demo/user-profile?email=${encodeURIComponent(user.email)}`);
@@ -132,8 +85,41 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
     load();
   }, [user?.email]);
 
+  // Nav marker: <<NAV:new>> → new session; <<NAV:Name>> → open matching session
+  const sessionsRef = useRef(sessions);
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
+
+  useEffect(() => {
+    if (!agentMarkdown) return;
+    const m = agentMarkdown.match(/<<NAV:([^>]+)>>/);
+    if (!m) return;
+    const marker = m[1].trim();
+    if (!marker) return;
+
+    if (marker.toLowerCase() === 'new') {
+      onNewSession?.();
+      return;
+    }
+
+    const lc = marker.toLowerCase().replace(/\s+/g, '');
+    const match = sessionsRef.current.find(s => {
+      const name = (s.company?.name || s.company || '').toLowerCase().replace(/\s+/g, '');
+      return s.id === marker || name === lc || name.includes(lc) || lc.includes(name);
+    });
+    if (match) onSelectSession?.(match);
+  }, [agentMarkdown]);
+
+  const agentMarkdownClean = (agentMarkdown || '').replace(/<<NAV:[^>]+>>/g, '').trim();
+
   const userInitial = user?.name ? user.name[0].toUpperCase() : user?.email ? user.email[0].toUpperCase() : 'U';
   const isAdmin = user?.isAdmin || user?.email === 'dragos.costea@humans.ai';
+
+  function handleSend() {
+    const t = textInput.trim();
+    if (!t || !sendText) return;
+    sendText(t);
+    setTextInput('');
+  }
 
   return (
     <div style={{
@@ -171,7 +157,6 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
         zIndex: 100,
       }}>
-        {/* Logo + User identity */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 22, height: 30, flexShrink: 0,
@@ -228,9 +213,6 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           >
             <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> New Session
           </button>
-          {callEnabled && workerSession && (
-            <AvatarLiveTile workerSession={workerSession} />
-          )}
           <CreditBadge credit={credit} spent={spent} userInitial={userInitial} userImage={user?.image || null} email={user?.email || ''} onCreditUpdate={onCreditUpdate} />
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
@@ -249,60 +231,209 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
         </div>
       </div>
 
-      {/* Content — top padding to clear fixed navbar */}
+      {/* Main content — top padding to clear fixed navbar, row layout */}
       <div style={{
-        flex: 1, overflow: 'auto', position: 'relative', zIndex: 1,
-        padding: '88px 2rem 2rem',
-        display: 'flex', flexDirection: 'column',
+        flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1,
+        paddingTop: 78,
+        display: 'flex', flexDirection: 'row', gap: 0,
       }}>
-        {/* Welcome */}
-        <div style={{ marginBottom: '1.75rem' }}>
-          <h1 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#1a1a1a', letterSpacing: '-0.03em', margin: 0 }}>
-            {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your Sessions'}
-          </h1>
-          <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: '0.85rem', margin: '4px 0 0' }}>
-            {sessions.length > 0 ? `${sessions.length} active session${sessions.length !== 1 ? 's' : ''}` : 'No sessions yet — start your first one below'}
-          </p>
-        </div>
+        {/* ── Agent panel (left) ── */}
+        <div style={{
+          width: 300, flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          padding: '10px 0 16px 16px',
+          gap: 10,
+        }}>
+          {/* Avatar card */}
+          <div style={{
+            flex: '0 0 auto',
+            borderRadius: 18,
+            overflow: 'hidden',
+            background: 'rgba(255,255,255,0.7)',
+            border: '1px solid rgba(255,255,255,0.85)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.07)',
+            aspectRatio: '4/5',
+            position: 'relative',
+          }}>
+            {connected && videoTrack ? (
+              <video
+                ref={avatarVideoRef}
+                autoPlay playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              <img
+                src={PHOTO_URL}
+                alt="Alexandra"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            )}
+            {/* Status badge */}
+            <div style={{
+              position: 'absolute', bottom: 10, left: 10,
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(8px)',
+              borderRadius: 20, padding: '4px 10px 4px 8px',
+            }}>
+              <div style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: connected ? '#34c759' : (connecting ? '#f59e0b' : 'rgba(255,255,255,0.3)'),
+              }} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#fff', letterSpacing: '0.02em' }}>
+                Alexandra
+              </span>
+            </div>
+            {/* Controls */}
+            {connected && (
+              <div style={{
+                position: 'absolute', bottom: 10, right: 10,
+                display: 'flex', gap: 5,
+              }}>
+                <button
+                  onClick={() => toggleMute?.()}
+                  title={micMuted ? 'Unmute' : 'Mute'}
+                  style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: micMuted ? 'rgba(255,59,48,0.7)' : 'rgba(0,0,0,0.35)',
+                    backdropFilter: 'blur(8px)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  }}
+                >
+                  {micMuted
+                    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2a7 7 0 01-.11 1.23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+                    : <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/><path d="M19 10v2a7 7 0 01-14 0v-2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+                  }
+                </button>
+                <button
+                  onClick={() => interrupt?.()}
+                  title="Interrupt"
+                  style={{
+                    width: 28, height: 28, borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(8px)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
+                </button>
+              </div>
+            )}
+          </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.85rem' }}>Loading…</div>
-        ) : sessions.length === 0 ? (
-          /* Empty state */
-          <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.3 }}>✦</div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>No sessions yet</div>
-            <div style={{ fontSize: '0.8rem', color: 'rgba(0,0,0,0.4)', marginBottom: '1.5rem' }}>Start a new session to begin your AI back-office demo</div>
-            <button
-              onClick={onNewSession}
+          {/* Speech bubble */}
+          <div style={{
+            flex: 1,
+            borderRadius: 14,
+            background: 'rgba(255,255,255,0.7)',
+            border: '1px solid rgba(255,255,255,0.85)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+            padding: '12px 14px',
+            overflowY: 'auto',
+            minHeight: 60,
+          }}>
+            {agentMarkdownClean ? (
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#1a1a1a', lineHeight: 1.55, letterSpacing: '-0.01em' }}>
+                {agentMarkdownClean}
+              </p>
+            ) : (
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(0,0,0,0.3)', lineHeight: 1.5 }}>
+                {connecting ? 'Connecting…' : connected ? 'Listening…' : 'Say something or type below'}
+              </p>
+            )}
+          </div>
+
+          {/* Text input */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="text"
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
+              placeholder="Type a message…"
               style={{
-                padding: '0.7rem 1.5rem',
-                background: 'linear-gradient(135deg,#34c759,#30a74f)',
-                color: '#fff', border: 'none', borderRadius: 10,
-                fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+                flex: 1,
+                padding: '8px 12px',
+                borderRadius: 10,
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: 'rgba(255,255,255,0.8)',
+                fontSize: '0.8rem',
+                color: '#1a1a1a',
+                outline: 'none',
                 fontFamily: "'DM Sans', sans-serif",
               }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!textInput.trim() || !sendText}
+              style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                background: textInput.trim() && sendText ? '#1a1a1a' : 'rgba(0,0,0,0.08)',
+                border: 'none', cursor: textInput.trim() && sendText ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: textInput.trim() && sendText ? '#fff' : 'rgba(0,0,0,0.25)',
+                transition: 'background 0.15s',
+              }}
             >
-              + Start First Session
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/><path d="M22 2L15 22 11 13 2 9l20-7z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </button>
           </div>
-        ) : (
-          /* Session grid */
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '1rem',
-          }}>
-            {sessions.map(s => (
-              <SessionCard
-                key={s.id}
-                session={s}
-                onClick={() => onSelectSession?.(s)}
-                onDelete={() => onDeleteSession?.(s.id)}
-              />
-            ))}
+        </div>
+
+        {/* ── Sessions area (right) ── */}
+        <div style={{
+          flex: 1, overflow: 'auto',
+          padding: '10px 16px 16px',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Welcome */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h1 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#1a1a1a', letterSpacing: '-0.03em', margin: 0 }}>
+              {user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Your Sessions'}
+            </h1>
+            <p style={{ color: 'rgba(0,0,0,0.45)', fontSize: '0.85rem', margin: '4px 0 0' }}>
+              {sessions.length > 0 ? `${sessions.length} active session${sessions.length !== 1 ? 's' : ''}` : 'No sessions yet — start your first one below'}
+            </p>
           </div>
-        )}
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'rgba(0,0,0,0.3)', fontSize: '0.85rem' }}>Loading…</div>
+          ) : sessions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '1rem', opacity: 0.3 }}>✦</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>No sessions yet</div>
+              <div style={{ fontSize: '0.8rem', color: 'rgba(0,0,0,0.4)', marginBottom: '1.5rem' }}>Start a new session to begin your AI back-office demo</div>
+              <button
+                onClick={onNewSession}
+                style={{
+                  padding: '0.7rem 1.5rem',
+                  background: 'linear-gradient(135deg,#34c759,#30a74f)',
+                  color: '#fff', border: 'none', borderRadius: 10,
+                  fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
+              >
+                + Start First Session
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '1rem',
+              alignContent: 'start',
+            }}>
+              {sessions.map(s => (
+                <SessionCard
+                  key={s.id}
+                  session={s}
+                  onClick={() => onSelectSession?.(s)}
+                  onDelete={() => onDeleteSession?.(s.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -329,10 +460,9 @@ function SessionCard({ session, onClick, onDelete }) {
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.1)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.06)'; }}
     >
-      {/* Company + phase */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a1a', letterSpacing: '-0.02em', truncate: true, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1a1a1a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {session.company?.name || session.company || 'New Session'}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.4)', marginTop: 1 }}>
@@ -362,7 +492,6 @@ function SessionCard({ session, onClick, onDelete }) {
         </div>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
         {session.platforms?.length > 0 && (
           <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)' }}>
@@ -381,7 +510,6 @@ function SessionCard({ session, onClick, onDelete }) {
         )}
       </div>
 
-      {/* Timestamp */}
       <div style={{ fontSize: '0.68rem', color: 'rgba(0,0,0,0.3)' }}>
         {formatAgo(session.updatedAt || session.created_at)}
       </div>
