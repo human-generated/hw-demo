@@ -48,7 +48,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
 
   const {
     connected, connecting, agentMarkdown, agentText,
-    videoTrack, micMuted, toggleMute, interrupt, sendText, disconnect,
+    videoTrack, micMuted, toggleMute, interrupt, sendText, disconnect, audioElRef,
   } = workerSession || {};
 
   function handleEndCall() {
@@ -454,6 +454,8 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
           )}
         </div>
       </div>
+      {/* Hidden audio element — agent voice track attaches here */}
+      {audioElRef && <audio ref={audioElRef} autoPlay playsInline style={{ display: 'none' }} />}
     </div>
   );
 }

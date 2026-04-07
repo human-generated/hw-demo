@@ -97,7 +97,60 @@ export function LandingPage({ onLogin, workerSession, callEnabled, onCallEnabled
 
   async function handleGoogle() {
     setGoogleLoading(true);
-    await signIn('google', { callbackUrl: window.location.origin + '/' });
+    const callbackUrl = window.location.origin + '/auth-popup-callback';
+    const w = 520, h = 640;
+    const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+    const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
+
+    // Try to get CSRF token so we can POST directly (avoids an extra click inside the popup)
+    let csrfToken = null;
+    try { ({ csrfToken } = await fetch('/api/auth/csrf').then(r => r.json())); } catch {}
+
+    const popup = window.open('', 'google-signin', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`);
+    if (!popup) {
+      // Popup blocked — fall back to full redirect
+      signIn('google', { callbackUrl: window.location.href });
+      return;
+    }
+
+    if (csrfToken) {
+      // Submit form into the popup to start Google OAuth directly
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/signin/google';
+      form.target = 'google-signin';
+      for (const [name, value] of [['csrfToken', csrfToken], ['callbackUrl', callbackUrl]]) {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = value;
+        form.appendChild(inp);
+      }
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } else {
+      // Fallback: navigate popup to NextAuth sign-in page
+      popup.location.href = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+    }
+
+    // Listen for postMessage from callback page, or poll for popup close
+    const onMessage = (e) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'auth-complete') finish();
+    };
+    window.addEventListener('message', onMessage);
+
+    const pollTimer = setInterval(() => { if (popup.closed) finish(); }, 400);
+
+    async function finish() {
+      clearInterval(pollTimer);
+      window.removeEventListener('message', onMessage);
+      try {
+        const { getSession } = await import('next-auth/react');
+        const session = await getSession();
+        if (session?.user) onLogin?.();
+      } catch {}
+      setGoogleLoading(false);
+    }
   }
 
   const inp = {
@@ -269,7 +322,7 @@ export function LandingPage({ onLogin, workerSession, callEnabled, onCallEnabled
             onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
           >
             <GoogleIcon />
-            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+            {googleLoading ? 'Waiting for Google…' : 'Continue with Google'}
           </button>
 
           {/* Divider */}
