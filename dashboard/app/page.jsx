@@ -1064,7 +1064,7 @@ function AppInner() {
     videoEnabled: hubVideoEnabled,
     systemPrompt: hubSystemPrompt,
     personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
-    mode: aiView === 'home' ? 'homepage' : 'workspace',
+    mode: (aiView === 'home' || aiView === 'landing' || aiView === 'sessions') ? 'homepage' : 'workspace',
   });
 
   // Per-minute call billing: $0.06/min while avatar is connected (Anam + Deepgram + LiveKit)
