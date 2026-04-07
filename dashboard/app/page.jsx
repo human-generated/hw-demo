@@ -900,10 +900,23 @@ function AppInner() {
   const [hubCompanyName, setHubCompanyName] = useState(null);
   const [sessionCredit, setSessionCredit] = useState(5.00);
   const [totalSpent, setTotalSpent] = useState(0);
-  const addCost = useCallback((amount) => {
+  const userEmailRef = useRef(null);
+  useEffect(() => { userEmailRef.current = authSession?.user?.email || null; }, [authSession?.user?.email]);
+
+  const addCost = useCallback((amount, type = 'voice') => {
     setSessionCredit(prev => Math.max(0, parseFloat((prev - amount).toFixed(4))));
     setTotalSpent(prev => parseFloat((prev + amount).toFixed(4)));
+    // Persist to server (fire-and-forget)
+    const email = userEmailRef.current;
+    if (email) {
+      fetch('/api/demo/user-profile/deduct', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, amount, type }),
+      }).catch(() => {});
+    }
   }, []);
+
   // Load user credits from profile on login
   useEffect(() => {
     if (!authSession?.user?.email) return;
@@ -1053,6 +1066,17 @@ function AppInner() {
     personaId: '6ccddf38-aed1-4bbb-9809-fc92986eb436',
     mode: aiView === 'home' ? 'homepage' : 'workspace',
   });
+
+  // Per-minute call billing: $0.06/min while avatar is connected (Anam + Deepgram + LiveKit)
+  const callBillingRef = useRef(null);
+  useEffect(() => {
+    if (workerSession?.connected) {
+      callBillingRef.current = setInterval(() => addCost(0.06, 'voice'), 60000);
+    } else {
+      if (callBillingRef.current) { clearInterval(callBillingRef.current); callBillingRef.current = null; }
+    }
+    return () => { if (callBillingRef.current) { clearInterval(callBillingRef.current); callBillingRef.current = null; } };
+  }, [workerSession?.connected, addCost]);
 
   // Keep address bar in sync with current view (for debugging + bookmarking)
   useEffect(() => {
