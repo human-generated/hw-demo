@@ -49,6 +49,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
   const {
     connected, connecting, agentMarkdown, agentText,
     videoTrack, micMuted, toggleMute, interrupt, sendText, disconnect, audioElRef,
+    preUnlockAudio,
   } = workerSession || {};
 
   function handleEndCall() {
@@ -255,7 +256,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
               <img
                 src={PHOTO_URL}
                 alt="Alexandra"
-                onClick={!connecting && onCallEnabled ? onCallEnabled : undefined}
+                onClick={!connecting && onCallEnabled ? () => { preUnlockAudio?.(); onCallEnabled(); } : undefined}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', cursor: !connecting && onCallEnabled ? 'pointer' : 'default' }}
               />
             )}
@@ -277,7 +278,7 @@ export function SessionsPage({ user, onNewSession, onSelectSession, onDeleteSess
             {/* Controls — start call or in-call controls */}
             {!connected && !connecting && onCallEnabled && (
               <button
-                onClick={onCallEnabled}
+                onClick={() => { preUnlockAudio?.(); onCallEnabled?.(); }}
                 title="Start call with Alexandra"
                 style={{
                   position: 'absolute', bottom: 10, right: 10,
