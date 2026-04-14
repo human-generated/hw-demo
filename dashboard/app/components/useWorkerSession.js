@@ -286,26 +286,19 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     );
   }
 
-  // Pre-unlock audio during the call button click (MUST be called synchronously in a user gesture)
-  // This unlocks the browser's autoplay policy so that room.startAudio() works when the room
-  // eventually connects (which happens async, outside of the user gesture context).
+  // Pre-unlock audio during the call button click (MUST be called synchronously in a user gesture).
+  // Creates a throwaway AudioContext and immediately resumes+closes it — this marks the document
+  // as user-activated so LiveKit's internal AudioContext can auto-start when the room connects
+  // (which happens async, outside of the user gesture context).
+  // NOTE: we close the AC right after resume to avoid interfering with the Deepgram STT AudioContext.
   const preUnlockAudio = useCallback(() => {
-    // 1. Resume/create a throwaway AudioContext — this marks the document as user-activated
-    //    and allows future AudioContext operations (including LiveKit's internal one) to auto-start.
-    try { new (window.AudioContext || window.webkitAudioContext)().resume().catch(() => {}); } catch {}
-    // 2. Pre-unlock the <audio> element by loading a silent 0.1s WAV and playing it.
-    //    Once played, the element is "trusted" and LiveKit can attach tracks without a second click.
     try {
-      if (audioElRef.current) {
-        const el = audioElRef.current;
-        const prev = el.src;
-        el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-        el.play().then(() => {
-          el.pause();
-          el.src = prev || '';
-          el.load();
-        }).catch(() => { el.src = prev || ''; });
-      }
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ac = new Ctx();
+      ac.resume()
+        .then(() => ac.close())
+        .catch(() => { try { ac.close(); } catch {} });
     } catch {}
   }, []);
 
