@@ -308,6 +308,7 @@ export function Workspace({
     agentText,
     agentMarkdown,
     agentAction,
+    agentMarker,
     needsAudioResume,
     resumeAudio,
     sendText,
@@ -340,14 +341,35 @@ export function Workspace({
   useEffect(() => {
     if (!agentMarkdown || agentMarkdown === lastAgentMarkdownRef.current) return;
     lastAgentMarkdownRef.current = agentMarkdown;
+    // Strip <<MARKER:...>> tokens from chat display (they're UI signals, not content)
+    const cleaned = agentMarkdown.replace(/<<[A-Z_]+(?::[^>]*)?>>/g, '').trim();
+    if (!cleaned) return;
     setMessages(prev => {
       const hasDefault = prev.some(m => m._isDefault);
       if (hasDefault) {
-        return prev.map(m => m._isDefault ? { ...m, text: agentMarkdown, _isDefault: false } : m);
+        return prev.map(m => m._isDefault ? { ...m, text: cleaned, _isDefault: false } : m);
       }
-      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: agentMarkdown, time: 'Just now', isUser: false }];
+      return [...prev, { id: ++msgSeqRef.current, author: 'ALEXANDRA', text: cleaned, time: 'Just now', isUser: false }];
     });
   }, [agentMarkdown]);
+
+  // ── Banner from agent markers (BUILD, WORKERS, RESEARCH…) ──────────────────
+  const [markerBanner, setMarkerBanner] = useState(null);
+  const lastMarkerTsRef = useRef(0);
+  useEffect(() => {
+    if (!agentMarker || agentMarker._ts <= lastMarkerTsRef.current) return;
+    lastMarkerTsRef.current = agentMarker._ts;
+    const labels = {
+      BUILD: 'Deploying platforms',
+      WORKERS: 'Proposing AI workers',
+      RESEARCH: 'Researching company',
+      MODIFY: 'Updating platforms',
+    };
+    const label = labels[agentMarker.marker] || agentMarker.marker;
+    setMarkerBanner({ label, names: agentMarker.names, _ts: agentMarker._ts });
+    const t = setTimeout(() => setMarkerBanner(b => (b && b._ts === agentMarker._ts ? null : b)), 6000);
+    return () => clearTimeout(t);
+  }, [agentMarker]);
 
   // ── Handle voice-driven actions from agent (build platforms, propose workers…) ──
   const lastAgentActionTsRef = useRef(0);
@@ -1263,6 +1285,23 @@ export function Workspace({
         colors={['#E0EAFF', '#FFFFFF', '#AEE8E2', '#D4EAED']}
       />
 
+      {markerBanner && (
+        <div style={{
+          position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px) saturate(160%)',
+          border: '1px solid rgba(52,199,89,0.35)', borderRadius: 14,
+          padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 10px 30px rgba(0,0,0,0.08)', zIndex: 1000,
+          animation: 'ws-banner-in 0.35s ease-out',
+          fontFamily: "'DM Sans', sans-serif",
+        }}>
+          <div style={{ width: 16, height: 16, border: '2px solid rgba(52,199,89,0.25)', borderTopColor: '#34c759', borderRadius: '50%', animation: 'spin 0.9s linear infinite' }} />
+          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1a1a1a' }}>{markerBanner.label}</span>
+          {markerBanner.names && <span style={{ fontSize: '0.72rem', color: 'rgba(0,0,0,0.5)', fontFamily: 'monospace' }}>{markerBanner.names}</span>}
+          <style>{`@keyframes ws-banner-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
+        </div>
+      )}
+
       <nav className="ws-menu">
         <div className="ws-menu-left">
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: '#1a1a1a', borderRadius: 6, flexShrink: 0 }}>
@@ -1919,10 +1958,30 @@ export function Workspace({
           <div style={{ borderTop: '1px solid rgba(0,0,0,0.05)', padding: '1.5rem' }}>
             <Spinner msg={buildingMsg} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-              {proposedPlatforms.filter(p => p._selected !== false).map(p => (
-                <div key={p.id} style={{ padding: '4px 10px', background: 'rgba(52,199,89,0.1)', borderRadius: 8, fontSize: '0.7rem', color: '#1a1a1a', border: '1px solid rgba(52,199,89,0.2)' }}>{p.actual_software || p.name}</div>
+              {proposedPlatforms.filter(p => p._selected !== false).map((p, i) => (
+                <div key={p.id} style={{
+                  padding: '6px 12px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600, color: '#15803d',
+                  border: '1px solid rgba(52,199,89,0.3)',
+                  background: 'linear-gradient(90deg, rgba(52,199,89,0.08) 0%, rgba(52,199,89,0.22) 50%, rgba(52,199,89,0.08) 100%)',
+                  backgroundSize: '200% 100%',
+                  animation: `ws-shimmer 1.8s ease-in-out ${i * 0.15}s infinite`,
+                }}>
+                  {p.actual_software || p.name}
+                </div>
               ))}
             </div>
+            <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: `repeat(${Math.min(proposedPlatforms.filter(p => p._selected !== false).length, 3)}, 1fr)`, gap: 10 }}>
+              {proposedPlatforms.filter(p => p._selected !== false).slice(0, 6).map((p, i) => (
+                <div key={'sk-' + p.id} style={{
+                  height: 90, borderRadius: 10, border: '1px solid rgba(0,0,0,0.06)',
+                  background: 'linear-gradient(110deg, rgba(255,255,255,0.9) 8%, rgba(52,199,89,0.12) 18%, rgba(255,255,255,0.9) 33%)',
+                  backgroundSize: '200% 100%',
+                  animation: `ws-shimmer 1.8s linear ${i * 0.12}s infinite`,
+                  display: 'flex', alignItems: 'flex-end', padding: '0.6rem', fontSize: '0.6rem', color: 'rgba(0,0,0,0.35)', fontFamily: 'monospace', letterSpacing: '0.04em',
+                }}>{p.actual_software || p.name}</div>
+              ))}
+            </div>
+            <style>{`@keyframes ws-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
           </div>
         )}
 

@@ -25,6 +25,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
   const [agentMarkdown, setAgentMarkdown] = useState('');
   const [videoTrack, setVideoTrack] = useState(null);
   const [agentAction, setAgentAction] = useState(null);
+  const [agentMarker, setAgentMarker] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false);
   const [needsAudioResume, setNeedsAudioResume] = useState(false);
@@ -85,6 +86,8 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
             const msg = JSON.parse(new TextDecoder().decode(payload));
             if (msg.type === 'voice_action' && msg.action) {
               setAgentAction({ ...msg.action, _ts: Date.now() });
+            } else if (msg.type === 'agent_marker' && msg.marker) {
+              setAgentMarker({ marker: msg.marker, names: msg.names || '', _ts: Date.now() });
             } else if (msg.type === 'agent_reply' && msg.markdown) {
               // Rich markdown reply from agent — used for chat display
               setAgentMarkdown(msg.markdown);
@@ -405,6 +408,7 @@ export function useWorkerSession({ worker, sessionId, enabled, audioEnabled = tr
     agentText,
     agentMarkdown,
     agentAction,
+    agentMarker,
     videoTrack,
     micMuted,
     needsAudioResume,

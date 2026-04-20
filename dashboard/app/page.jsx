@@ -1053,6 +1053,11 @@ function AppInner() {
     if (aiView === 'landing') setHubSystemPrompt(LANDING_PROMPT);
     else if (aiView === 'sessions') setHubSystemPrompt(buildSessionsPrompt(sessionsForPrompt));
     else if (aiView === 'home') setHubSystemPrompt(HP_DEFAULT_PROMPT);
+    else if (aiView === 'workspace') {
+      // In workspace mode the agent routes through /demo/orchestrate (server-side prompt),
+      // so this client prompt is only used as a fallback. Keep it aligned with workspace intent.
+      setHubSystemPrompt(`You are Alexandra Middleweek, deployment specialist. The user is in their workspace reviewing their company setup. When they ask to deploy, build, or set up platforms or workers, the server handles the action — you just need to confirm what you're doing in 1 short sentence and append a marker like <<BUILD:platform1,platform2>> at the end naming what you're deploying. Keep responses very short.`);
+    }
   }, [aiView, sessionsForPrompt]);
 
   const workerSession = useWorkerSession({
